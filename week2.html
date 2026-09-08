@@ -13,14 +13,15 @@
   <aside class="sidebar" id="sidebar">
     <div class="brand"><span class="brand-mark"></span><span class="eyebrow">DevOps Ramp Plan</span></div>
     <h1>Week 2</h1>
-    <div class="tagline">Compute, networking, data &amp; observability</div>
 
+    <span class="eyebrow">Jump to week</span>
     <div class="week-switch">
-      <a href="index.html" class="week-tab">Week 1</a>
-      <a href="week2.html" class="week-tab active">Week 2</a>
-      <span class="week-tab disabled">Week 3</span>
+      <a href="index.html" class="week-tab" title="Week 1 — Delivery Principles &amp; AWS Foundations">1</a>
+      <a href="week2.html" class="week-tab active" title="Week 2 — Compute, Networking, Data &amp; Observability">2</a>
+      <a href="week3.html" class="week-tab" title="Week 3 — Containers, ECS Fargate &amp; EKS">3</a>
+      <a href="week4.html" class="week-tab" title="Week 4 — The Platform as Code">4</a>
+      <a href="week5.html" class="week-tab" title="Week 5 — Delivery Pipeline &amp; Readiness Review">5</a>
     </div>
-
     <div class="progress-card">
       <div class="p-row"><span>A2 Checklist</span><span id="progress-count">0 / 12</span></div>
       <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
@@ -75,7 +76,7 @@
           </ul>
         </li>
         <li>
-          <a class="day-link" href="#d9"><span class="day-num">09</span> Build Day + Checkpoint&nbsp;1</a>
+          <a class="day-link" href="#d9"><span class="day-num">09</span> Build Day + Checkpoint 1</a>
         </li>
         <li><a class="day-link checklist-link" href="#checklist"><span class="day-num">✓</span> A2 Checklist</a></li>
       </ul>
@@ -83,53 +84,50 @@
   </aside>
 
   <main>
-    <div class="hero">
-      <span class="eyebrow">Assignment A2 · Full Stack Build</span>
-      <h1>Compute, Networking, Data &amp; Observability</h1>
-      <p class="goal">Stand up a fully working stack — VPC + EC2/ASG + ALB + RDS + S3 + monitoring — with an architecture diagram, cost estimate, and every design choice defensible.</p>
-      <div class="deliverables">
-        <span class="eyebrow">Required deliverables</span>
-        <ol>
-          <li>EC2 instances behind an Auto Scaling Group with scaling policies</li>
-          <li>ALB with listener rules, health checks, and TLS termination</li>
-          <li>RDS Multi-AZ with automated backups and a tested recovery plan</li>
-          <li>S3 bucket with lifecycle policies and versioning</li>
-          <li>Secrets Manager for database credentials with rotation</li>
-          <li>CloudWatch dashboards, alarms, and log groups</li>
-          <li>Architecture diagram showing all components and data flow</li>
-          <li>Cost estimate vs $60 budget</li>
-        </ol>
-      </div>
-    </div>
-
-    <!-- ===================== DAY 5 ===================== -->
-    <details class="day" id="d5" open>
-      <summary><span class="day-badge">05</span><span class="day-title"><h2>EC2, AMIs &amp; Auto Scaling</h2><div class="day-sub">01 Sep (Mon) — Compute foundations</div></span><span class="chev"></span></summary>
-      <div class="day-body">
-
-        <details class="sub" id="d5-1">
-          <summary><span class="sub-num">5.1</span><h3>Launching an EC2 Instance</h3><span class="chev-sm"></span></summary>
-          <div class="sub-content">
-            <p>An EC2 instance is a virtual server. You choose four things when you launch one:</p>
-            <dl class="termlist">
-              <dt>AMI (Amazon Machine Image)</dt>
-              <dd>The template — which OS, which pre-installed software. Amazon Linux 2023, Ubuntu 24.04, or your own custom image.</dd>
-              <dt>Instance type</dt>
-              <dd>The hardware — how much CPU and RAM. <code>t3.micro</code> (2 vCPU, 1 GB) is free tier. <code>m5.xlarge</code> (4 vCPU, 16 GB) is production-grade.</dd>
-              <dt>Key pair</dt>
-              <dd>SSH key for logging in. Create once, reuse. Download the <code>.pem</code> file and keep it safe — you can't download it again.</dd>
-              <dt>Network settings</dt>
-              <dd>Which VPC, which subnet, which security group. This determines who can reach the instance and what it can reach.</dd>
-            </dl>
-
-            <h4 class="mini">Step 1: Find the latest AMI</h4>
-            <p>AMIs get deprecated regularly. Always search for the current one:</p>
-            <pre data-lang="bash"># Latest Amazon Linux 2023
+<div class="hero">
+<span class="eyebrow">Assignment A2 · Full Stack Build</span>
+<h1>Compute, Networking, Data &amp; Observability</h1>
+<p class="goal">Stand up a fully working stack — VPC + EC2/ASG + ALB + RDS + S3 + monitoring — with an architecture diagram, cost estimate, and every design choice defensible.</p>
+<div class="deliverables">
+<span class="eyebrow">Required deliverables</span>
+<ol>
+<li>EC2 instances behind an Auto Scaling Group with scaling policies</li>
+<li>ALB with listener rules, health checks, and TLS termination</li>
+<li>RDS Multi-AZ with automated backups and a tested recovery plan</li>
+<li>S3 bucket with lifecycle policies and versioning</li>
+<li>Secrets Manager for database credentials with rotation</li>
+<li>CloudWatch dashboards, alarms, and log groups</li>
+<li>Architecture diagram showing all components and data flow</li>
+<li>Cost estimate vs $60 budget</li>
+</ol>
+</div>
+</div>
+<!-- ===================== DAY 5 ===================== -->
+<details class="day" id="d5" open="">
+<summary><span class="day-badge">05</span><span class="day-title"><h2>EC2, AMIs &amp; Auto Scaling</h2><div class="day-sub">01 Sep (Mon) — Compute foundations</div></span><span class="chev"></span></summary>
+<div class="day-body">
+<details class="sub" id="d5-1">
+<summary><span class="sub-num">5.1</span><h3>Launching an EC2 Instance</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>An EC2 instance is a virtual server. You choose four things when you launch one:</p>
+<dl class="termlist">
+<dt>AMI (Amazon Machine Image)</dt>
+<dd>The template — which OS, which pre-installed software. Amazon Linux 2023, Ubuntu 24.04, or your own custom image.</dd>
+<dt>Instance type</dt>
+<dd>The hardware — how much CPU and RAM. <code>t3.micro</code> (2 vCPU, 1 GB) is free tier. <code>m5.xlarge</code> (4 vCPU, 16 GB) is production-grade.</dd>
+<dt>Key pair</dt>
+<dd>SSH key for logging in. Create once, reuse. Download the <code>.pem</code> file and keep it safe — you can't download it again.</dd>
+<dt>Network settings</dt>
+<dd>Which VPC, which subnet, which security group. This determines who can reach the instance and what it can reach.</dd>
+</dl>
+<h4 class="mini">Step 1: Find the latest AMI</h4>
+<p>AMIs get deprecated regularly. Always search for the current one:</p>
+<pre data-lang="bash"># Latest Amazon Linux 2023
 aws ec2 describe-images \
   --owners amazon \
   --filters "Name=name,Values=al2023-ami-2023*-x86_64" \
             "Name=state,Values=available" \
-  --query "Images | sort_by(@, &CreationDate) | [-1].{ID:ImageId,Name:Name}" \
+  --query "Images | sort_by(@, &amp;CreationDate) | [-1].{ID:ImageId,Name:Name}" \
   --output table
 
 # Latest Ubuntu 24.04
@@ -137,18 +135,16 @@ aws ec2 describe-images \
   --owners 099720109477 \
   --filters "Name=name,Values=ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-*" \
             "Name=state,Values=available" \
-  --query "Images | sort_by(@, &CreationDate) | [-1].{ID:ImageId,Name:Name}" \
+  --query "Images | sort_by(@, &amp;CreationDate) | [-1].{ID:ImageId,Name:Name}" \
   --output table</pre>
-
-            <h4 class="mini">Step 2: Check which instance types are free tier</h4>
-            <pre data-lang="bash">aws ec2 describe-instance-types \
+<h4 class="mini">Step 2: Check which instance types are free tier</h4>
+<pre data-lang="bash">aws ec2 describe-instance-types \
   --filters "Name=free-tier-eligible,Values=true" \
   --query "InstanceTypes[].InstanceType" \
   --output table</pre>
-            <div class="fact fact-fail"><span class="tag">Gotcha</span><p><code>t2.micro</code> is no longer free tier on newer accounts — it's been replaced by <code>t3.micro</code>. Always check with the command above before launching.</p></div>
-
-            <h4 class="mini">Step 3: Find your VPC subnets and security groups</h4>
-            <pre data-lang="bash"># List subnets in your hand-built VPC
+<div class="fact fact-fail"><span class="tag">Gotcha</span><p><code>t2.micro</code> is no longer free tier on newer accounts — it's been replaced by <code>t3.micro</code>. Always check with the command above before launching.</p></div>
+<h4 class="mini">Step 3: Find your VPC subnets and security groups</h4>
+<pre data-lang="bash"># List subnets in your hand-built VPC
 aws ec2 describe-subnets \
   --filters "Name=vpc-id,Values=vpc-0123456789abcdef0" \
   --query "Subnets[].{ID:SubnetId,Name:Tags[?Key=='Name']|[0].Value,CIDR:CidrBlock}" \
@@ -159,10 +155,9 @@ aws ec2 describe-security-groups \
   --filters "Name=vpc-id,Values=vpc-0123456789abcdef0" \
   --query "SecurityGroups[].{ID:GroupId,Name:GroupName}" \
   --output table</pre>
-            <div class="fact fact-fail"><span class="tag">Common mistake</span><p>Using the default VPC subnet (<code>172.31.x.x</code>) instead of your hand-built VPC subnet (<code>10.0.x.x</code>). Always verify the subnet ID belongs to <code>vpc-0123456789abcdef0</code>, not <code>vpc-0fedcba9876543210</code> (the default).</p></div>
-
-            <h4 class="mini">Step 4: Create security groups if missing</h4>
-            <pre data-lang="bash"># ALB security group
+<div class="fact fact-fail"><span class="tag">Common mistake</span><p>Using the default VPC subnet (<code>172.31.x.x</code>) instead of your hand-built VPC subnet (<code>10.0.x.x</code>). Always verify the subnet ID belongs to <code>vpc-0123456789abcdef0</code>, not <code>vpc-0fedcba9876543210</code> (the default).</p></div>
+<h4 class="mini">Step 4: Create security groups if missing</h4>
+<pre data-lang="bash"># ALB security group
 aws ec2 create-security-group \
   --group-name fahad-alb-sg \
   --description "ALB - allows HTTPS/HTTP from internet" \
@@ -182,9 +177,8 @@ aws ec2 create-security-group \
   --description "Database - allows traffic from App only" \
   --vpc-id vpc-0123456789abcdef0 \
   --query "GroupId" --output text</pre>
-
-            <h4 class="mini">Step 5: Add inbound rules (the chain)</h4>
-            <pre data-lang="bash"># ALB-sg: allow HTTPS and HTTP from internet
+<h4 class="mini">Step 5: Add inbound rules (the chain)</h4>
+<pre data-lang="bash"># ALB-sg: allow HTTPS and HTTP from internet
 aws ec2 authorize-security-group-ingress \
   --group-id &lt;ALB_SG_ID&gt; \
   --protocol tcp --port 443 --cidr 0.0.0.0/0
@@ -204,9 +198,8 @@ aws ec2 authorize-security-group-ingress \
   --group-id &lt;DB_SG_ID&gt; \
   --protocol tcp --port 5432 \
   --source-group &lt;APP_SG_ID&gt;</pre>
-
-            <h4 class="mini">Step 6: Launch the instance</h4>
-            <pre data-lang="bash">aws ec2 run-instances \
+<h4 class="mini">Step 6: Launch the instance</h4>
+<pre data-lang="bash">aws ec2 run-instances \
   --image-id &lt;AMI_ID_FROM_STEP_1&gt; \
   --instance-type t3.micro \
   --key-name devopsKeypair \
@@ -220,17 +213,15 @@ aws ec2 authorize-security-group-ingress \
     {Key=Project,Value=ecommerce-platform},
     {Key=ManagedBy,Value=manual}
   ]'</pre>
-
-            <h4 class="mini">Step 7: Verify it landed in the right VPC</h4>
-            <pre data-lang="bash"># Check — IP should be 10.0.10.x, NOT 172.31.x.x
+<h4 class="mini">Step 7: Verify it landed in the right VPC</h4>
+<pre data-lang="bash"># Check — IP should be 10.0.10.x, NOT 172.31.x.x
 aws ec2 describe-instances \
   --filters "Name=tag:Name,Values=fahad-web-dev" \
             "Name=instance-state-name,Values=running" \
   --query "Reservations[].Instances[].{ID:InstanceId,IP:PrivateIpAddress,Subnet:SubnetId,VPC:VpcId,State:State.Name}" \
   --output table</pre>
-
-            <h4 class="mini">Manage instances</h4>
-            <pre data-lang="bash"># List all running instances (clean table view)
+<h4 class="mini">Manage instances</h4>
+<pre data-lang="bash"># List all running instances (clean table view)
 aws ec2 describe-instances \
   --filters "Name=instance-state-name,Values=running" \
   --query "Reservations[].Instances[].{ID:InstanceId,State:State.Name,Type:InstanceType,IP:PrivateIpAddress,Name:Tags[?Key=='Name']|[0].Value}" \
@@ -247,37 +238,34 @@ aws ec2 terminate-instances --instance-ids i-xxxxx
 
 # Terminate multiple at once
 aws ec2 terminate-instances --instance-ids i-aaa111 i-bbb222 i-ccc333</pre>
-            <div class="fact fact-note"><span class="tag">Free tier</span><p>750 hours/month of <code>t3.micro</code> for 12 months. One instance 24/7 fits exactly. Two running simultaneously = the second one costs ~$7.50/month. Always check <code>aws ec2 describe-instances</code> to know what's running.</p></div>
-          </div>
-        </details>
-
-        <details class="sub" id="d5-2">
-          <summary><span class="sub-num">5.2</span><h3>User-Data Bootstrap Script</h3><span class="chev-sm"></span></summary>
-          <div class="sub-content">
-            <p>A shell script that runs automatically on first boot, as root. Used to install packages, configure services, and prepare the instance for its role.</p>
-            <pre data-lang="bash">#!/bin/bash
+<div class="fact fact-note"><span class="tag">Free tier</span><p>750 hours/month of <code>t3.micro</code> for 12 months. One instance 24/7 fits exactly. Two running simultaneously = the second one costs ~$7.50/month. Always check <code>aws ec2 describe-instances</code> to know what's running.</p></div>
+</div>
+</details>
+<details class="sub" id="d5-2">
+<summary><span class="sub-num">5.2</span><h3>User-Data Bootstrap Script</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>A shell script that runs automatically on first boot, as root. Used to install packages, configure services, and prepare the instance for its role.</p>
+<pre data-lang="bash">#!/bin/bash
 yum update -y
 yum install -y httpd
 systemctl start httpd
 systemctl enable httpd
-echo "&lt;h1&gt;Hello from $(hostname)&lt;/h1&gt;" > /var/www/html/index.html</pre>
-            <p>Pass it when launching:</p>
-            <pre data-lang="bash">aws ec2 run-instances \
+echo "&lt;h1&gt;Hello from $(hostname)&lt;/h1&gt;" &gt; /var/www/html/index.html</pre>
+<p>Pass it when launching:</p>
+<pre data-lang="bash">aws ec2 run-instances \
   --user-data file://bootstrap.sh \
   ...</pre>
-            <div class="fact fact-fail"><span class="tag">Failure mode</span><p>User-data runs once on first boot only. If it fails silently, the instance looks "running" but isn't configured. Check <code>/var/log/cloud-init-output.log</code> to debug.</p></div>
-            <div class="fact fact-good"><span class="tag">Best practice</span><p>Keep user-data short — install an agent, pull config from S3 or Parameter Store. Heavy installs belong in a Golden AMI (next section) for faster boot times.</p></div>
-          </div>
-        </details>
-
-        <details class="sub" id="d5-3">
-          <summary><span class="sub-num">5.3</span><h3>Golden AMI Pipeline</h3><span class="chev-sm"></span></summary>
-          <div class="sub-content">
-            <p>Instead of installing everything via user-data on every boot, you bake a <strong>Golden AMI</strong> — a pre-configured image with all dependencies already installed. Instances boot in ~30 seconds instead of ~4 minutes.</p>
-
-            <h4 class="mini">Step 1: Launch a base instance in a public subnet</h4>
-            <p>You need to SSH into this instance to install packages, so it must be in a <strong>public subnet</strong> with internet access and a security group that allows SSH.</p>
-            <pre data-lang="bash"># Launch in fahad-public-a with ALB security group
+<div class="fact fact-fail"><span class="tag">Failure mode</span><p>User-data runs once on first boot only. If it fails silently, the instance looks "running" but isn't configured. Check <code>/var/log/cloud-init-output.log</code> to debug.</p></div>
+<div class="fact fact-good"><span class="tag">Best practice</span><p>Keep user-data short — install an agent, pull config from S3 or Parameter Store. Heavy installs belong in a Golden AMI (next section) for faster boot times.</p></div>
+</div>
+</details>
+<details class="sub" id="d5-3">
+<summary><span class="sub-num">5.3</span><h3>Golden AMI Pipeline</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>Instead of installing everything via user-data on every boot, you bake a <strong>Golden AMI</strong> — a pre-configured image with all dependencies already installed. Instances boot in ~30 seconds instead of ~4 minutes.</p>
+<h4 class="mini">Step 1: Launch a base instance in a public subnet</h4>
+<p>You need to SSH into this instance to install packages, so it must be in a <strong>public subnet</strong> with internet access and a security group that allows SSH.</p>
+<pre data-lang="bash"># Launch in fahad-public-a with ALB security group
 aws ec2 run-instances \
   --image-id ami-0aaaaaaaaaaaaaaaa \
   --instance-type t3.micro \
@@ -290,20 +278,18 @@ aws ec2 run-instances \
     {Key=Owner,Value=fahad}
   ]' \
   --profile fahad</pre>
-            <div class="fact fact-fail"><span class="tag">Don't use an existing project instance</span><p>Never bake a Golden AMI from an instance running a project (like nsl-ledgerly). It has project-specific code, credentials, logs, and SSH history that would leak into every new instance. Always start from a fresh base AMI.</p></div>
-
-            <h4 class="mini">Step 2: Wait for the instance to be running, get its public IP</h4>
-            <pre data-lang="bash"># Wait ~30 seconds, then check (pending → running takes time)
+<div class="fact fact-fail"><span class="tag">Don't use an existing project instance</span><p>Never bake a Golden AMI from an instance running a project (like nsl-ledgerly). It has project-specific code, credentials, logs, and SSH history that would leak into every new instance. Always start from a fresh base AMI.</p></div>
+<h4 class="mini">Step 2: Wait for the instance to be running, get its public IP</h4>
+<pre data-lang="bash"># Wait ~30 seconds, then check (pending → running takes time)
 aws ec2 describe-instances \
   --instance-ids &lt;INSTANCE_ID&gt; \
   --query "Reservations[0].Instances[0].{PublicIP:PublicIpAddress,State:State.Name}" \
   --output table \
   --profile fahad</pre>
-            <div class="fact fact-note"><span class="tag">Why wait 30 seconds?</span><p>When you launch, the state is <code>pending</code> — AWS is finding a server, attaching the EBS volume, starting the VM, and assigning a public IP. Until the state becomes <code>running</code>, there's no public IP. That's why <code>PublicDnsName</code> is empty in the launch output.</p></div>
-
-            <h4 class="mini">Step 3: Ensure SSH access (port 22)</h4>
-            <p>Check if port 22 is open in your security group:</p>
-            <pre data-lang="bash"># Check existing rules
+<div class="fact fact-note"><span class="tag">Why wait 30 seconds?</span><p>When you launch, the state is <code>pending</code> — AWS is finding a server, attaching the EBS volume, starting the VM, and assigning a public IP. Until the state becomes <code>running</code>, there's no public IP. That's why <code>PublicDnsName</code> is empty in the launch output.</p></div>
+<h4 class="mini">Step 3: Ensure SSH access (port 22)</h4>
+<p>Check if port 22 is open in your security group:</p>
+<pre data-lang="bash"># Check existing rules
 aws ec2 describe-security-groups \
   --group-ids sg-0aaa00001111bbbb \
   --query "SecurityGroups[0].IpPermissions[].{Port:FromPort}" \
@@ -315,14 +301,12 @@ aws ec2 authorize-security-group-ingress \
   --group-id sg-0aaa00001111bbbb \
   --protocol tcp --port 22 --cidr 0.0.0.0/0 \
   --profile fahad</pre>
-            <div class="fact fact-note"><span class="tag">Why port 22?</span><p>Port 22 = SSH, the protocol for remote login to Linux servers. Security groups block everything by default. Without a port 22 rule, your SSH connection is silently dropped — no error, just a timeout. The ALB security group only has 80 (HTTP) and 443 (HTTPS), which is correct for web traffic but doesn't include SSH.</p></div>
-
-            <h4 class="mini">Troubleshooting: SSH hangs at "Connecting"</h4>
-            <p>If <code>ssh -v</code> shows <code>debug1: Connecting to x.x.x.x port 22.</code> and then hangs, check these three things in order:</p>
-
-            <p><strong>Problem 1: Route table not associated with the public subnet</strong></p>
-            <p>This is the most common issue. You created <code>fahad-public-rt</code> with the IGW route, but forgot to associate it with the public subnets. Without association, the subnet uses the VPC's main route table (which has no internet route).</p>
-            <pre data-lang="bash"># Check: does the public subnet have a route table?
+<div class="fact fact-note"><span class="tag">Why port 22?</span><p>Port 22 = SSH, the protocol for remote login to Linux servers. Security groups block everything by default. Without a port 22 rule, your SSH connection is silently dropped — no error, just a timeout. The ALB security group only has 80 (HTTP) and 443 (HTTPS), which is correct for web traffic but doesn't include SSH.</p></div>
+<h4 class="mini">Troubleshooting: SSH hangs at "Connecting"</h4>
+<p>If <code>ssh -v</code> shows <code>debug1: Connecting to x.x.x.x port 22.</code> and then hangs, check these three things in order:</p>
+<p><strong>Problem 1: Route table not associated with the public subnet</strong></p>
+<p>This is the most common issue. You created <code>fahad-public-rt</code> with the IGW route, but forgot to associate it with the public subnets. Without association, the subnet uses the VPC's main route table (which has no internet route).</p>
+<pre data-lang="bash"># Check: does the public subnet have a route table?
 aws ec2 describe-route-tables \
   --filters "Name=association.subnet-id,Values=subnet-0aaa1111aaaa11111" \
   --query "RouteTables[].{ID:RouteTableId,Routes:Routes[].{Dest:DestinationCidrBlock,Target:GatewayId}}" \
@@ -340,9 +324,8 @@ aws ec2 associate-route-table \
   --route-table-id rtb-0aaa99998888bbbb \
   --subnet-id subnet-0bbb2222bbbb22222 \
   --profile fahad</pre>
-
-            <p><strong>Problem 2: Internet Gateway not attached to VPC</strong></p>
-            <pre data-lang="bash"># Check: is the IGW attached?
+<p><strong>Problem 2: Internet Gateway not attached to VPC</strong></p>
+<pre data-lang="bash"># Check: is the IGW attached?
 aws ec2 describe-internet-gateways \
   --filters "Name=attachment.vpc-id,Values=vpc-0123456789abcdef0" \
   --query "InternetGateways[].{ID:InternetGatewayId,State:Attachments[0].State}" \
@@ -354,31 +337,28 @@ aws ec2 attach-internet-gateway \
   --internet-gateway-id igw-0aaa11112222bbbb \
   --vpc-id vpc-0123456789abcdef0 \
   --profile fahad</pre>
-
-            <p><strong>Problem 3: SSH key file not found</strong></p>
-            <pre data-lang="bash"># Error: "Identity file /home/user/.ssh/mymac.pem not accessible: No such file"
+<p><strong>Problem 3: SSH key file not found</strong></p>
+<pre data-lang="bash"># Error: "Identity file /home/user/.ssh/mymac.pem not accessible: No such file"
 
 # Find the key file on your machine
-find ~ -name "*.pem" -type f 2>/dev/null
+find ~ -name "*.pem" -type f 2&gt;/dev/null
 
 # If the key is lost (can't re-download from AWS), create a new one:
 aws ec2 create-key-pair \
   --key-name devopsKeypair \
   --query "KeyMaterial" \
   --output text \
-  --profile fahad > ~/.ssh/devopsKeypair.pem
+  --profile fahad &gt; ~/.ssh/devopsKeypair.pem
 
 chmod 400 ~/.ssh/devopsKeypair.pem
 
 # Then terminate the instance and relaunch with the new key
 # (you can't change the key of a running instance)</pre>
-
-            <p><strong>Problem 4: Permission denied on .pem file</strong></p>
-            <pre data-lang="bash"># Error: "Permissions 0644 for 'key.pem' are too open"
+<p><strong>Problem 4: Permission denied on .pem file</strong></p>
+<pre data-lang="bash"># Error: "Permissions 0644 for 'key.pem' are too open"
 chmod 400 ~/.ssh/devopsKeypair.pem</pre>
-
-            <h4 class="mini">Step 4: SSH in and install packages</h4>
-            <pre data-lang="bash">ssh -i ~/.ssh/devopsKeypair.pem ec2-user@&lt;PUBLIC_IP&gt;
+<h4 class="mini">Step 4: SSH in and install packages</h4>
+<pre data-lang="bash">ssh -i ~/.ssh/devopsKeypair.pem ec2-user@&lt;PUBLIC_IP&gt;
 
 # Inside the instance — run these:
 
@@ -407,9 +387,8 @@ history -c
 
 # Exit back to your local machine
 exit</pre>
-
-            <h4 class="mini">Step 5: Bake the Golden AMI</h4>
-            <pre data-lang="bash">aws ec2 create-image \
+<h4 class="mini">Step 5: Bake the Golden AMI</h4>
+<pre data-lang="bash">aws ec2 create-image \
   --instance-id &lt;INSTANCE_ID&gt; \
   --name "golden-ecommerce-v1.0-$(date +%Y%m%d)" \
   --description "AL2023 + Python 3.12 + Nginx + Django 5.1 + CW agent" \
@@ -427,10 +406,9 @@ aws ec2 describe-images \
   --query "Images[].{ID:ImageId,Name:Name,State:State}" \
   --output table \
   --profile fahad</pre>
-            <div class="fact fact-note"><span class="tag">BaseAMI tag</span><p>Tag the Golden AMI with the base AMI ID it was built from. When Amazon releases a security patch, you know which base to re-bake from.</p></div>
-
-            <h4 class="mini">Step 6: Clean up</h4>
-            <pre data-lang="bash"># Terminate the base instance (no longer needed)
+<div class="fact fact-note"><span class="tag">BaseAMI tag</span><p>Tag the Golden AMI with the base AMI ID it was built from. When Amazon releases a security patch, you know which base to re-bake from.</p></div>
+<h4 class="mini">Step 6: Clean up</h4>
+<pre data-lang="bash"># Terminate the base instance (no longer needed)
 aws ec2 terminate-instances \
   --instance-ids &lt;INSTANCE_ID&gt; \
   --profile fahad
@@ -440,10 +418,9 @@ aws ec2 revoke-security-group-ingress \
   --group-id sg-0aaa00001111bbbb \
   --protocol tcp --port 22 --cidr 0.0.0.0/0 \
   --profile fahad</pre>
-            <div class="fact fact-fail"><span class="tag">Don't forget</span><p>Always remove the port 22 rule after you're done. SSH from <code>0.0.0.0/0</code> means anyone on the internet can attempt to connect. In production, use AWS Systems Manager Session Manager instead — no SSH port needed at all.</p></div>
-
-            <h4 class="mini">Step 7: Use the Golden AMI going forward</h4>
-            <pre data-lang="bash"># Our Golden AMI: ami-0bbbbbbbbbbbbbbbb
+<div class="fact fact-fail"><span class="tag">Don't forget</span><p>Always remove the port 22 rule after you're done. SSH from <code>0.0.0.0/0</code> means anyone on the internet can attempt to connect. In production, use AWS Systems Manager Session Manager instead — no SSH port needed at all.</p></div>
+<h4 class="mini">Step 7: Use the Golden AMI going forward</h4>
+<pre data-lang="bash"># Our Golden AMI: ami-0bbbbbbbbbbbbbbbb
 # Use it instead of the base Amazon AMI in all future launches:
 
 aws ec2 run-instances \
@@ -455,9 +432,8 @@ aws ec2 run-instances \
   --profile fahad
 
 # Boot time: ~30 seconds (vs ~4 minutes with user-data bootstrap)</pre>
-
-            <h4 class="mini">Managing Golden AMIs</h4>
-            <pre data-lang="bash"># List all your custom AMIs
+<h4 class="mini">Managing Golden AMIs</h4>
+<pre data-lang="bash"># List all your custom AMIs
 aws ec2 describe-images \
   --owners self \
   --query "Images[].{ID:ImageId,Name:Name,State:State,Date:CreationDate}" \
@@ -468,23 +444,21 @@ aws ec2 describe-images \
 aws ec2 deregister-image \
   --image-id ami-xxxxx \
   --profile fahad</pre>
-
-            <h4 class="mini">When to re-bake</h4>
-            <ul>
-              <li><strong>New OS security patch</strong> — Amazon releases an updated base AMI, you rebuild on top of it</li>
-              <li><strong>New system dependency</strong> — adding Redis client, upgrading Python version</li>
-              <li><strong>Configuration change</strong> — new monitoring agent config, updated SSH hardening</li>
-              <li><strong>NOT for app code changes</strong> — your app code is pulled fresh at boot (from S3 or a container registry), so you don't re-bake just for a code deploy</li>
-            </ul>
-            <p>Re-baking uses the same steps as the first bake — the difference is what you start <em>from</em>:</p>
-            <pre class="diagram">First bake:       Amazon Linux AMI → install everything → Golden v1.0
+<h4 class="mini">When to re-bake</h4>
+<ul>
+<li><strong>New OS security patch</strong> — Amazon releases an updated base AMI, you rebuild on top of it</li>
+<li><strong>New system dependency</strong> — adding Redis client, upgrading Python version</li>
+<li><strong>Configuration change</strong> — new monitoring agent config, updated SSH hardening</li>
+<li><strong>NOT for app code changes</strong> — your app code is pulled fresh at boot (from S3 or a container registry), so you don't re-bake just for a code deploy</li>
+</ul>
+<p>Re-baking uses the same steps as the first bake — the difference is what you start <em>from</em>:</p>
+<pre class="diagram">First bake:       Amazon Linux AMI → install everything → Golden v1.0
 Re-bake:          Golden v1.0 → apply changes → Golden v1.1
 Security re-bake: NEW Amazon Linux AMI → install everything fresh → Golden v2.0</pre>
-            <div class="fact fact-fail"><span class="tag">Gotcha</span><p>Step 6 of the first bake revoked port 22 from <code>sg-0aaa00001111bbbb</code> as security hygiene — which means it's <em>closed by default</em> every time you come back to re-bake. Both scenarios below re-open it before SSHing and revoke it again during clean-up. Skip that and SSH just hangs at "Connecting", same symptom as the troubleshooting section above, different cause.</p></div>
-
-            <h4 class="mini">Scenario 1 — small update (add a package, change a config)</h4>
-            <p>Start from your existing Golden AMI — everything is already installed, you just add the change:</p>
-            <pre data-lang="bash"># 1. Launch from your EXISTING Golden AMI (not the raw Amazon base)
+<div class="fact fact-fail"><span class="tag">Gotcha</span><p>Step 6 of the first bake revoked port 22 from <code>sg-0aaa00001111bbbb</code> as security hygiene — which means it's <em>closed by default</em> every time you come back to re-bake. Both scenarios below re-open it before SSHing and revoke it again during clean-up. Skip that and SSH just hangs at "Connecting", same symptom as the troubleshooting section above, different cause.</p></div>
+<h4 class="mini">Scenario 1 — small update (add a package, change a config)</h4>
+<p>Start from your existing Golden AMI — everything is already installed, you just add the change:</p>
+<pre data-lang="bash"># 1. Launch from your EXISTING Golden AMI (not the raw Amazon base)
 aws ec2 run-instances \
   --image-id ami-0bbbbbbbbbbbbbbbb \
   --instance-type t3.micro \
@@ -536,10 +510,9 @@ aws ec2 revoke-security-group-ingress \
   --group-id sg-0aaa00001111bbbb \
   --protocol tcp --port 22 --cidr 0.0.0.0/0 \
   --profile fahad</pre>
-
-            <h4 class="mini">Scenario 2 — security re-bake (new Amazon base AMI)</h4>
-            <p>Amazon released a patched base AMI — you need to rebuild from scratch on the new base to get the OS-level security fixes:</p>
-            <pre data-lang="bash"># 1. Find the latest Amazon Linux AMI
+<h4 class="mini">Scenario 2 — security re-bake (new Amazon base AMI)</h4>
+<p>Amazon released a patched base AMI — you need to rebuild from scratch on the new base to get the OS-level security fixes:</p>
+<pre data-lang="bash"># 1. Find the latest Amazon Linux AMI
 aws ec2 describe-images \
   --owners amazon \
   --filters "Name=name,Values=al2023-ami-2023*-x86_64" \
@@ -600,24 +573,22 @@ aws ec2 revoke-security-group-ingress \
   --group-id sg-0aaa00001111bbbb \
   --protocol tcp --port 22 --cidr 0.0.0.0/0 \
   --profile fahad</pre>
-
-            <h4 class="mini">Which scenario, when?</h4>
-            <div class="table-scroll">
-              <table>
-                <thead><tr><th>Trigger</th><th>Approach</th><th>Version bump</th></tr></thead>
-                <tbody>
-                  <tr><td>Add a package (redis, memcached client)</td><td>Scenario 1: build on existing Golden AMI</td><td>v1.0 → v1.1</td></tr>
-                  <tr><td>Change a config (Nginx settings, SSH hardening)</td><td>Scenario 1: build on existing Golden AMI</td><td>v1.1 → v1.2</td></tr>
-                  <tr><td>Upgrade Python (3.12 → 3.13)</td><td>Scenario 2: fresh from new base</td><td>v1.x → v2.0</td></tr>
-                  <tr><td>Amazon releases OS security patch</td><td>Scenario 2: fresh from new base</td><td>v1.x → v2.0</td></tr>
-                  <tr><td>Major dependency upgrade (Django 5.1 → 6.0)</td><td>Scenario 2: safer to rebuild clean</td><td>v1.x → v2.0</td></tr>
-                </tbody>
-              </table>
-            </div>
-
-            <h4 class="mini">After re-baking: update the launch template</h4>
-            <p>The Golden AMI is useless if your ASG (see <a href="#d5-5">5.5</a>) is still pointing to the old one — this uses the launch template mechanics from <a href="#d5-4">5.4</a>:</p>
-            <pre data-lang="bash"># Create new launch template version with the new AMI
+<h4 class="mini">Which scenario, when?</h4>
+<div class="table-scroll">
+<table>
+<thead><tr><th>Trigger</th><th>Approach</th><th>Version bump</th></tr></thead>
+<tbody>
+<tr><td>Add a package (redis, memcached client)</td><td>Scenario 1: build on existing Golden AMI</td><td>v1.0 → v1.1</td></tr>
+<tr><td>Change a config (Nginx settings, SSH hardening)</td><td>Scenario 1: build on existing Golden AMI</td><td>v1.1 → v1.2</td></tr>
+<tr><td>Upgrade Python (3.12 → 3.13)</td><td>Scenario 2: fresh from new base</td><td>v1.x → v2.0</td></tr>
+<tr><td>Amazon releases OS security patch</td><td>Scenario 2: fresh from new base</td><td>v1.x → v2.0</td></tr>
+<tr><td>Major dependency upgrade (Django 5.1 → 6.0)</td><td>Scenario 2: safer to rebuild clean</td><td>v1.x → v2.0</td></tr>
+</tbody>
+</table>
+</div>
+<h4 class="mini">After re-baking: update the launch template</h4>
+<p>The Golden AMI is useless if your ASG (see <a href="#d5-5">5.5</a>) is still pointing to the old one — this uses the launch template mechanics from <a href="#d5-4">5.4</a>:</p>
+<pre data-lang="bash"># Create new launch template version with the new AMI
 aws ec2 create-launch-template-version \
   --launch-template-name ecommerce-web \
   --version-description "v2.0 - security rebake" \
@@ -636,22 +607,19 @@ aws ec2 modify-launch-template \
 aws autoscaling start-instance-refresh \
   --auto-scaling-group-name fahad-web-asg \
   --profile fahad</pre>
-            <p>The <code>instance-refresh</code> command does a rolling replacement — terminates old instances one by one and launches new ones from the updated template. Zero downtime if you have multiple instances across AZs.</p>
-
-            <h4 class="mini">Keep a version history</h4>
-            <pre data-lang="bash"># List all your Golden AMIs in order
+<p>The <code>instance-refresh</code> command does a rolling replacement — terminates old instances one by one and launches new ones from the updated template. Zero downtime if you have multiple instances across AZs.</p>
+<h4 class="mini">Keep a version history</h4>
+<pre data-lang="bash"># List all your Golden AMIs in order
 aws ec2 describe-images \
   --owners self \
   --query "Images | sort_by(@, &amp;CreationDate) | [].{ID:ImageId,Name:Name,Date:CreationDate,Base:Tags[?Key=='BaseAMI']|[0].Value}" \
   --output table \
   --profile fahad</pre>
-            <p>This gives you a timeline of every Golden AMI you've built, when, and which base it came from. Never delete the currently active AMI — keep at least the previous version as rollback.</p>
-
-            <h4 class="mini">Lab: v1.0 → v1.1 re-bake (adding Docker)</h4>
-            <p>This is what we actually did — a Scenario 1 re-bake to add Docker and Docker Compose to the Golden AMI.</p>
-
-            <p><strong>Install Docker and Docker Compose inside SSH session:</strong></p>
-            <pre data-lang="bash"># Install Docker
+<p>This gives you a timeline of every Golden AMI you've built, when, and which base it came from. Never delete the currently active AMI — keep at least the previous version as rollback.</p>
+<h4 class="mini">Lab: v1.0 → v1.1 re-bake (adding Docker)</h4>
+<p>This is what we actually did — a Scenario 1 re-bake to add Docker and Docker Compose to the Golden AMI.</p>
+<p><strong>Install Docker and Docker Compose inside SSH session:</strong></p>
+<pre data-lang="bash"># Install Docker
 sudo yum install -y docker
 sudo systemctl enable docker
 sudo systemctl start docker
@@ -672,19 +640,17 @@ docker compose version
 # If docker --version gives permission error, the group change hasn't taken effect:
 newgrp docker
 docker --version</pre>
-
-            <div class="fact fact-fail"><span class="tag">Gotcha: Redis client ≠ Redis server</span>
-              <p><code>pip install redis</code> installs the <strong>Python client library</strong> (lets your app talk to a Redis server). <code>systemctl enable redis</code> tries to start the <strong>Redis server process</strong> — which you didn't install. These are two different things with the same name.</p>
-              <p>For production, use <strong>ElastiCache</strong> (AWS managed Redis) — your Golden AMI only needs the Python client, not the server. If you want a local Redis server for testing:</p>
-            </div>
-            <pre data-lang="bash"># Only if you need Redis SERVER on the instance (not typical for production)
+<div class="fact fact-fail"><span class="tag">Gotcha: Redis client ≠ Redis server</span>
+<p><code>pip install redis</code> installs the <strong>Python client library</strong> (lets your app talk to a Redis server). <code>systemctl enable redis</code> tries to start the <strong>Redis server process</strong> — which you didn't install. These are two different things with the same name.</p>
+<p>For production, use <strong>ElastiCache</strong> (AWS managed Redis) — your Golden AMI only needs the Python client, not the server. If you want a local Redis server for testing:</p>
+</div>
+<pre data-lang="bash"># Only if you need Redis SERVER on the instance (not typical for production)
 sudo yum install -y redis6
 sudo systemctl enable redis6
 sudo systemctl start redis6
 redis-cli ping    # returns PONG</pre>
-
-            <p><strong>Bake result:</strong></p>
-            <pre data-lang="bash"># After installing Docker, clean up and exit SSH:
+<p><strong>Bake result:</strong></p>
+<pre data-lang="bash"># After installing Docker, clean up and exit SSH:
 sudo rm -rf /tmp/* /var/log/*.log
 history -c
 exit
@@ -701,52 +667,49 @@ aws ec2 create-image \
     {Key=ChangeLog,Value=added-redis-docker-compose}
   ]' \
   --profile fahad</pre>
-
-            <p><strong>Current AMI inventory:</strong></p>
-            <div class="table-scroll">
-              <table>
-                <thead><tr><th>Version</th><th>AMI ID</th><th>Contents</th><th>Status</th></tr></thead>
-                <tbody>
-                  <tr><td>v1.0</td><td><code>ami-0bbbbbbbbbbbbbbbb</code></td><td>Python 3.12, Nginx, Django 5.1, CW agent</td><td>Rollback (keep)</td></tr>
-                  <tr><td>v1.1</td><td><code>ami-0ccccccccccccccc</code></td><td>v1.0 + Redis client + Docker + Docker Compose</td><td>Current (active)</td></tr>
-                </tbody>
-              </table>
-            </div>
-
-            <h4 class="mini">Where these AMIs actually live</h4>
-            <p>A Golden AMI is stored as an <strong>EBS snapshot in S3</strong> — but you never see that S3 bucket directly. AWS manages it entirely behind the scenes; the AMI itself is just a pointer to it:</p>
-            <pre class="diagram">Golden AMI (ami-0ccccccccccccccc)
+<p><strong>Current AMI inventory:</strong></p>
+<div class="table-scroll">
+<table>
+<thead><tr><th>Version</th><th>AMI ID</th><th>Contents</th><th>Status</th></tr></thead>
+<tbody>
+<tr><td>v1.0</td><td><code>ami-0bbbbbbbbbbbbbbbb</code></td><td>Python 3.12, Nginx, Django 5.1, CW agent</td><td>Rollback (keep)</td></tr>
+<tr><td>v1.1</td><td><code>ami-0ccccccccccccccc</code></td><td>v1.0 + Redis client + Docker + Docker Compose</td><td>Current (active)</td></tr>
+</tbody>
+</table>
+</div>
+<h4 class="mini">Where these AMIs actually live</h4>
+<p>A Golden AMI is stored as an <strong>EBS snapshot in S3</strong> — but you never see that S3 bucket directly. AWS manages it entirely behind the scenes; the AMI itself is just a pointer to it:</p>
+<pre class="diagram">Golden AMI (ami-0ccccccccccccccc)
     └── points to → EBS Snapshot (snap-xxxxx)
                         └── stored in → S3 (AWS-managed, invisible to you)</pre>
-            <p>See both of our AMIs' snapshots at once:</p>
-            <pre data-lang="bash">aws ec2 describe-images \
+<p>See both of our AMIs' snapshots at once:</p>
+<pre data-lang="bash">aws ec2 describe-images \
   --image-ids ami-0bbbbbbbbbbbbbbbb ami-0ccccccccccccccc \
   --query "Images[].{AMI:ImageId,Name:Name,Snapshots:BlockDeviceMappings[].Ebs.SnapshotId}" \
   --output table \
   --profile fahad</pre>
-            <div class="table-scroll">
-              <table>
-                <thead><tr><th>What</th><th>Where</th><th>Can you see it?</th><th>Cost</th></tr></thead>
-                <tbody>
-                  <tr><td>AMI metadata (name, tags, config)</td><td>EC2 AMI registry (regional)</td><td>Yes — <code>describe-images</code></td><td>Free</td></tr>
-                  <tr><td>EBS snapshot (the actual disk data)</td><td>S3 (AWS-managed)</td><td>Yes — <code>describe-snapshots</code></td><td>~$0.05/GB/month</td></tr>
-                  <tr><td>The S3 bucket itself</td><td>AWS's internal infrastructure</td><td>No — you can't browse it</td><td>Included in snapshot price</td></tr>
-                </tbody>
-              </table>
-            </div>
-            <div class="fact fact-note"><span class="tag">Regional, not AZ-specific</span><p>An AMI exists only in the region you built it in — <code>ap-south-1</code> here, not tied to a specific AZ within it. Want to use it in <code>eu-west-1</code>? You have to copy it there explicitly:</p></div>
-            <pre data-lang="bash"># Copy an AMI to another region (for multi-region deployment)
+<div class="table-scroll">
+<table>
+<thead><tr><th>What</th><th>Where</th><th>Can you see it?</th><th>Cost</th></tr></thead>
+<tbody>
+<tr><td>AMI metadata (name, tags, config)</td><td>EC2 AMI registry (regional)</td><td>Yes — <code>describe-images</code></td><td>Free</td></tr>
+<tr><td>EBS snapshot (the actual disk data)</td><td>S3 (AWS-managed)</td><td>Yes — <code>describe-snapshots</code></td><td>~$0.05/GB/month</td></tr>
+<tr><td>The S3 bucket itself</td><td>AWS's internal infrastructure</td><td>No — you can't browse it</td><td>Included in snapshot price</td></tr>
+</tbody>
+</table>
+</div>
+<div class="fact fact-note"><span class="tag">Regional, not AZ-specific</span><p>An AMI exists only in the region you built it in — <code>ap-south-1</code> here, not tied to a specific AZ within it. Want to use it in <code>eu-west-1</code>? You have to copy it there explicitly:</p></div>
+<pre data-lang="bash"># Copy an AMI to another region (for multi-region deployment)
 aws ec2 copy-image \
   --source-image-id ami-0ccccccccccccccc \
   --source-region ap-south-1 \
   --region eu-west-1 \
   --name "golden-ecommerce-v1.1-copy" \
   --profile fahad</pre>
-            <p>The AMI registration itself is free — it's just a pointer. The snapshot behind it is what actually costs money, which is why deleting an AMI takes two steps (see below): deregistering alone leaves the snapshot billing forever. At this point you should see two snapshots — one for v1.0, one for v1.1 — roughly 8GB each, about $0.80/month total. Minimal cost, but worth knowing where it comes from.</p>
-
-            <h4 class="mini">Troubleshooting: forgot the instance ID</h4>
-            <p>If you launched an instance but didn't save the ID, find it by searching running instances:</p>
-            <pre data-lang="bash"># Find all running instances (not just yours)
+<p>The AMI registration itself is free — it's just a pointer. The snapshot behind it is what actually costs money, which is why deleting an AMI takes two steps (see below): deregistering alone leaves the snapshot billing forever. At this point you should see two snapshots — one for v1.0, one for v1.1 — roughly 8GB each, about $0.80/month total. Minimal cost, but worth knowing where it comes from.</p>
+<h4 class="mini">Troubleshooting: forgot the instance ID</h4>
+<p>If you launched an instance but didn't save the ID, find it by searching running instances:</p>
+<pre data-lang="bash"># Find all running instances (not just yours)
 aws ec2 describe-instances \
   --filters "Name=instance-state-name,Values=running" \
   --query "Reservations[].Instances[].{ID:InstanceId,Name:Tags[?Key=='Name']|[0].Value,IP:PrivateIpAddress,VPC:VpcId}" \
@@ -755,24 +718,22 @@ aws ec2 describe-instances \
 
 # If you know the IP from your SSH prompt (e.g. ec2-user@ip-10-0-1-164):
 # Look for IP 10.0.1.164 in the table — that row has your instance ID</pre>
-            <div class="fact fact-note"><span class="tag">Tip</span><p>If you filtered by <code>tag:Owner,Values=fahad</code> and got nothing, the instance might not have an Owner tag. Drop the tag filter and search all running instances. The SSH prompt always shows the private IP — match it to the table.</p></div>
-
-            <h4 class="mini">When and how to delete old Golden AMIs</h4>
-            <div class="table-scroll">
-              <table>
-                <thead><tr><th>Situation</th><th>Action</th></tr></thead>
-                <tbody>
-                  <tr><td>v1.1 just created (now)</td><td>Keep v1.0 as rollback</td></tr>
-                  <tr><td>v1.1 tested and stable for a few days</td><td>Safe to delete v1.0</td></tr>
-                  <tr><td>v2.0 created (security re-bake)</td><td>Keep v1.1, delete v1.0</td></tr>
-                  <tr><td><strong>General rule</strong></td><td><strong>Always keep current + one previous version</strong></td></tr>
-                </tbody>
-              </table>
-            </div>
-
-            <p><strong>Deleting an AMI — two steps (not one!):</strong></p>
-            <p>Deregistering the AMI alone isn't enough — the EBS snapshot behind it keeps charging ~$0.05/GB/month.</p>
-            <pre data-lang="bash"># Step 1: Find the snapshot backing the AMI
+<div class="fact fact-note"><span class="tag">Tip</span><p>If you filtered by <code>tag:Owner,Values=fahad</code> and got nothing, the instance might not have an Owner tag. Drop the tag filter and search all running instances. The SSH prompt always shows the private IP — match it to the table.</p></div>
+<h4 class="mini">When and how to delete old Golden AMIs</h4>
+<div class="table-scroll">
+<table>
+<thead><tr><th>Situation</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td>v1.1 just created (now)</td><td>Keep v1.0 as rollback</td></tr>
+<tr><td>v1.1 tested and stable for a few days</td><td>Safe to delete v1.0</td></tr>
+<tr><td>v2.0 created (security re-bake)</td><td>Keep v1.1, delete v1.0</td></tr>
+<tr><td><strong>General rule</strong></td><td><strong>Always keep current + one previous version</strong></td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>Deleting an AMI — two steps (not one!):</strong></p>
+<p>Deregistering the AMI alone isn't enough — the EBS snapshot behind it keeps charging ~$0.05/GB/month.</p>
+<pre data-lang="bash"># Step 1: Find the snapshot backing the AMI
 aws ec2 describe-images \
   --image-ids ami-0bbbbbbbbbbbbbbbb \
   --query "Images[0].BlockDeviceMappings[].Ebs.SnapshotId" \
@@ -788,23 +749,21 @@ aws ec2 deregister-image \
 aws ec2 delete-snapshot \
   --snapshot-id &lt;SNAPSHOT_ID_FROM_STEP_1&gt; \
   --profile fahad</pre>
-            <div class="fact fact-fail"><span class="tag">Don't skip step 3</span><p>If you only deregister without deleting the snapshot, the snapshot sits in your account silently charging. Check for orphan snapshots periodically:</p></div>
-            <pre data-lang="bash"># Find all snapshots you own
+<div class="fact fact-fail"><span class="tag">Don't skip step 3</span><p>If you only deregister without deleting the snapshot, the snapshot sits in your account silently charging. Check for orphan snapshots periodically:</p></div>
+<pre data-lang="bash"># Find all snapshots you own
 aws ec2 describe-snapshots \
   --owner-ids self \
   --query "Snapshots[].{ID:SnapshotId,Size:VolumeSize,Date:StartTime,Desc:Description}" \
   --output table \
   --profile fahad</pre>
-
-            <div class="fact fact-good"><span class="tag">Immutable infra</span><p>Golden AMIs are the foundation of immutable infrastructure: you never SSH into a production server to patch it. Build a new AMI with the fix, replace the old instances via the ASG. This prevents configuration drift — every instance is identical, built from the same image.</p></div>
-          </div>
-        </details>
-
-        <details class="sub" id="d5-4">
-          <summary><span class="sub-num">5.4</span><h3>Launch Templates</h3><span class="chev-sm"></span></summary>
-          <div class="sub-content">
-            <p>A <strong>launch template</strong> is a versioned configuration blueprint: AMI, instance type, security groups, user-data, IAM role — everything needed to launch an instance, saved as a reusable template.</p>
-            <pre data-lang="bash"># Create launch template using our Golden AMI v1.1 (with Docker)
+<div class="fact fact-good"><span class="tag">Immutable infra</span><p>Golden AMIs are the foundation of immutable infrastructure: you never SSH into a production server to patch it. Build a new AMI with the fix, replace the old instances via the ASG. This prevents configuration drift — every instance is identical, built from the same image.</p></div>
+</div>
+</details>
+<details class="sub" id="d5-4">
+<summary><span class="sub-num">5.4</span><h3>Launch Templates</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>A <strong>launch template</strong> is a versioned configuration blueprint: AMI, instance type, security groups, user-data, IAM role — everything needed to launch an instance, saved as a reusable template.</p>
+<pre data-lang="bash"># Create launch template using our Golden AMI v1.1 (with Docker)
 aws ec2 create-launch-template \
   --launch-template-name ecommerce-web \
   --version-description "v1 - golden AMI v1.1 with Python+Nginx+Django+Docker" \
@@ -825,8 +784,8 @@ aws ec2 create-launch-template \
     }]
   }' \
   --profile fahad</pre>
-            <p>Templates are versioned. When you update (new Golden AMI, different instance type), create a new version — the old version stays as rollback:</p>
-            <pre data-lang="bash"># Create a new version (e.g. updated Golden AMI)
+<p>Templates are versioned. When you update (new Golden AMI, different instance type), create a new version — the old version stays as rollback:</p>
+<pre data-lang="bash"># Create a new version (e.g. updated Golden AMI)
 aws ec2 create-launch-template-version \
   --launch-template-name ecommerce-web \
   --version-description "v2 - updated golden AMI" \
@@ -848,38 +807,36 @@ aws ec2 modify-launch-template \
   --launch-template-name ecommerce-web \
   --default-version 2 \
   --profile fahad</pre>
-            <p>Auto Scaling Groups reference a template version — <code>$Latest</code> (always newest), <code>$Default</code> (the one you set), or a specific number.</p>
-          </div>
-        </details>
-
-        <details class="sub" id="d5-5">
-          <summary><span class="sub-num">5.5</span><h3>Auto Scaling Groups (ASG)</h3><span class="chev-sm"></span></summary>
-          <div class="sub-content">
-            <p>An ASG maintains a fleet of instances — it ensures you always have the right number running, replaces unhealthy ones, and spreads them across AZs.</p>
-            <h4 class="mini">Three capacity settings</h4>
-            <div class="table-scroll">
-              <table>
-                <thead><tr><th>Setting</th><th>What it means</th><th>Example</th></tr></thead>
-                <tbody>
-                  <tr><td><strong>Minimum</strong></td><td>Never go below this, even during scale-in</td><td>1 (always at least 1 running)</td></tr>
-                  <tr><td><strong>Desired</strong></td><td>How many to run right now — ASG launches/terminates to match</td><td>1 (free tier safe with nsl-ledgerly running)</td></tr>
-                  <tr><td><strong>Maximum</strong></td><td>Never go above this, even under heavy load</td><td>3 (budget ceiling)</td></tr>
-                </tbody>
-              </table>
-            </div>
-            <h4 class="mini">How it works with AZs</h4>
-            <p>If you set desired=4 across 2 AZs, ASG places 2 in each AZ. If AZ-a goes down, ASG launches 2 replacements in AZ-b (up to the max). This is automatic fault tolerance — you don't write any code for it.</p>
-            <h4 class="mini">Health checks</h4>
-            <p>ASG checks if instances are healthy. Two types:</p>
-            <ul>
-              <li><strong>EC2 health check:</strong> is the instance running? (default — catches crashes and hardware failures)</li>
-              <li><strong>ELB health check:</strong> is the ALB's health check passing? (catches app-level failures — process running but returning 500s)</li>
-            </ul>
-            <p>Always use ELB health checks when you have a load balancer. An instance can be "running" (EC2 healthy) but serving errors (ELB unhealthy). Without ELB health checks, ASG won't replace it.</p>
-
-            <h4 class="mini">Step 1: Create the launch template (prerequisite)</h4>
-            <p>The ASG needs a launch template to know what to launch. We created this in <a href="#d5-4">5.4</a>:</p>
-            <pre data-lang="bash"># Verify your launch template exists
+<p>Auto Scaling Groups reference a template version — <code>$Latest</code> (always newest), <code>$Default</code> (the one you set), or a specific number.</p>
+</div>
+</details>
+<details class="sub" id="d5-5">
+<summary><span class="sub-num">5.5</span><h3>Auto Scaling Groups (ASG)</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>An ASG maintains a fleet of instances — it ensures you always have the right number running, replaces unhealthy ones, and spreads them across AZs.</p>
+<h4 class="mini">Three capacity settings</h4>
+<div class="table-scroll">
+<table>
+<thead><tr><th>Setting</th><th>What it means</th><th>Example</th></tr></thead>
+<tbody>
+<tr><td><strong>Minimum</strong></td><td>Never go below this, even during scale-in</td><td>1 (always at least 1 running)</td></tr>
+<tr><td><strong>Desired</strong></td><td>How many to run right now — ASG launches/terminates to match</td><td>1 (free tier safe with nsl-ledgerly running)</td></tr>
+<tr><td><strong>Maximum</strong></td><td>Never go above this, even under heavy load</td><td>3 (budget ceiling)</td></tr>
+</tbody>
+</table>
+</div>
+<h4 class="mini">How it works with AZs</h4>
+<p>If you set desired=4 across 2 AZs, ASG places 2 in each AZ. If AZ-a goes down, ASG launches 2 replacements in AZ-b (up to the max). This is automatic fault tolerance — you don't write any code for it.</p>
+<h4 class="mini">Health checks</h4>
+<p>ASG checks if instances are healthy. Two types:</p>
+<ul>
+<li><strong>EC2 health check:</strong> is the instance running? (default — catches crashes and hardware failures)</li>
+<li><strong>ELB health check:</strong> is the ALB's health check passing? (catches app-level failures — process running but returning 500s)</li>
+</ul>
+<p>Always use ELB health checks when you have a load balancer. An instance can be "running" (EC2 healthy) but serving errors (ELB unhealthy). Without ELB health checks, ASG won't replace it.</p>
+<h4 class="mini">Step 1: Create the launch template (prerequisite)</h4>
+<p>The ASG needs a launch template to know what to launch. We created this in <a href="#d5-4">5.4</a>:</p>
+<pre data-lang="bash"># Verify your launch template exists
 aws ec2 describe-launch-templates \
   --launch-template-names ecommerce-web \
   --query "LaunchTemplates[0].{ID:LaunchTemplateId,Name:LaunchTemplateName,Version:LatestVersionNumber}" \
@@ -887,9 +844,8 @@ aws ec2 describe-launch-templates \
   --profile fahad
 
 # Our template: lt-0aaa77778888bbbb (ecommerce-web, references Golden AMI v1.1)</pre>
-
-            <h4 class="mini">Step 2: Create the ASG</h4>
-            <pre data-lang="bash"># Create with desired=1 to stay within free tier
+<h4 class="mini">Step 2: Create the ASG</h4>
+<pre data-lang="bash"># Create with desired=1 to stay within free tier
 aws autoscaling create-auto-scaling-group \
   --auto-scaling-group-name fahad-web-asg \
   --launch-template LaunchTemplateName=ecommerce-web,Version='$Latest' \
@@ -901,20 +857,18 @@ aws autoscaling create-auto-scaling-group \
          Key=Environment,Value=dev,PropagateAtLaunch=true \
          Key=Owner,Value=fahad,PropagateAtLaunch=true \
   --profile fahad</pre>
-            <div class="fact fact-note"><span class="tag">vpc-zone-identifier</span><p>This specifies which subnets the ASG launches instances into. Using both private app subnets (<code>fahad-private-app-a</code> + <code>fahad-private-app-b</code>) across two AZs gives automatic fault tolerance.</p></div>
-            <div class="fact fact-fail"><span class="tag">Free tier warning</span><p>Using <code>desired-capacity 1</code> (not 2) because <code>nsl-ledgerly</code> is already using the free tier t3.micro allowance. Two t3.micro running simultaneously = the second one costs ~$0.01/hr (~$7.50/month).</p></div>
-
-            <h4 class="mini">Step 3: Verify the ASG launched an instance</h4>
-            <pre data-lang="bash"># Check ASG status (wait ~30 seconds after creation)
+<div class="fact fact-note"><span class="tag">vpc-zone-identifier</span><p>This specifies which subnets the ASG launches instances into. Using both private app subnets (<code>fahad-private-app-a</code> + <code>fahad-private-app-b</code>) across two AZs gives automatic fault tolerance.</p></div>
+<div class="fact fact-fail"><span class="tag">Free tier warning</span><p>Using <code>desired-capacity 1</code> (not 2) because <code>nsl-ledgerly</code> is already using the free tier t3.micro allowance. Two t3.micro running simultaneously = the second one costs ~$0.01/hr (~$7.50/month).</p></div>
+<h4 class="mini">Step 3: Verify the ASG launched an instance</h4>
+<pre data-lang="bash"># Check ASG status (wait ~30 seconds after creation)
 aws autoscaling describe-auto-scaling-groups \
   --auto-scaling-group-names fahad-web-asg \
   --query "AutoScalingGroups[0].{Min:MinSize,Max:MaxSize,Desired:DesiredCapacity,Instances:Instances[].{ID:InstanceId,AZ:AvailabilityZone,Health:HealthStatus,State:LifecycleState}}" \
   --output table \
   --profile fahad</pre>
-
-            <h4 class="mini">Troubleshooting: instances array is empty</h4>
-            <p>If the ASG shows <code>"Instances": []</code>, either it's still launching (wait 30 seconds) or something failed. Check the scaling activity log:</p>
-            <pre data-lang="bash"># Shows WHY a launch failed (wrong subnet, SG not in VPC, quota hit, etc.)
+<h4 class="mini">Troubleshooting: instances array is empty</h4>
+<p>If the ASG shows <code>"Instances": []</code>, either it's still launching (wait 30 seconds) or something failed. Check the scaling activity log:</p>
+<pre data-lang="bash"># Shows WHY a launch failed (wrong subnet, SG not in VPC, quota hit, etc.)
 aws autoscaling describe-scaling-activities \
   --auto-scaling-group-name fahad-web-asg \
   --query "Activities[0].{Status:StatusCode,Desc:Description,Cause:Cause}" \
@@ -926,10 +880,9 @@ aws autoscaling describe-scaling-activities \
 aws autoscaling describe-auto-scaling-groups \
   --auto-scaling-group-names fahad-web-asg \
   --profile fahad</pre>
-
-            <h4 class="mini">Lab: testing scale-out and scale-in</h4>
-            <p>This is the powerful part — manually scaling to see the ASG distribute instances across AZs:</p>
-            <pre data-lang="bash"># Scale up to 2 instances
+<h4 class="mini">Lab: testing scale-out and scale-in</h4>
+<p>This is the powerful part — manually scaling to see the ASG distribute instances across AZs:</p>
+<pre data-lang="bash"># Scale up to 2 instances
 aws autoscaling set-desired-capacity \
   --auto-scaling-group-name fahad-web-asg \
   --desired-capacity 2 \
@@ -941,8 +894,8 @@ aws autoscaling describe-auto-scaling-groups \
   --query "AutoScalingGroups[0].Instances[].{ID:InstanceId,AZ:AvailabilityZone,Health:HealthStatus}" \
   --output table \
   --profile fahad</pre>
-            <p><strong>What we observed:</strong></p>
-            <pre class="diagram">After scale-out to desired=2:
+<p><strong>What we observed:</strong></p>
+<pre class="diagram">After scale-out to desired=2:
 +--------------+----------+-----------------------+
 |      AZ      | Health   |          ID           |
 +--------------+----------+-----------------------+
@@ -950,20 +903,18 @@ aws autoscaling describe-auto-scaling-groups \
 |  ap-south-1a |  Healthy |  i-0aaa1111bbbb2222  |
 +--------------+----------+-----------------------+
 → ASG automatically placed one in each AZ for fault tolerance</pre>
-
-            <h4 class="mini">Why it landed one per AZ — the actual mechanism</h4>
-            <p>It comes down to this one line from the <code>create-auto-scaling-group</code> command:</p>
-            <pre data-lang="bash">--vpc-zone-identifier "subnet-0ccc3333cccc33333,subnet-0ddd4444dddd44444"</pre>
-            <p>That gave the ASG two subnets in two different AZs:</p>
-            <pre class="diagram">subnet-0ccc3333cccc33333 = fahad-private-app-a → ap-south-1a
+<h4 class="mini">Why it landed one per AZ — the actual mechanism</h4>
+<p>It comes down to this one line from the <code>create-auto-scaling-group</code> command:</p>
+<pre data-lang="bash">--vpc-zone-identifier "subnet-0ccc3333cccc33333,subnet-0ddd4444dddd44444"</pre>
+<p>That gave the ASG two subnets in two different AZs:</p>
+<pre class="diagram">subnet-0ccc3333cccc33333 = fahad-private-app-a → ap-south-1a
 subnet-0ddd4444dddd44444 = fahad-private-app-b → ap-south-1b</pre>
-            <p>The ASG automatically distributes instances across whichever subnets it's given, balancing AZs as it goes:</p>
-            <pre class="diagram">desired=2, 2 subnets → 1 in ap-south-1a, 1 in ap-south-1b
+<p>The ASG automatically distributes instances across whichever subnets it's given, balancing AZs as it goes:</p>
+<pre class="diagram">desired=2, 2 subnets → 1 in ap-south-1a, 1 in ap-south-1b
 desired=4, 2 subnets → 2 in ap-south-1a, 2 in ap-south-1b</pre>
-            <div class="fact fact-fail"><span class="tag">One subnet = no fault tolerance</span><p>If <code>--vpc-zone-identifier</code> had listed only <code>subnet-0ccc3333cccc33333</code>, every instance would land in <code>ap-south-1a</code> alone — if that AZ goes down, everything goes down. There's no separate "spread across AZs" setting to remember: the ASG only ever launches into the subnets you hand it, so AZ coverage is really a side effect of which subnets you listed.</p></div>
-            <div class="fact fact-good"><span class="tag">The whole trick</span><p>Give the ASG subnets in multiple AZs, and it handles the distribution automatically. No extra config, no code — just listing two subnet IDs.</p></div>
-
-            <pre data-lang="bash"># Scale back down to 1 (save money!)
+<div class="fact fact-fail"><span class="tag">One subnet = no fault tolerance</span><p>If <code>--vpc-zone-identifier</code> had listed only <code>subnet-0ccc3333cccc33333</code>, every instance would land in <code>ap-south-1a</code> alone — if that AZ goes down, everything goes down. There's no separate "spread across AZs" setting to remember: the ASG only ever launches into the subnets you hand it, so AZ coverage is really a side effect of which subnets you listed.</p></div>
+<div class="fact fact-good"><span class="tag">The whole trick</span><p>Give the ASG subnets in multiple AZs, and it handles the distribution automatically. No extra config, no code — just listing two subnet IDs.</p></div>
+<pre data-lang="bash"># Scale back down to 1 (save money!)
 aws autoscaling set-desired-capacity \
   --auto-scaling-group-name fahad-web-asg \
   --desired-capacity 1 \
@@ -975,8 +926,8 @@ aws autoscaling describe-auto-scaling-groups \
   --query "AutoScalingGroups[0].Instances[].{ID:InstanceId,AZ:AvailabilityZone}" \
   --output table \
   --profile fahad</pre>
-            <p><strong>What we observed:</strong></p>
-            <pre class="diagram">After scale-in to desired=1:
+<p><strong>What we observed:</strong></p>
+<pre class="diagram">After scale-in to desired=1:
 +--------------+-----------------------+
 |      AZ      |          ID           |
 +--------------+-----------------------+
@@ -984,23 +935,21 @@ aws autoscaling describe-auto-scaling-groups \
 +--------------+-----------------------+
 → ASG terminated the ap-south-1b instance automatically
 → Default termination policy: pick the AZ with more instances, terminate the oldest</pre>
-
-            <h4 class="mini">ASG termination policies</h4>
-            <p>When the ASG needs to remove an instance during scale-in, it follows a policy:</p>
-            <div class="table-scroll">
-              <table>
-                <thead><tr><th>Policy</th><th>How it picks</th><th>Use when</th></tr></thead>
-                <tbody>
-                  <tr><td><strong>Default</strong></td><td>Balance AZs first → oldest launch template → closest to next billing hour</td><td>Most cases (what we used)</td></tr>
-                  <tr><td><strong>OldestInstance</strong></td><td>Terminate the longest-running instance</td><td>Rolling AMI updates — replace old images first</td></tr>
-                  <tr><td><strong>NewestInstance</strong></td><td>Terminate the most recently launched</td><td>Testing — keep the stable old instances</td></tr>
-                  <tr><td><strong>OldestLaunchTemplate</strong></td><td>Terminate instances using the oldest template version</td><td>After launch template update — phase out old config</td></tr>
-                </tbody>
-              </table>
-            </div>
-
-            <h4 class="mini">Manage ASG lifecycle</h4>
-            <pre data-lang="bash"># Check all ASG details
+<h4 class="mini">ASG termination policies</h4>
+<p>When the ASG needs to remove an instance during scale-in, it follows a policy:</p>
+<div class="table-scroll">
+<table>
+<thead><tr><th>Policy</th><th>How it picks</th><th>Use when</th></tr></thead>
+<tbody>
+<tr><td><strong>Default</strong></td><td>Balance AZs first → oldest launch template → closest to next billing hour</td><td>Most cases (what we used)</td></tr>
+<tr><td><strong>OldestInstance</strong></td><td>Terminate the longest-running instance</td><td>Rolling AMI updates — replace old images first</td></tr>
+<tr><td><strong>NewestInstance</strong></td><td>Terminate the most recently launched</td><td>Testing — keep the stable old instances</td></tr>
+<tr><td><strong>OldestLaunchTemplate</strong></td><td>Terminate instances using the oldest template version</td><td>After launch template update — phase out old config</td></tr>
+</tbody>
+</table>
+</div>
+<h4 class="mini">Manage ASG lifecycle</h4>
+<pre data-lang="bash"># Check all ASG details
 aws autoscaling describe-auto-scaling-groups \
   --auto-scaling-group-names fahad-web-asg \
   --query "AutoScalingGroups[0].{Name:AutoScalingGroupName,Min:MinSize,Max:MaxSize,Desired:DesiredCapacity,HealthCheck:HealthCheckType,Instances:Instances[].{ID:InstanceId,AZ:AvailabilityZone,Health:HealthStatus}}" \
@@ -1029,10 +978,9 @@ aws autoscaling delete-auto-scaling-group \
   --auto-scaling-group-name fahad-web-asg \
   --force-delete \
   --profile fahad</pre>
-
-            <h4 class="mini">End-of-session cleanup</h4>
-            <div class="fact fact-fail"><span class="tag">Budget rule</span><p>Since <code>nsl-ledgerly</code> uses your free tier t3.micro, any ASG instance costs real money. Delete the ASG at the end of each study session. The launch template and Golden AMI stay (free) — recreating the ASG next session is one command.</p></div>
-            <pre data-lang="bash"># Delete ASG (terminates its instances automatically)
+<h4 class="mini">End-of-session cleanup</h4>
+<div class="fact fact-fail"><span class="tag">Budget rule</span><p>Since <code>nsl-ledgerly</code> uses your free tier t3.micro, any ASG instance costs real money. Delete the ASG at the end of each study session. The launch template and Golden AMI stay (free) — recreating the ASG next session is one command.</p></div>
+<pre data-lang="bash"># Delete ASG (terminates its instances automatically)
 aws autoscaling delete-auto-scaling-group \
   --auto-scaling-group-name fahad-web-asg \
   --force-delete \
@@ -1045,9 +993,8 @@ aws ec2 describe-instances \
   --output table \
   --profile fahad
 # Should show only nsl-ledgerly</pre>
-
-            <h4 class="mini">Quick recreation next session</h4>
-            <pre data-lang="bash"># One command to bring the ASG back (template + AMI already exist)
+<h4 class="mini">Quick recreation next session</h4>
+<pre data-lang="bash"># One command to bring the ASG back (template + AMI already exist)
 aws autoscaling create-auto-scaling-group \
   --auto-scaling-group-name fahad-web-asg \
   --launch-template LaunchTemplateName=ecommerce-web,Version='$Latest' \
@@ -1058,16 +1005,14 @@ aws autoscaling create-auto-scaling-group \
   --tags Key=Name,Value=fahad-web-asg,PropagateAtLaunch=true \
          Key=Owner,Value=fahad,PropagateAtLaunch=true \
   --profile fahad</pre>
-          </div>
-        </details>
-
-        <details class="sub" id="d5-6">
-          <summary><span class="sub-num">5.6</span><h3>Scaling Policies</h3><span class="chev-sm"></span></summary>
-          <div class="sub-content">
-
-            <h4 class="mini">Target tracking (simplest, most common)</h4>
-            <p>Set a target metric, ASG adjusts automatically. You don't define thresholds or step sizes — AWS handles the math:</p>
-            <pre data-lang="bash"># Keep average CPU at 60%
+</div>
+</details>
+<details class="sub" id="d5-6">
+<summary><span class="sub-num">5.6</span><h3>Scaling Policies</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<h4 class="mini">Target tracking (simplest, most common)</h4>
+<p>Set a target metric, ASG adjusts automatically. You don't define thresholds or step sizes — AWS handles the math:</p>
+<pre data-lang="bash"># Keep average CPU at 60%
 aws autoscaling put-scaling-policy \
   --auto-scaling-group-name fahad-web-asg \
   --policy-name cpu-target-60 \
@@ -1079,28 +1024,26 @@ aws autoscaling put-scaling-policy \
     "TargetValue": 60.0
   }' \
   --profile fahad</pre>
-
-            <h4 class="mini">What AWS auto-creates for you</h4>
-            <p>When you set a target tracking policy, AWS automatically creates <strong>two CloudWatch alarms</strong>:</p>
-            <div class="table-scroll">
-              <table>
-                <thead><tr><th>Alarm</th><th>What it does</th><th>Auto-created name</th></tr></thead>
-                <tbody>
-                  <tr><td><strong>AlarmHigh</strong></td><td>CPU &gt; 60% → scale OUT (add instances)</td><td><code>TargetTracking-fahad-web-asg-AlarmHigh-xxxxx</code></td></tr>
-                  <tr><td><strong>AlarmLow</strong></td><td>CPU drops well below 60% → scale IN (remove instances)</td><td><code>TargetTracking-fahad-web-asg-AlarmLow-xxxxx</code></td></tr>
-                </tbody>
-              </table>
-            </div>
-            <p>You set one target (60% CPU) and AWS created the entire feedback loop — monitoring, decision logic, and actions — automatically. This is why target tracking is the recommended starting point.</p>
-            <pre data-lang="bash"># See the auto-created alarms
+<h4 class="mini">What AWS auto-creates for you</h4>
+<p>When you set a target tracking policy, AWS automatically creates <strong>two CloudWatch alarms</strong>:</p>
+<div class="table-scroll">
+<table>
+<thead><tr><th>Alarm</th><th>What it does</th><th>Auto-created name</th></tr></thead>
+<tbody>
+<tr><td><strong>AlarmHigh</strong></td><td>CPU &gt; 60% → scale OUT (add instances)</td><td><code>TargetTracking-fahad-web-asg-AlarmHigh-xxxxx</code></td></tr>
+<tr><td><strong>AlarmLow</strong></td><td>CPU drops well below 60% → scale IN (remove instances)</td><td><code>TargetTracking-fahad-web-asg-AlarmLow-xxxxx</code></td></tr>
+</tbody>
+</table>
+</div>
+<p>You set one target (60% CPU) and AWS created the entire feedback loop — monitoring, decision logic, and actions — automatically. This is why target tracking is the recommended starting point.</p>
+<pre data-lang="bash"># See the auto-created alarms
 aws cloudwatch describe-alarms \
   --alarm-name-prefix "TargetTracking-fahad-web-asg" \
   --query "MetricAlarms[].{Name:AlarmName,State:StateValue,Threshold:Threshold}" \
   --output table \
   --profile fahad</pre>
-
-            <h4 class="mini">Lab output — what we got</h4>
-            <pre class="diagram">Policy created:
+<h4 class="mini">Lab output — what we got</h4>
+<pre class="diagram">Policy created:
   PolicyARN: arn:aws:autoscaling:ap-south-1:111122223333:scalingPolicy:...
 
 Auto-created alarms:
@@ -1109,20 +1052,19 @@ Auto-created alarms:
 
 → One put-scaling-policy command = policy + 2 CloudWatch alarms + auto-scaling logic
 → No manual alarm configuration needed</pre>
-
-            <h4 class="mini">Predefined metric types for target tracking</h4>
-            <div class="table-scroll">
-              <table>
-                <thead><tr><th>PredefinedMetricType</th><th>What it tracks</th><th>Use when</th></tr></thead>
-                <tbody>
-                  <tr><td><code>ASGAverageCPUUtilization</code></td><td>Average CPU across all instances</td><td>General purpose — most common choice</td></tr>
-                  <tr><td><code>ASGAverageNetworkIn</code></td><td>Average bytes received per instance</td><td>Network-bound workloads (streaming, file uploads)</td></tr>
-                  <tr><td><code>ASGAverageNetworkOut</code></td><td>Average bytes sent per instance</td><td>Network-bound workloads (API responses, downloads)</td></tr>
-                  <tr><td><code>ALBRequestCountPerTarget</code></td><td>Requests per target from the ALB</td><td>Web apps — scale by traffic volume, not CPU</td></tr>
-                </tbody>
-              </table>
-            </div>
-            <pre data-lang="bash"># Example: scale based on requests per target (needs ALB target group ARN)
+<h4 class="mini">Predefined metric types for target tracking</h4>
+<div class="table-scroll">
+<table>
+<thead><tr><th>PredefinedMetricType</th><th>What it tracks</th><th>Use when</th></tr></thead>
+<tbody>
+<tr><td><code>ASGAverageCPUUtilization</code></td><td>Average CPU across all instances</td><td>General purpose — most common choice</td></tr>
+<tr><td><code>ASGAverageNetworkIn</code></td><td>Average bytes received per instance</td><td>Network-bound workloads (streaming, file uploads)</td></tr>
+<tr><td><code>ASGAverageNetworkOut</code></td><td>Average bytes sent per instance</td><td>Network-bound workloads (API responses, downloads)</td></tr>
+<tr><td><code>ALBRequestCountPerTarget</code></td><td>Requests per target from the ALB</td><td>Web apps — scale by traffic volume, not CPU</td></tr>
+</tbody>
+</table>
+</div>
+<pre data-lang="bash"># Example: scale based on requests per target (needs ALB target group ARN)
 aws autoscaling put-scaling-policy \
   --auto-scaling-group-name fahad-web-asg \
   --policy-name requests-per-target-1000 \
@@ -1135,10 +1077,9 @@ aws autoscaling put-scaling-policy \
     "TargetValue": 1000.0
   }' \
   --profile fahad</pre>
-
-            <h4 class="mini">Step scaling (more granular control)</h4>
-            <p>Define explicit thresholds and actions — you control exactly how many instances to add at each level:</p>
-            <pre data-lang="bash"># First create a CloudWatch alarm that triggers the policy
+<h4 class="mini">Step scaling (more granular control)</h4>
+<p>Define explicit thresholds and actions — you control exactly how many instances to add at each level:</p>
+<pre data-lang="bash"># First create a CloudWatch alarm that triggers the policy
 aws cloudwatch put-metric-alarm \
   --alarm-name fahad-cpu-high-70 \
   --metric-name CPUUtilization \
@@ -1162,21 +1103,20 @@ aws autoscaling put-scaling-policy \
     {"MetricIntervalLowerBound": 20, "ScalingAdjustment": 3}
   ]' \
   --profile fahad</pre>
-            <p>This means: if CPU &gt; 70% → add 1 instance. If CPU &gt; 90% (70+20) → add 3 instances. More control than target tracking, but more to configure.</p>
-            <div class="table-scroll">
-              <table>
-                <thead><tr><th>CPU level</th><th>Action</th><th>How the step adjustment reads</th></tr></thead>
-                <tbody>
-                  <tr><td>70% – 90%</td><td>Add 1 instance</td><td>Lower bound 0, upper bound 20 (above the alarm threshold of 70)</td></tr>
-                  <tr><td>&gt; 90%</td><td>Add 3 instances</td><td>Lower bound 20, no upper bound (20+ above threshold)</td></tr>
-                  <tr><td>&lt; 30%</td><td>Remove 1 instance</td><td>Separate scale-in policy (not shown)</td></tr>
-                </tbody>
-              </table>
-            </div>
-
-            <h4 class="mini">Scheduled scaling</h4>
-            <p>Scale based on time, not metrics. Good for predictable traffic patterns:</p>
-            <pre data-lang="bash"># Scale up to 3 instances at 8am Dhaka time (2am UTC) on weekdays
+<p>This means: if CPU &gt; 70% → add 1 instance. If CPU &gt; 90% (70+20) → add 3 instances. More control than target tracking, but more to configure.</p>
+<div class="table-scroll">
+<table>
+<thead><tr><th>CPU level</th><th>Action</th><th>How the step adjustment reads</th></tr></thead>
+<tbody>
+<tr><td>70% – 90%</td><td>Add 1 instance</td><td>Lower bound 0, upper bound 20 (above the alarm threshold of 70)</td></tr>
+<tr><td>&gt; 90%</td><td>Add 3 instances</td><td>Lower bound 20, no upper bound (20+ above threshold)</td></tr>
+<tr><td>&lt; 30%</td><td>Remove 1 instance</td><td>Separate scale-in policy (not shown)</td></tr>
+</tbody>
+</table>
+</div>
+<h4 class="mini">Scheduled scaling</h4>
+<p>Scale based on time, not metrics. Good for predictable traffic patterns:</p>
+<pre data-lang="bash"># Scale up to 3 instances at 8am Dhaka time (2am UTC) on weekdays
 aws autoscaling put-scheduled-update-group-action \
   --auto-scaling-group-name fahad-web-asg \
   --scheduled-action-name morning-scale-up \
@@ -1204,11 +1144,10 @@ aws autoscaling delete-scheduled-action \
   --auto-scaling-group-name fahad-web-asg \
   --scheduled-action-name morning-scale-up \
   --profile fahad</pre>
-            <div class="fact fact-note"><span class="tag">Cron format</span><p>The recurrence uses cron syntax: <code>minute hour day-of-month month day-of-week</code>. All times are UTC. Dhaka is UTC+6, so 8am Dhaka = 2am UTC.</p></div>
-
-            <h4 class="mini">Scale-in protection</h4>
-            <p>Prevents specific instances from being terminated during scale-in. Use for instances running long jobs that shouldn't be interrupted:</p>
-            <pre data-lang="bash"># Protect a specific instance
+<div class="fact fact-note"><span class="tag">Cron format</span><p>The recurrence uses cron syntax: <code>minute hour day-of-month month day-of-week</code>. All times are UTC. Dhaka is UTC+6, so 8am Dhaka = 2am UTC.</p></div>
+<h4 class="mini">Scale-in protection</h4>
+<p>Prevents specific instances from being terminated during scale-in. Use for instances running long jobs that shouldn't be interrupted:</p>
+<pre data-lang="bash"># Protect a specific instance
 aws autoscaling set-instance-protection \
   --auto-scaling-group-name fahad-web-asg \
   --instance-ids i-xxxxx \
@@ -1221,23 +1160,21 @@ aws autoscaling set-instance-protection \
   --instance-ids i-xxxxx \
   --no-protected-from-scale-in \
   --profile fahad</pre>
-
-            <h4 class="mini">Which policy type to choose?</h4>
-            <div class="table-scroll">
-              <table>
-                <thead><tr><th>Policy type</th><th>Complexity</th><th>Best for</th><th>You manage</th></tr></thead>
-                <tbody>
-                  <tr><td><strong>Target tracking</strong></td><td>Simplest</td><td>Most workloads — set target, AWS handles the rest</td><td>Just the target value</td></tr>
-                  <tr><td><strong>Step scaling</strong></td><td>Medium</td><td>Workloads with sudden spikes — need different responses at different levels</td><td>Alarms + step adjustments</td></tr>
-                  <tr><td><strong>Scheduled</strong></td><td>Simplest</td><td>Predictable traffic patterns — business hours, batch windows</td><td>Cron schedules + desired counts</td></tr>
-                  <tr><td><strong>Combined</strong></td><td>Most complex</td><td>Production — scheduled as baseline + target tracking for unexpected spikes</td><td>All of the above</td></tr>
-                </tbody>
-              </table>
-            </div>
-            <div class="fact fact-good"><span class="tag">Start here</span><p>For the ramp plan, target tracking on CPU is enough. Add step scaling or scheduled scaling only if Manager asks "what would you do for a flash sale?" — that's when you'd combine scheduled (pre-scale before the sale) + target tracking (handle unexpected spikes during).</p></div>
-
-            <h4 class="mini">Manage scaling policies</h4>
-            <pre data-lang="bash"># List all policies on an ASG
+<h4 class="mini">Which policy type to choose?</h4>
+<div class="table-scroll">
+<table>
+<thead><tr><th>Policy type</th><th>Complexity</th><th>Best for</th><th>You manage</th></tr></thead>
+<tbody>
+<tr><td><strong>Target tracking</strong></td><td>Simplest</td><td>Most workloads — set target, AWS handles the rest</td><td>Just the target value</td></tr>
+<tr><td><strong>Step scaling</strong></td><td>Medium</td><td>Workloads with sudden spikes — need different responses at different levels</td><td>Alarms + step adjustments</td></tr>
+<tr><td><strong>Scheduled</strong></td><td>Simplest</td><td>Predictable traffic patterns — business hours, batch windows</td><td>Cron schedules + desired counts</td></tr>
+<tr><td><strong>Combined</strong></td><td>Most complex</td><td>Production — scheduled as baseline + target tracking for unexpected spikes</td><td>All of the above</td></tr>
+</tbody>
+</table>
+</div>
+<div class="fact fact-good"><span class="tag">Start here</span><p>For the ramp plan, target tracking on CPU is enough. Add step scaling or scheduled scaling only if Manager asks "what would you do for a flash sale?" — that's when you'd combine scheduled (pre-scale before the sale) + target tracking (handle unexpected spikes during).</p></div>
+<h4 class="mini">Manage scaling policies</h4>
+<pre data-lang="bash"># List all policies on an ASG
 aws autoscaling describe-policies \
   --auto-scaling-group-name fahad-web-asg \
   --query "ScalingPolicies[].{Name:PolicyName,Type:PolicyType,Target:TargetTrackingConfiguration.TargetValue}" \
@@ -1251,40 +1188,36 @@ aws autoscaling delete-policy \
   --profile fahad
 
 # Note: deleting a target tracking policy also deletes its auto-created CloudWatch alarms</pre>
-          </div>
-        </details>
-
-      </div>
-    </details>
-
-    <!-- ===================== DAY 6 ===================== -->
-    <details class="day" id="d6">
-      <summary><span class="day-badge">06</span><span class="day-title"><h2>Load Balancing &amp; DNS</h2><div class="day-sub">02 Sep (Tue) — Traffic distribution and routing</div></span><span class="chev"></span></summary>
-      <div class="day-body">
-
-        <details class="sub" id="d6-1">
-          <summary><span class="sub-num">6.1</span><h3>Application Load Balancer (ALB) Deep Dive</h3><span class="chev-sm"></span></summary>
-          <div class="sub-content">
-            <p>The ALB operates at Layer 7 (HTTP/HTTPS). It receives all incoming requests and distributes them to healthy targets based on rules you define.</p>
-            <h4 class="mini">Key components</h4>
-            <dl class="termlist">
-              <dt>Listener</dt>
-              <dd>Listens on a port (80 for HTTP, 443 for HTTPS). Each listener has rules that determine where to send traffic.</dd>
-              <dt>Rule</dt>
-              <dd>Conditions (path, host, headers) + an action (forward to target group, redirect, fixed response).</dd>
-              <dt>Target group</dt>
-              <dd>A group of instances (or IPs, or Lambda functions) that receive traffic. Each has its own health check.</dd>
-            </dl>
-            <h4 class="mini">Path-based routing</h4>
-            <pre class="diagram">ALB :443
+</div>
+</details>
+</div>
+</details>
+<!-- ===================== DAY 6 ===================== -->
+<details class="day" id="d6">
+<summary><span class="day-badge">06</span><span class="day-title"><h2>Load Balancing &amp; DNS</h2><div class="day-sub">02 Sep (Tue) — Traffic distribution and routing</div></span><span class="chev"></span></summary>
+<div class="day-body">
+<details class="sub" id="d6-1">
+<summary><span class="sub-num">6.1</span><h3>Application Load Balancer (ALB) Deep Dive</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>The ALB operates at Layer 7 (HTTP/HTTPS). It receives all incoming requests and distributes them to healthy targets based on rules you define.</p>
+<h4 class="mini">Key components</h4>
+<dl class="termlist">
+<dt>Listener</dt>
+<dd>Listens on a port (80 for HTTP, 443 for HTTPS). Each listener has rules that determine where to send traffic.</dd>
+<dt>Rule</dt>
+<dd>Conditions (path, host, headers) + an action (forward to target group, redirect, fixed response).</dd>
+<dt>Target group</dt>
+<dd>A group of instances (or IPs, or Lambda functions) that receive traffic. Each has its own health check.</dd>
+</dl>
+<h4 class="mini">Path-based routing</h4>
+<pre class="diagram">ALB :443
 ├── /api/*      → target-group-api (EC2 instances running Django)
 ├── /static/*   → target-group-static (S3 via redirect)
 ├── /health     → fixed response: 200 "OK"
 └── default     → target-group-web (EC2 instances running Nginx)</pre>
-            <p>One ALB replaces what would otherwise be multiple Nginx reverse proxy configurations. You define the routing in the AWS console or CLI, not in config files.</p>
-
-            <h4 class="mini">CLI: Create ALB + Target Group + Listener</h4>
-            <pre data-lang="bash"># 1. Create the ALB (internet-facing, in public subnets)
+<p>One ALB replaces what would otherwise be multiple Nginx reverse proxy configurations. You define the routing in the AWS console or CLI, not in config files.</p>
+<h4 class="mini">CLI: Create ALB + Target Group + Listener</h4>
+<pre data-lang="bash"># 1. Create the ALB (internet-facing, in public subnets)
 aws elbv2 create-load-balancer \
   --name fahad-web-alb \
   --subnets subnet-0aaa1111aaaa11111 subnet-0bbb2222bbbb22222 \
@@ -1333,10 +1266,9 @@ aws elbv2 describe-load-balancers \
 
 # Delete ALB (must delete listeners first)
 aws elbv2 delete-load-balancer --load-balancer-arn &lt;ALB_ARN&gt;</pre>
-
-            <h4 class="mini">Weighted target groups (canary deployments)</h4>
-            <p>One rule, two target groups, adjustable weights:</p>
-            <pre data-lang="bash">aws elbv2 modify-rule \
+<h4 class="mini">Weighted target groups (canary deployments)</h4>
+<p>One rule, two target groups, adjustable weights:</p>
+<pre data-lang="bash">aws elbv2 modify-rule \
   --rule-arn arn:aws:elasticloadbalancing:...:rule/... \
   --actions '[{
     "Type": "forward",
@@ -1347,126 +1279,117 @@ aws elbv2 delete-load-balancer --load-balancer-arn &lt;ALB_ARN&gt;</pre>
       ]
     }
   }]'</pre>
-            <p>90% of traffic to v1, 10% to v2. Change weights to shift traffic during canary deploys — no server restart needed.</p>
-          </div>
-        </details>
-
-        <details class="sub" id="d6-2">
-          <summary><span class="sub-num">6.2</span><h3>Health Checks</h3><span class="chev-sm"></span></summary>
-          <div class="sub-content">
-            <p>The ALB periodically sends an HTTP request to each target. If the response is healthy, traffic flows. If unhealthy, the target is removed from rotation.</p>
-            <div class="table-scroll">
-              <table>
-                <thead><tr><th>Setting</th><th>What it does</th><th>Recommended</th></tr></thead>
-                <tbody>
-                  <tr><td><strong>Path</strong></td><td>URL the ALB hits</td><td><code>/health</code> — a lightweight endpoint that checks DB connectivity</td></tr>
-                  <tr><td><strong>Interval</strong></td><td>How often to check</td><td>30 seconds</td></tr>
-                  <tr><td><strong>Timeout</strong></td><td>How long to wait for a response</td><td>5 seconds</td></tr>
-                  <tr><td><strong>Healthy threshold</strong></td><td>Consecutive successes to mark healthy</td><td>2</td></tr>
-                  <tr><td><strong>Unhealthy threshold</strong></td><td>Consecutive failures to mark unhealthy</td><td>3</td></tr>
-                  <tr><td><strong>Success codes</strong></td><td>Which HTTP status codes count as healthy</td><td><code>200</code> (or <code>200-299</code>)</td></tr>
-                </tbody>
-              </table>
-            </div>
-            <div class="fact fact-fail"><span class="tag">Common mistake</span><p>Setting the health check path to <code>/</code> on a Django app that redirects <code>/</code> to <code>/login</code> (302). The ALB sees a 302, not a 200, and marks the target unhealthy. Always use a dedicated <code>/health</code> endpoint that returns 200 directly.</p></div>
-          </div>
-        </details>
-
-        <details class="sub" id="d6-3">
-          <summary><span class="sub-num">6.3</span><h3>TLS Termination with ACM</h3><span class="chev-sm"></span></summary>
-          <div class="sub-content">
-            <p><strong>ACM (AWS Certificate Manager)</strong> provides free, auto-renewing TLS/SSL certificates. The ALB terminates TLS — meaning it handles encryption/decryption, and forwards plain HTTP to your backend instances.</p>
-            <pre class="diagram">User → HTTPS (encrypted) → ALB → HTTP (plain) → EC2 instances
+<p>90% of traffic to v1, 10% to v2. Change weights to shift traffic during canary deploys — no server restart needed.</p>
+</div>
+</details>
+<details class="sub" id="d6-2">
+<summary><span class="sub-num">6.2</span><h3>Health Checks</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>The ALB periodically sends an HTTP request to each target. If the response is healthy, traffic flows. If unhealthy, the target is removed from rotation.</p>
+<div class="table-scroll">
+<table>
+<thead><tr><th>Setting</th><th>What it does</th><th>Recommended</th></tr></thead>
+<tbody>
+<tr><td><strong>Path</strong></td><td>URL the ALB hits</td><td><code>/health</code> — a lightweight endpoint that checks DB connectivity</td></tr>
+<tr><td><strong>Interval</strong></td><td>How often to check</td><td>30 seconds</td></tr>
+<tr><td><strong>Timeout</strong></td><td>How long to wait for a response</td><td>5 seconds</td></tr>
+<tr><td><strong>Healthy threshold</strong></td><td>Consecutive successes to mark healthy</td><td>2</td></tr>
+<tr><td><strong>Unhealthy threshold</strong></td><td>Consecutive failures to mark unhealthy</td><td>3</td></tr>
+<tr><td><strong>Success codes</strong></td><td>Which HTTP status codes count as healthy</td><td><code>200</code> (or <code>200-299</code>)</td></tr>
+</tbody>
+</table>
+</div>
+<div class="fact fact-fail"><span class="tag">Common mistake</span><p>Setting the health check path to <code>/</code> on a Django app that redirects <code>/</code> to <code>/login</code> (302). The ALB sees a 302, not a 200, and marks the target unhealthy. Always use a dedicated <code>/health</code> endpoint that returns 200 directly.</p></div>
+</div>
+</details>
+<details class="sub" id="d6-3">
+<summary><span class="sub-num">6.3</span><h3>TLS Termination with ACM</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p><strong>ACM (AWS Certificate Manager)</strong> provides free, auto-renewing TLS/SSL certificates. The ALB terminates TLS — meaning it handles encryption/decryption, and forwards plain HTTP to your backend instances.</p>
+<pre class="diagram">User → HTTPS (encrypted) → ALB → HTTP (plain) → EC2 instances
                                     ↑ TLS terminates here
                                     Certificate from ACM</pre>
-            <p>Benefits: your EC2 instances don't need to handle TLS certificates, reducing complexity and CPU overhead. The certificate auto-renews — no more expired cert emergencies.</p>
-            <div class="fact fact-good"><span class="tag">Best practice</span><p>Add an HTTP (port 80) listener that redirects all traffic to HTTPS (port 443). This ensures no one accidentally uses unencrypted HTTP.</p></div>
-          </div>
-        </details>
-
-        <details class="sub" id="d6-4">
-          <summary><span class="sub-num">6.4</span><h3>Network Load Balancer (NLB)</h3><span class="chev-sm"></span></summary>
-          <div class="sub-content">
-            <p>The NLB operates at Layer 4 (TCP/UDP). It doesn't inspect HTTP headers or paths — it just forwards TCP connections extremely fast.</p>
-            <div class="table-scroll">
-              <table>
-                <thead><tr><th>Feature</th><th>ALB</th><th>NLB</th></tr></thead>
-                <tbody>
-                  <tr><td><strong>Layer</strong></td><td>7 (HTTP/HTTPS)</td><td>4 (TCP/UDP)</td></tr>
-                  <tr><td><strong>Routing</strong></td><td>Path, host, header, query string</td><td>Port-based only</td></tr>
-                  <tr><td><strong>Performance</strong></td><td>Good (thousands of req/sec)</td><td>Extreme (millions of req/sec)</td></tr>
-                  <tr><td><strong>Static IP</strong></td><td>No (DNS name only)</td><td>Yes (Elastic IP per AZ)</td></tr>
-                  <tr><td><strong>TLS termination</strong></td><td>Yes</td><td>Yes (TLS listener)</td></tr>
-                  <tr><td><strong>Use when</strong></td><td>HTTP APIs, web apps</td><td>Non-HTTP protocols, extreme perf, static IPs needed</td></tr>
-                </tbody>
-              </table>
-            </div>
-            <p>For your ramp plan: use ALB for everything HTTP. NLB is for when you need TCP pass-through (database proxies, gRPC, gaming servers) or static IPs for firewall allowlisting.</p>
-          </div>
-        </details>
-
-        <details class="sub" id="d6-5">
-          <summary><span class="sub-num">6.5</span><h3>Route 53 — DNS Records &amp; Routing</h3><span class="chev-sm"></span></summary>
-          <div class="sub-content">
-            <h4 class="mini">Record types</h4>
-            <div class="table-scroll">
-              <table>
-                <thead><tr><th>Type</th><th>Points to</th><th>Example</th></tr></thead>
-                <tbody>
-                  <tr><td><strong>A</strong></td><td>IPv4 address</td><td><code>api.example.com → 203.0.113.10</code></td></tr>
-                  <tr><td><strong>AAAA</strong></td><td>IPv6 address</td><td><code>api.example.com → 2600:1f18:...</code></td></tr>
-                  <tr><td><strong>CNAME</strong></td><td>Another domain name</td><td><code>www.example.com → example.com</code></td></tr>
-                  <tr><td><strong>Alias</strong></td><td>AWS resource (ALB, S3, CloudFront)</td><td><code>api.example.com → my-alb-123.elb.amazonaws.com</code></td></tr>
-                </tbody>
-              </table>
-            </div>
-            <div class="fact fact-good"><span class="tag">Use Alias</span><p>Alias records are free (no query charge), support zone apex (<code>example.com</code>, not just subdomains), and automatically resolve to the current IP of the AWS resource. Always use Alias over CNAME for AWS resources.</p></div>
-
-            <h4 class="mini">Routing policies</h4>
-            <div class="table-scroll">
-              <table>
-                <thead><tr><th>Policy</th><th>How it routes</th><th>Use for</th></tr></thead>
-                <tbody>
-                  <tr><td><strong>Simple</strong></td><td>One record, one answer</td><td>Single-region, single endpoint</td></tr>
-                  <tr><td><strong>Weighted</strong></td><td>Split traffic by percentage</td><td>Canary at DNS level, gradual migration</td></tr>
-                  <tr><td><strong>Latency</strong></td><td>Route to lowest-latency region</td><td>Active-active multi-region</td></tr>
-                  <tr><td><strong>Failover</strong></td><td>Primary + secondary, auto-switch on health check failure</td><td>Active-passive DR</td></tr>
-                  <tr><td><strong>Geolocation</strong></td><td>Route by user's country/continent</td><td>Data residency compliance, localized content</td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </details>
-
-      </div>
-    </details>
-
-    <!-- ===================== DAY 7 ===================== -->
-    <details class="day" id="d7">
-      <summary><span class="day-badge">07</span><span class="day-title"><h2>RDS, SQL &amp; Data Management</h2><div class="day-sub">03 Sep (Wed) — Managed databases</div></span><span class="chev"></span></summary>
-      <div class="day-body">
-
-        <details class="sub" id="d7-1">
-          <summary><span class="sub-num">7.1</span><h3>Multi-AZ &amp; Read Replicas</h3><span class="chev-sm"></span></summary>
-          <div class="sub-content">
-            <p>Two different features that solve different problems:</p>
-            <div class="table-scroll">
-              <table>
-                <thead><tr><th>Feature</th><th>Multi-AZ</th><th>Read Replica</th></tr></thead>
-                <tbody>
-                  <tr><td><strong>Purpose</strong></td><td>High availability (failover)</td><td>Read scaling (performance)</td></tr>
-                  <tr><td><strong>Replication</strong></td><td>Synchronous — standby always matches primary</td><td>Asynchronous — may lag seconds behind</td></tr>
-                  <tr><td><strong>Can you read from it?</strong></td><td>No — standby is dormant until failover</td><td>Yes — send read queries to it</td></tr>
-                  <tr><td><strong>Failover</strong></td><td>Automatic, ~60 seconds, same endpoint</td><td>Manual — must promote to standalone</td></tr>
-                  <tr><td><strong>Cross-region?</strong></td><td>No (same region, different AZ)</td><td>Yes — can be in another region (for DR)</td></tr>
-                  <tr><td><strong>Cost</strong></td><td>Double (two instances running)</td><td>Additive (each replica is an extra instance)</td></tr>
-                </tbody>
-              </table>
-            </div>
-            <div class="fact fact-good"><span class="tag">For the ramp plan</span><p>Enable Multi-AZ for production (automatic failover). Add read replicas only when you have read-heavy queries that overwhelm the primary. For learning, single-AZ is fine — Multi-AZ doubles the RDS cost.</p></div>
-
-            <h4 class="mini">CLI: Create an RDS instance</h4>
-            <pre data-lang="bash"># 1. Create a DB subnet group (tells RDS which subnets to use)
+<p>Benefits: your EC2 instances don't need to handle TLS certificates, reducing complexity and CPU overhead. The certificate auto-renews — no more expired cert emergencies.</p>
+<div class="fact fact-good"><span class="tag">Best practice</span><p>Add an HTTP (port 80) listener that redirects all traffic to HTTPS (port 443). This ensures no one accidentally uses unencrypted HTTP.</p></div>
+</div>
+</details>
+<details class="sub" id="d6-4">
+<summary><span class="sub-num">6.4</span><h3>Network Load Balancer (NLB)</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>The NLB operates at Layer 4 (TCP/UDP). It doesn't inspect HTTP headers or paths — it just forwards TCP connections extremely fast.</p>
+<div class="table-scroll">
+<table>
+<thead><tr><th>Feature</th><th>ALB</th><th>NLB</th></tr></thead>
+<tbody>
+<tr><td><strong>Layer</strong></td><td>7 (HTTP/HTTPS)</td><td>4 (TCP/UDP)</td></tr>
+<tr><td><strong>Routing</strong></td><td>Path, host, header, query string</td><td>Port-based only</td></tr>
+<tr><td><strong>Performance</strong></td><td>Good (thousands of req/sec)</td><td>Extreme (millions of req/sec)</td></tr>
+<tr><td><strong>Static IP</strong></td><td>No (DNS name only)</td><td>Yes (Elastic IP per AZ)</td></tr>
+<tr><td><strong>TLS termination</strong></td><td>Yes</td><td>Yes (TLS listener)</td></tr>
+<tr><td><strong>Use when</strong></td><td>HTTP APIs, web apps</td><td>Non-HTTP protocols, extreme perf, static IPs needed</td></tr>
+</tbody>
+</table>
+</div>
+<p>For your ramp plan: use ALB for everything HTTP. NLB is for when you need TCP pass-through (database proxies, gRPC, gaming servers) or static IPs for firewall allowlisting.</p>
+</div>
+</details>
+<details class="sub" id="d6-5">
+<summary><span class="sub-num">6.5</span><h3>Route 53 — DNS Records &amp; Routing</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<h4 class="mini">Record types</h4>
+<div class="table-scroll">
+<table>
+<thead><tr><th>Type</th><th>Points to</th><th>Example</th></tr></thead>
+<tbody>
+<tr><td><strong>A</strong></td><td>IPv4 address</td><td><code>api.example.com → 203.0.113.10</code></td></tr>
+<tr><td><strong>AAAA</strong></td><td>IPv6 address</td><td><code>api.example.com → 2600:1f18:...</code></td></tr>
+<tr><td><strong>CNAME</strong></td><td>Another domain name</td><td><code>www.example.com → example.com</code></td></tr>
+<tr><td><strong>Alias</strong></td><td>AWS resource (ALB, S3, CloudFront)</td><td><code>api.example.com → my-alb-123.elb.amazonaws.com</code></td></tr>
+</tbody>
+</table>
+</div>
+<div class="fact fact-good"><span class="tag">Use Alias</span><p>Alias records are free (no query charge), support zone apex (<code>example.com</code>, not just subdomains), and automatically resolve to the current IP of the AWS resource. Always use Alias over CNAME for AWS resources.</p></div>
+<h4 class="mini">Routing policies</h4>
+<div class="table-scroll">
+<table>
+<thead><tr><th>Policy</th><th>How it routes</th><th>Use for</th></tr></thead>
+<tbody>
+<tr><td><strong>Simple</strong></td><td>One record, one answer</td><td>Single-region, single endpoint</td></tr>
+<tr><td><strong>Weighted</strong></td><td>Split traffic by percentage</td><td>Canary at DNS level, gradual migration</td></tr>
+<tr><td><strong>Latency</strong></td><td>Route to lowest-latency region</td><td>Active-active multi-region</td></tr>
+<tr><td><strong>Failover</strong></td><td>Primary + secondary, auto-switch on health check failure</td><td>Active-passive DR</td></tr>
+<tr><td><strong>Geolocation</strong></td><td>Route by user's country/continent</td><td>Data residency compliance, localized content</td></tr>
+</tbody>
+</table>
+</div>
+</div>
+</details>
+</div>
+</details>
+<!-- ===================== DAY 7 ===================== -->
+<details class="day" id="d7">
+<summary><span class="day-badge">07</span><span class="day-title"><h2>RDS, SQL &amp; Data Management</h2><div class="day-sub">03 Sep (Wed) — Managed databases</div></span><span class="chev"></span></summary>
+<div class="day-body">
+<details class="sub" id="d7-1">
+<summary><span class="sub-num">7.1</span><h3>Multi-AZ &amp; Read Replicas</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>Two different features that solve different problems:</p>
+<div class="table-scroll">
+<table>
+<thead><tr><th>Feature</th><th>Multi-AZ</th><th>Read Replica</th></tr></thead>
+<tbody>
+<tr><td><strong>Purpose</strong></td><td>High availability (failover)</td><td>Read scaling (performance)</td></tr>
+<tr><td><strong>Replication</strong></td><td>Synchronous — standby always matches primary</td><td>Asynchronous — may lag seconds behind</td></tr>
+<tr><td><strong>Can you read from it?</strong></td><td>No — standby is dormant until failover</td><td>Yes — send read queries to it</td></tr>
+<tr><td><strong>Failover</strong></td><td>Automatic, ~60 seconds, same endpoint</td><td>Manual — must promote to standalone</td></tr>
+<tr><td><strong>Cross-region?</strong></td><td>No (same region, different AZ)</td><td>Yes — can be in another region (for DR)</td></tr>
+<tr><td><strong>Cost</strong></td><td>Double (two instances running)</td><td>Additive (each replica is an extra instance)</td></tr>
+</tbody>
+</table>
+</div>
+<div class="fact fact-good"><span class="tag">For the ramp plan</span><p>Enable Multi-AZ for production (automatic failover). Add read replicas only when you have read-heavy queries that overwhelm the primary. For learning, single-AZ is fine — Multi-AZ doubles the RDS cost.</p></div>
+<h4 class="mini">CLI: Create an RDS instance</h4>
+<pre data-lang="bash"># 1. Create a DB subnet group (tells RDS which subnets to use)
 aws rds create-db-subnet-group \
   --db-subnet-group-name fahad-db-subnets \
   --db-subnet-group-description "Private DB subnets for ecommerce" \
@@ -1516,120 +1439,109 @@ aws rds reboot-db-instance \
 aws rds delete-db-instance \
   --db-instance-identifier fahad-ecommerce-db \
   --skip-final-snapshot</pre>
-            <div class="fact fact-fail"><span class="tag">Cost</span><p><code>db.t3.micro</code> is free tier (750 hrs/month). Multi-AZ doubles it. Don't forget to delete the RDS instance when done studying — unlike EC2, there's no "stop" for single-AZ RDS (Multi-AZ can be stopped for up to 7 days).</p></div>
-          </div>
-        </details>
-
-        <details class="sub" id="d7-2">
-          <summary><span class="sub-num">7.2</span><h3>Backups &amp; Point-in-Time Recovery</h3><span class="chev-sm"></span></summary>
-          <div class="sub-content">
-            <p>RDS automated backups give you two things:</p>
-            <ul>
-              <li><strong>Daily snapshots:</strong> full backup taken during your backup window</li>
-              <li><strong>Transaction logs:</strong> captured every 5 minutes, stored in S3</li>
-            </ul>
-            <p>Together, these let you restore to <strong>any second</strong> within your retention window (up to 35 days).</p>
-            <pre data-lang="bash"># Restore to a specific point in time — creates a NEW instance
+<div class="fact fact-fail"><span class="tag">Cost</span><p><code>db.t3.micro</code> is free tier (750 hrs/month). Multi-AZ doubles it. Don't forget to delete the RDS instance when done studying — unlike EC2, there's no "stop" for single-AZ RDS (Multi-AZ can be stopped for up to 7 days).</p></div>
+</div>
+</details>
+<details class="sub" id="d7-2">
+<summary><span class="sub-num">7.2</span><h3>Backups &amp; Point-in-Time Recovery</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>RDS automated backups give you two things:</p>
+<ul>
+<li><strong>Daily snapshots:</strong> full backup taken during your backup window</li>
+<li><strong>Transaction logs:</strong> captured every 5 minutes, stored in S3</li>
+</ul>
+<p>Together, these let you restore to <strong>any second</strong> within your retention window (up to 35 days).</p>
+<pre data-lang="bash"># Restore to a specific point in time — creates a NEW instance
 aws rds restore-db-instance-to-point-in-time \
   --source-db-instance-identifier my-prod-db \
   --target-db-instance-identifier my-prod-db-restored \
   --restore-time "2026-09-03T10:30:00Z"</pre>
-            <div class="fact fact-fail"><span class="tag">Critical</span><p>Point-in-time recovery creates a <strong>new</strong> RDS instance — it does NOT overwrite the existing one. You must update your app's connection string to point to the new instance. Plan for this in your runbook.</p></div>
-          </div>
-        </details>
-
-        <details class="sub" id="d7-3">
-          <summary><span class="sub-num">7.3</span><h3>Parameter Groups</h3><span class="chev-sm"></span></summary>
-          <div class="sub-content">
-            <p>Database engine configuration — PostgreSQL settings like <code>max_connections</code>, <code>shared_buffers</code>, <code>work_mem</code>. Applied to an instance or cluster.</p>
-            <p>The default parameter group is read-only. Create a custom one to tune settings:</p>
-            <pre data-lang="bash">aws rds create-db-parameter-group \
+<div class="fact fact-fail"><span class="tag">Critical</span><p>Point-in-time recovery creates a <strong>new</strong> RDS instance — it does NOT overwrite the existing one. You must update your app's connection string to point to the new instance. Plan for this in your runbook.</p></div>
+</div>
+</details>
+<details class="sub" id="d7-3">
+<summary><span class="sub-num">7.3</span><h3>Parameter Groups</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>Database engine configuration — PostgreSQL settings like <code>max_connections</code>, <code>shared_buffers</code>, <code>work_mem</code>. Applied to an instance or cluster.</p>
+<p>The default parameter group is read-only. Create a custom one to tune settings:</p>
+<pre data-lang="bash">aws rds create-db-parameter-group \
   --db-parameter-group-name ecommerce-pg16 \
   --db-parameter-group-family postgres16 \
   --description "Tuned for ecommerce workload"</pre>
-            <div class="fact fact-note"><span class="tag">Reboot required</span><p>Some parameter changes (like <code>shared_buffers</code>) require a reboot to take effect. Others (like <code>work_mem</code>) apply immediately. The console shows "pending-reboot" for the ones that need it.</p></div>
-          </div>
-        </details>
-
-        <details class="sub" id="d7-4">
-          <summary><span class="sub-num">7.4</span><h3>Safe SQL Operations</h3><span class="chev-sm"></span></summary>
-          <div class="sub-content">
-            <h4 class="mini">Transaction-safe destructive queries</h4>
-            <p>Never run UPDATE or DELETE without a transaction wrapper. This pattern saves you from accidental data destruction:</p>
-            <pre data-lang="sql">BEGIN;
+<div class="fact fact-note"><span class="tag">Reboot required</span><p>Some parameter changes (like <code>shared_buffers</code>) require a reboot to take effect. Others (like <code>work_mem</code>) apply immediately. The console shows "pending-reboot" for the ones that need it.</p></div>
+</div>
+</details>
+<details class="sub" id="d7-4">
+<summary><span class="sub-num">7.4</span><h3>Safe SQL Operations</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<h4 class="mini">Transaction-safe destructive queries</h4>
+<p>Never run UPDATE or DELETE without a transaction wrapper. This pattern saves you from accidental data destruction:</p>
+<pre data-lang="sql">BEGIN;
 
 -- See what will be affected FIRST
-SELECT count(*) FROM orders WHERE status = 'cancelled' AND created_at < '2026-01-01';
+SELECT count(*) FROM orders WHERE status = 'cancelled' AND created_at &lt; '2026-01-01';
 
 -- If the count looks right, proceed
-DELETE FROM orders WHERE status = 'cancelled' AND created_at < '2026-01-01';
+DELETE FROM orders WHERE status = 'cancelled' AND created_at &lt; '2026-01-01';
 
 -- Verify the result
-SELECT count(*) FROM orders WHERE status = 'cancelled' AND created_at < '2026-01-01';
+SELECT count(*) FROM orders WHERE status = 'cancelled' AND created_at &lt; '2026-01-01';
 -- Should be 0
 
 -- Only then commit — or ROLLBACK if something looks wrong
 COMMIT;</pre>
-
-            <h4 class="mini">Reverse-out scripts</h4>
-            <p>Before running any migration or data change, write the script that undoes it. Store it alongside the change:</p>
-            <pre class="diagram">migrations/
+<h4 class="mini">Reverse-out scripts</h4>
+<p>Before running any migration or data change, write the script that undoes it. Store it alongside the change:</p>
+<pre class="diagram">migrations/
 ├── 042_add_full_name_column.sql         ← the forward migration
 ├── 042_add_full_name_column_REVERSE.sql ← the undo script
 └── 042_add_full_name_column_README.md   ← what it does and when it was run</pre>
-            <p>Test the reverse script <strong>before</strong> you run the forward migration. If you can't undo it cleanly, that changes your deployment plan (you need a longer bake time before committing).</p>
-          </div>
-        </details>
-
-        <details class="sub" id="d7-5">
-          <summary><span class="sub-num">7.5</span><h3>EXPLAIN Plans</h3><span class="chev-sm"></span></summary>
-          <div class="sub-content">
-            <p>When a query is slow, <code>EXPLAIN ANALYZE</code> shows you exactly what PostgreSQL is doing:</p>
-            <pre data-lang="sql">EXPLAIN ANALYZE
+<p>Test the reverse script <strong>before</strong> you run the forward migration. If you can't undo it cleanly, that changes your deployment plan (you need a longer bake time before committing).</p>
+</div>
+</details>
+<details class="sub" id="d7-5">
+<summary><span class="sub-num">7.5</span><h3>EXPLAIN Plans</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>When a query is slow, <code>EXPLAIN ANALYZE</code> shows you exactly what PostgreSQL is doing:</p>
+<pre data-lang="sql">EXPLAIN ANALYZE
 SELECT o.id, o.total, u.email
 FROM orders o
 JOIN users u ON u.id = o.user_id
 WHERE o.status = 'pending'
-AND o.created_at > '2026-08-01';</pre>
-            <p>What to look for in the output:</p>
-            <ul>
-              <li><strong>Seq Scan on a large table:</strong> missing index. Add one on the filtered columns.</li>
-              <li><strong>Nested Loop with high row count:</strong> bad join order or missing index on the join column.</li>
-              <li><strong>Sort with high cost:</strong> consider adding an index that matches the ORDER BY.</li>
-              <li><strong>Actual rows ≫ estimated rows:</strong> stale statistics. Run <code>ANALYZE tablename;</code></li>
-            </ul>
-            <div class="fact fact-good"><span class="tag">Your Django context</span><p>Django's ORM generates SQL you don't always see. Use <code>django-debug-toolbar</code> or <code>queryset.query</code> to inspect the SQL, then run EXPLAIN on the slow ones directly in psql.</p></div>
-          </div>
-        </details>
-
-      </div>
-    </details>
-
-    <!-- ===================== DAY 8 ===================== -->
-    <details class="day" id="d8">
-      <summary><span class="day-badge">08</span><span class="day-title"><h2>Storage, Secrets &amp; Observability</h2><div class="day-sub">04 Sep (Thu) — S3, secrets, monitoring</div></span><span class="chev"></span></summary>
-      <div class="day-body">
-
-        <details class="sub" id="d8-1">
-          <summary><span class="sub-num">8.1</span><h3>S3 Deep Dive</h3><span class="chev-sm"></span></summary>
-          <div class="sub-content">
-            <h4 class="mini">Lifecycle policies</h4>
-            <p>Automatically transition objects between storage classes to optimize cost:</p>
-            <pre class="diagram">Day 0:   Standard        ($0.023/GB)  ← hot data, frequent access
+AND o.created_at &gt; '2026-08-01';</pre>
+<p>What to look for in the output:</p>
+<ul>
+<li><strong>Seq Scan on a large table:</strong> missing index. Add one on the filtered columns.</li>
+<li><strong>Nested Loop with high row count:</strong> bad join order or missing index on the join column.</li>
+<li><strong>Sort with high cost:</strong> consider adding an index that matches the ORDER BY.</li>
+<li><strong>Actual rows ≫ estimated rows:</strong> stale statistics. Run <code>ANALYZE tablename;</code></li>
+</ul>
+<div class="fact fact-good"><span class="tag">Your Django context</span><p>Django's ORM generates SQL you don't always see. Use <code>django-debug-toolbar</code> or <code>queryset.query</code> to inspect the SQL, then run EXPLAIN on the slow ones directly in psql.</p></div>
+</div>
+</details>
+</div>
+</details>
+<!-- ===================== DAY 8 ===================== -->
+<details class="day" id="d8">
+<summary><span class="day-badge">08</span><span class="day-title"><h2>Storage, Secrets &amp; Observability</h2><div class="day-sub">04 Sep (Thu) — S3, secrets, monitoring</div></span><span class="chev"></span></summary>
+<div class="day-body">
+<details class="sub" id="d8-1">
+<summary><span class="sub-num">8.1</span><h3>S3 Deep Dive</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<h4 class="mini">Lifecycle policies</h4>
+<p>Automatically transition objects between storage classes to optimize cost:</p>
+<pre class="diagram">Day 0:   Standard        ($0.023/GB)  ← hot data, frequent access
 Day 30:  Standard-IA     ($0.0125/GB) ← infrequent access, lower cost
 Day 90:  Glacier Instant  ($0.004/GB)  ← archive, millisecond retrieval
 Day 365: Delete                        ← remove old data</pre>
-            <p>Set this on the bucket once, and S3 moves objects automatically. No scripts needed.</p>
-
-            <h4 class="mini">Versioning</h4>
-            <p>Keeps all versions of every object. If you accidentally overwrite or delete a file, the previous version still exists. Deleting a versioned object adds a "delete marker" — the object is hidden but not gone. You can restore it.</p>
-            <div class="fact fact-note"><span class="tag">Requirement</span><p>Cross-region replication requires versioning enabled on both source and destination buckets. Only <em>new</em> objects replicate — existing objects must be copied manually with <code>aws s3 sync</code>.</p></div>
-
-            <h4 class="mini">Cross-region replication</h4>
-            <p>Asynchronous replication to a bucket in another region. Used for disaster recovery (RPO) and compliance (data in specific regions). Combined with lifecycle policies, the replicated bucket can use cheaper storage classes.</p>
-
-            <h4 class="mini">CLI: S3 bucket operations</h4>
-            <pre data-lang="bash"># Create a bucket (name must be globally unique)
+<p>Set this on the bucket once, and S3 moves objects automatically. No scripts needed.</p>
+<h4 class="mini">Versioning</h4>
+<p>Keeps all versions of every object. If you accidentally overwrite or delete a file, the previous version still exists. Deleting a versioned object adds a "delete marker" — the object is hidden but not gone. You can restore it.</p>
+<div class="fact fact-note"><span class="tag">Requirement</span><p>Cross-region replication requires versioning enabled on both source and destination buckets. Only <em>new</em> objects replicate — existing objects must be copied manually with <code>aws s3 sync</code>.</p></div>
+<h4 class="mini">Cross-region replication</h4>
+<p>Asynchronous replication to a bucket in another region. Used for disaster recovery (RPO) and compliance (data in specific regions). Combined with lifecycle policies, the replicated bucket can use cheaper storage classes.</p>
+<h4 class="mini">CLI: S3 bucket operations</h4>
+<pre data-lang="bash"># Create a bucket (name must be globally unique)
 aws s3 mb s3://fahad-ecommerce-assets-dev
 
 # Enable versioning
@@ -1677,25 +1589,24 @@ aws s3api put-public-access-block \
 
 # Delete all objects and the bucket
 aws s3 rb s3://fahad-ecommerce-assets-dev --force</pre>
-          </div>
-        </details>
-
-        <details class="sub" id="d8-2">
-          <summary><span class="sub-num">8.2</span><h3>Secrets Manager &amp; Parameter Store</h3><span class="chev-sm"></span></summary>
-          <div class="sub-content">
-            <div class="table-scroll">
-              <table>
-                <thead><tr><th>Feature</th><th>Secrets Manager</th><th>Parameter Store (SSM)</th></tr></thead>
-                <tbody>
-                  <tr><td><strong>Purpose</strong></td><td>Passwords, API keys, DB credentials</td><td>Configuration values, feature flags, non-secret config</td></tr>
-                  <tr><td><strong>Auto rotation</strong></td><td>Yes — Lambda rotates credentials on a schedule</td><td>No built-in rotation</td></tr>
-                  <tr><td><strong>Cost</strong></td><td>$0.40/secret/month + API calls</td><td>Free tier (standard params), $0.05/advanced/month</td></tr>
-                  <tr><td><strong>Hierarchy</strong></td><td>Flat names</td><td>Hierarchical paths: <code>/app/prod/db-host</code></td></tr>
-                  <tr><td><strong>Use when</strong></td><td>DB passwords, third-party API keys</td><td>App config, feature flags, non-sensitive settings</td></tr>
-                </tbody>
-              </table>
-            </div>
-            <pre data-lang="bash"># Store a database password
+</div>
+</details>
+<details class="sub" id="d8-2">
+<summary><span class="sub-num">8.2</span><h3>Secrets Manager &amp; Parameter Store</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<div class="table-scroll">
+<table>
+<thead><tr><th>Feature</th><th>Secrets Manager</th><th>Parameter Store (SSM)</th></tr></thead>
+<tbody>
+<tr><td><strong>Purpose</strong></td><td>Passwords, API keys, DB credentials</td><td>Configuration values, feature flags, non-secret config</td></tr>
+<tr><td><strong>Auto rotation</strong></td><td>Yes — Lambda rotates credentials on a schedule</td><td>No built-in rotation</td></tr>
+<tr><td><strong>Cost</strong></td><td>$0.40/secret/month + API calls</td><td>Free tier (standard params), $0.05/advanced/month</td></tr>
+<tr><td><strong>Hierarchy</strong></td><td>Flat names</td><td>Hierarchical paths: <code>/app/prod/db-host</code></td></tr>
+<tr><td><strong>Use when</strong></td><td>DB passwords, third-party API keys</td><td>App config, feature flags, non-sensitive settings</td></tr>
+</tbody>
+</table>
+</div>
+<pre data-lang="bash"># Store a database password
 aws secretsmanager create-secret \
   --name ecommerce/prod/db-password \
   --secret-string '{"username":"app","password":"s3cureP@ss"}'
@@ -1749,19 +1660,17 @@ aws ssm get-parameters-by-path \
   --path "/ecommerce/dev/" \
   --query "Parameters[].{Name:Name,Value:Value}" \
   --output table</pre>
-            <div class="fact fact-fail"><span class="tag">Never</span><p>Never hardcode secrets in your application code, Dockerfiles, environment files committed to Git, or Terraform state. Always read from Secrets Manager or Parameter Store at runtime.</p></div>
-          </div>
-        </details>
-
-        <details class="sub" id="d8-3">
-          <summary><span class="sub-num">8.3</span><h3>CloudWatch — Metrics, Alarms &amp; Logs</h3><span class="chev-sm"></span></summary>
-          <div class="sub-content">
-            <h4 class="mini">Metrics</h4>
-            <p>Every AWS service publishes metrics to CloudWatch automatically: EC2 CPU utilization, RDS connections, ALB request count, S3 bucket size. You can also publish custom metrics from your app.</p>
-
-            <h4 class="mini">Alarms</h4>
-            <p>Trigger actions when a metric crosses a threshold:</p>
-            <pre data-lang="bash"># Alert when CPU exceeds 80% for 5 minutes
+<div class="fact fact-fail"><span class="tag">Never</span><p>Never hardcode secrets in your application code, Dockerfiles, environment files committed to Git, or Terraform state. Always read from Secrets Manager or Parameter Store at runtime.</p></div>
+</div>
+</details>
+<details class="sub" id="d8-3">
+<summary><span class="sub-num">8.3</span><h3>CloudWatch — Metrics, Alarms &amp; Logs</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<h4 class="mini">Metrics</h4>
+<p>Every AWS service publishes metrics to CloudWatch automatically: EC2 CPU utilization, RDS connections, ALB request count, S3 bucket size. You can also publish custom metrics from your app.</p>
+<h4 class="mini">Alarms</h4>
+<p>Trigger actions when a metric crosses a threshold:</p>
+<pre data-lang="bash"># Alert when CPU exceeds 80% for 5 minutes
 aws cloudwatch put-metric-alarm \
   --alarm-name high-cpu-web \
   --metric-name CPUUtilization \
@@ -1772,10 +1681,9 @@ aws cloudwatch put-metric-alarm \
   --comparison-operator GreaterThanThreshold \
   --evaluation-periods 2 \
   --alarm-actions arn:aws:sns:ap-south-1:111122223333:alerts</pre>
-            <p>Alarms can trigger: SNS notifications (email/SMS), Auto Scaling actions, Lambda functions, or Systems Manager actions.</p>
-
-            <h4 class="mini">CLI: CloudWatch metrics and alarms</h4>
-            <pre data-lang="bash"># Create an SNS topic for alerts (you need this for alarm actions)
+<p>Alarms can trigger: SNS notifications (email/SMS), Auto Scaling actions, Lambda functions, or Systems Manager actions.</p>
+<h4 class="mini">CLI: CloudWatch metrics and alarms</h4>
+<pre data-lang="bash"># Create an SNS topic for alerts (you need this for alarm actions)
 aws sns create-topic --name fahad-alerts \
   --query "TopicArn" --output text
 
@@ -1826,16 +1734,14 @@ aws cloudwatch get-metric-statistics \
   --period 300 \
   --statistics Average \
   --output table</pre>
-
-            <h4 class="mini">Dashboards</h4>
-            <p>Build a visual dashboard per environment. Include: request rate, error rate (5xx), latency p50/p95/p99, CPU utilization, active DB connections, and disk usage. This is the first thing you look at during an incident.</p>
-
-            <h4 class="mini">CLI: Logs</h4>
-            <p>CloudWatch Logs centralizes logs from all your services. Structure:</p>
-            <pre class="diagram">Log group:   /ecs/ecommerce-prod     ← one per service per environment
+<h4 class="mini">Dashboards</h4>
+<p>Build a visual dashboard per environment. Include: request rate, error rate (5xx), latency p50/p95/p99, CPU utilization, active DB connections, and disk usage. This is the first thing you look at during an incident.</p>
+<h4 class="mini">CLI: Logs</h4>
+<p>CloudWatch Logs centralizes logs from all your services. Structure:</p>
+<pre class="diagram">Log group:   /ecs/ecommerce-prod     ← one per service per environment
 Log stream:  instance-i-0aee8c/app    ← one per source (instance, container)
 Log events:  individual log lines      ← timestamped, searchable</pre>
-            <pre data-lang="bash"># Create a log group
+<pre data-lang="bash"># Create a log group
 aws logs create-log-group \
   --log-group-name /ec2/fahad-web-dev
 
@@ -1858,19 +1764,18 @@ aws logs filter-log-events \
 # Delete a log group (cleanup)
 aws logs delete-log-group \
   --log-group-name /ec2/fahad-web-dev</pre>
-            <p><strong>Log Insights</strong> lets you query across all log streams with SQL-like syntax (in the Console → CloudWatch → Logs → Insights):</p>
-            <pre data-lang="sql">fields @timestamp, @message
+<p><strong>Log Insights</strong> lets you query across all log streams with SQL-like syntax (in the Console → CloudWatch → Logs → Insights):</p>
+<pre data-lang="sql">fields @timestamp, @message
 | filter @message like /ERROR/
 | sort @timestamp desc
 | limit 50</pre>
-          </div>
-        </details>
-
-        <details class="sub" id="d8-4">
-          <summary><span class="sub-num">8.4</span><h3>X-Ray Distributed Tracing</h3><span class="chev-sm"></span></summary>
-          <div class="sub-content">
-            <p>X-Ray traces a request as it flows through your entire system — from the ALB, through your app, to the database, to any external APIs. It shows you exactly where time is spent.</p>
-            <pre class="diagram">Trace: GET /api/orders
+</div>
+</details>
+<details class="sub" id="d8-4">
+<summary><span class="sub-num">8.4</span><h3>X-Ray Distributed Tracing</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>X-Ray traces a request as it flows through your entire system — from the ALB, through your app, to the database, to any external APIs. It shows you exactly where time is spent.</p>
+<pre class="diagram">Trace: GET /api/orders
 ├── ALB: 2ms
 ├── Django app: 145ms
 │   ├── Auth middleware: 3ms
@@ -1878,18 +1783,16 @@ aws logs delete-log-group \
 │   ├── DB query (users): 12ms
 │   └── Serialize response: 41ms
 └── Total: 147ms</pre>
-            <p>Without X-Ray, debugging "the API is slow" means guessing. With X-Ray, you see the 89ms database query is the bottleneck — then use EXPLAIN to fix it.</p>
-            <div class="fact fact-good"><span class="tag">Your Django context</span><p>The <code>aws-xray-sdk</code> Python package patches Django, requests, boto3, and psycopg2 automatically. Add it to your middleware and every request is traced — no per-function instrumentation needed.</p></div>
-          </div>
-        </details>
-
-        <details class="sub" id="d8-5">
-          <summary><span class="sub-num">8.5</span><h3>AWS Budgets — Cost Alerts &amp; Tracking</h3><span class="chev-sm"></span></summary>
-          <div class="sub-content">
-            <p>AWS Budgets lets you set spending limits and get email alerts when you approach or exceed them. Essential for the ramp plan — one forgotten NAT Gateway or ALB can eat your credits overnight.</p>
-
-            <h4 class="mini">Method 1: Inline (single command, no files)</h4>
-            <pre data-lang="bash">aws budgets create-budget \
+<p>Without X-Ray, debugging "the API is slow" means guessing. With X-Ray, you see the 89ms database query is the bottleneck — then use EXPLAIN to fix it.</p>
+<div class="fact fact-good"><span class="tag">Your Django context</span><p>The <code>aws-xray-sdk</code> Python package patches Django, requests, boto3, and psycopg2 automatically. Add it to your middleware and every request is traced — no per-function instrumentation needed.</p></div>
+</div>
+</details>
+<details class="sub" id="d8-5">
+<summary><span class="sub-num">8.5</span><h3>AWS Budgets — Cost Alerts &amp; Tracking</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>AWS Budgets lets you set spending limits and get email alerts when you approach or exceed them. Essential for the ramp plan — one forgotten NAT Gateway or ALB can eat your credits overnight.</p>
+<h4 class="mini">Method 1: Inline (single command, no files)</h4>
+<pre data-lang="bash">aws budgets create-budget \
   --account-id 111122223333 \
   --budget '{
     "BudgetName": "ramp-plan-fahad",
@@ -1928,11 +1831,10 @@ aws logs delete-log-group \
     }
   ]' \
   --profile fahad</pre>
-
-            <h4 class="mini">Method 2: File-based (separate JSON files — cleaner for version control)</h4>
-            <p>Create two files, then reference them:</p>
-            <p><strong>budget.json:</strong></p>
-            <pre data-lang="json">{
+<h4 class="mini">Method 2: File-based (separate JSON files — cleaner for version control)</h4>
+<p>Create two files, then reference them:</p>
+<p><strong>budget.json:</strong></p>
+<pre data-lang="json">{
   "BudgetName": "ramp-plan-fahad",
   "BudgetLimit": {
     "Amount": "80",
@@ -1958,10 +1860,9 @@ aws logs delete-log-group \
     "End": "2026-12-31T23:59:59Z"
   }
 }</pre>
-            <div class="fact fact-fail"><span class="tag">Date format</span><p>Dates must be ISO 8601: <code>2026-09-01T00:00:00Z</code> — with <code>T</code> between date and time, and <code>Z</code> for UTC. Using underscores (<code>2026-09-01_00:00</code>) or omitting <code>Z</code> will fail.</p></div>
-
-            <p><strong>notifications.json:</strong></p>
-            <pre data-lang="json">[
+<div class="fact fact-fail"><span class="tag">Date format</span><p>Dates must be ISO 8601: <code>2026-09-01T00:00:00Z</code> — with <code>T</code> between date and time, and <code>Z</code> for UTC. Using underscores (<code>2026-09-01_00:00</code>) or omitting <code>Z</code> will fail.</p></div>
+<p><strong>notifications.json:</strong></p>
+<pre data-lang="json">[
   {
     "Notification": {
       "NotificationType": "ACTUAL",
@@ -1987,10 +1888,9 @@ aws logs delete-log-group \
     }]
   }
 ]</pre>
-            <div class="fact fact-fail"><span class="tag">Gotcha</span><p>The notifications file must be a bare JSON <strong>array</strong> <code>[...]</code>, not an object <code>{"NotificationWithSubscribers": [...]}</code>. The CLI flag already names the parameter — the file provides just the value.</p></div>
-
-            <p><strong>The command:</strong></p>
-            <pre data-lang="bash"># cd into the directory containing the JSON files first
+<div class="fact fact-fail"><span class="tag">Gotcha</span><p>The notifications file must be a bare JSON <strong>array</strong> <code>[...]</code>, not an object <code>{"NotificationWithSubscribers": [...]}</code>. The CLI flag already names the parameter — the file provides just the value.</p></div>
+<p><strong>The command:</strong></p>
+<pre data-lang="bash"># cd into the directory containing the JSON files first
 cd ~/Desktop/devops-syllabus
 
 aws budgets create-budget \
@@ -1998,61 +1898,55 @@ aws budgets create-budget \
   --budget file://budget.json \
   --notifications-with-subscribers file://notifications.json \
   --profile fahad</pre>
-            <div class="fact fact-note"><span class="tag">file:// paths</span><p><code>file://budget.json</code> is relative to your current directory. Use <code>file:///full/path/budget.json</code> (triple slash) for absolute paths, or <code>cd</code> into the directory first.</p></div>
-
-            <h4 class="mini">Method 3: AWS Console</h4>
-            <p>Go to <strong>AWS Console → Billing → Budgets → Create budget</strong>. Use the guided wizard — it generates the same thing as the CLI but with a visual form. Good for one-off budgets; CLI is better for reproducibility.</p>
-
-            <h4 class="mini">All possible field values — reference</h4>
-
-            <p><strong>Budget object fields:</strong></p>
-            <div class="table-scroll">
-              <table>
-                <thead><tr><th>Field</th><th>Possible values</th><th>Description</th></tr></thead>
-                <tbody>
-                  <tr><td><code>BudgetName</code></td><td>Any string (unique per account)</td><td>Name for the budget. Used in describe/delete commands.</td></tr>
-                  <tr><td><code>BudgetLimit.Amount</code></td><td>Any number as a <strong>string</strong> — e.g. <code>"80"</code>, <code>"100.50"</code></td><td>Must be a string, not a number. <code>"80"</code> not <code>80</code>.</td></tr>
-                  <tr><td><code>BudgetLimit.Unit</code></td><td><code>USD</code> | <code>GB</code> | <code>HOURS</code></td><td><code>USD</code> for cost budgets. <code>GB</code> or <code>HOURS</code> for usage budgets.</td></tr>
-                  <tr><td><code>BudgetType</code></td><td><code>COST</code> | <code>USAGE</code> | <code>RI_UTILIZATION</code> | <code>RI_COVERAGE</code> | <code>SAVINGS_PLANS_UTILIZATION</code> | <code>SAVINGS_PLANS_COVERAGE</code></td><td><code>COST</code> tracks dollars spent. <code>USAGE</code> tracks resource consumption (hours, GB). The RI/SP types track reserved instance and savings plan efficiency.</td></tr>
-                  <tr><td><code>TimeUnit</code></td><td><code>DAILY</code> | <code>MONTHLY</code> | <code>QUARTERLY</code> | <code>ANNUALLY</code></td><td>How the budget resets. <code>MONTHLY</code> = $80/month. <code>QUARTERLY</code> = $80/quarter. <code>DAILY</code> = $80/day (unusual).</td></tr>
-                </tbody>
-              </table>
-            </div>
-
-            <p><strong>TimePeriod:</strong></p>
-            <div class="table-scroll">
-              <table>
-                <thead><tr><th>Field</th><th>Format</th><th>Example</th></tr></thead>
-                <tbody>
-                  <tr><td><code>Start</code></td><td>ISO 8601 timestamp</td><td><code>2026-09-01T00:00:00Z</code></td></tr>
-                  <tr><td><code>End</code></td><td>ISO 8601 timestamp</td><td><code>2026-12-31T23:59:59Z</code></td></tr>
-                </tbody>
-              </table>
-            </div>
-            <div class="fact fact-note"><span class="tag">Tip</span><p>If you omit <code>TimePeriod</code>, the budget starts immediately and has no end date — it recurs forever at the <code>TimeUnit</code> interval. Fine for ongoing monitoring.</p></div>
-
-            <p><strong>CostTypes (all booleans — what to include in the cost calculation):</strong></p>
-            <div class="table-scroll">
-              <table>
-                <thead><tr><th>Field</th><th>Default</th><th>When to change</th></tr></thead>
-                <tbody>
-                  <tr><td><code>IncludeTax</code></td><td><code>true</code></td><td>Set <code>false</code> to track pre-tax spend only</td></tr>
-                  <tr><td><code>IncludeSubscription</code></td><td><code>true</code></td><td>Includes marketplace subscriptions</td></tr>
-                  <tr><td><code>IncludeCredit</code></td><td><code>true</code></td><td>Set <code>false</code> to see raw spend before credits are applied — <strong>recommended for learning</strong> so you see what you'd actually owe</td></tr>
-                  <tr><td><code>IncludeRefund</code></td><td><code>true</code></td><td>Include refunds in the calculation</td></tr>
-                  <tr><td><code>IncludeSupport</code></td><td><code>true</code></td><td>Include AWS Support plan charges</td></tr>
-                  <tr><td><code>IncludeDiscount</code></td><td><code>true</code></td><td>Include volume and bundled discounts</td></tr>
-                  <tr><td><code>UseBlended</code></td><td><code>false</code></td><td>Set <code>true</code> for blended rate (averaged across linked accounts in an Organization)</td></tr>
-                  <tr><td><code>UseAmortized</code></td><td><code>false</code></td><td>Set <code>true</code> to spread upfront RI/SP payments across their term</td></tr>
-                  <tr><td><code>IncludeUpfront</code></td><td><code>true</code></td><td>Include one-time upfront fees</td></tr>
-                  <tr><td><code>IncludeRecurring</code></td><td><code>true</code></td><td>Include recurring monthly fees</td></tr>
-                  <tr><td><code>IncludeOtherSubscription</code></td><td><code>true</code></td><td>Include other subscription costs</td></tr>
-                </tbody>
-              </table>
-            </div>
-
-            <p><strong>CostFilters (optional — narrow budget to specific services):</strong></p>
-            <pre data-lang="json">// Track ALL services (recommended — don't add this field)
+<div class="fact fact-note"><span class="tag">file:// paths</span><p><code>file://budget.json</code> is relative to your current directory. Use <code>file:///full/path/budget.json</code> (triple slash) for absolute paths, or <code>cd</code> into the directory first.</p></div>
+<h4 class="mini">Method 3: AWS Console</h4>
+<p>Go to <strong>AWS Console → Billing → Budgets → Create budget</strong>. Use the guided wizard — it generates the same thing as the CLI but with a visual form. Good for one-off budgets; CLI is better for reproducibility.</p>
+<h4 class="mini">All possible field values — reference</h4>
+<p><strong>Budget object fields:</strong></p>
+<div class="table-scroll">
+<table>
+<thead><tr><th>Field</th><th>Possible values</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>BudgetName</code></td><td>Any string (unique per account)</td><td>Name for the budget. Used in describe/delete commands.</td></tr>
+<tr><td><code>BudgetLimit.Amount</code></td><td>Any number as a <strong>string</strong> — e.g. <code>"80"</code>, <code>"100.50"</code></td><td>Must be a string, not a number. <code>"80"</code> not <code>80</code>.</td></tr>
+<tr><td><code>BudgetLimit.Unit</code></td><td><code>USD</code> | <code>GB</code> | <code>HOURS</code></td><td><code>USD</code> for cost budgets. <code>GB</code> or <code>HOURS</code> for usage budgets.</td></tr>
+<tr><td><code>BudgetType</code></td><td><code>COST</code> | <code>USAGE</code> | <code>RI_UTILIZATION</code> | <code>RI_COVERAGE</code> | <code>SAVINGS_PLANS_UTILIZATION</code> | <code>SAVINGS_PLANS_COVERAGE</code></td><td><code>COST</code> tracks dollars spent. <code>USAGE</code> tracks resource consumption (hours, GB). The RI/SP types track reserved instance and savings plan efficiency.</td></tr>
+<tr><td><code>TimeUnit</code></td><td><code>DAILY</code> | <code>MONTHLY</code> | <code>QUARTERLY</code> | <code>ANNUALLY</code></td><td>How the budget resets. <code>MONTHLY</code> = $80/month. <code>QUARTERLY</code> = $80/quarter. <code>DAILY</code> = $80/day (unusual).</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>TimePeriod:</strong></p>
+<div class="table-scroll">
+<table>
+<thead><tr><th>Field</th><th>Format</th><th>Example</th></tr></thead>
+<tbody>
+<tr><td><code>Start</code></td><td>ISO 8601 timestamp</td><td><code>2026-09-01T00:00:00Z</code></td></tr>
+<tr><td><code>End</code></td><td>ISO 8601 timestamp</td><td><code>2026-12-31T23:59:59Z</code></td></tr>
+</tbody>
+</table>
+</div>
+<div class="fact fact-note"><span class="tag">Tip</span><p>If you omit <code>TimePeriod</code>, the budget starts immediately and has no end date — it recurs forever at the <code>TimeUnit</code> interval. Fine for ongoing monitoring.</p></div>
+<p><strong>CostTypes (all booleans — what to include in the cost calculation):</strong></p>
+<div class="table-scroll">
+<table>
+<thead><tr><th>Field</th><th>Default</th><th>When to change</th></tr></thead>
+<tbody>
+<tr><td><code>IncludeTax</code></td><td><code>true</code></td><td>Set <code>false</code> to track pre-tax spend only</td></tr>
+<tr><td><code>IncludeSubscription</code></td><td><code>true</code></td><td>Includes marketplace subscriptions</td></tr>
+<tr><td><code>IncludeCredit</code></td><td><code>true</code></td><td>Set <code>false</code> to see raw spend before credits are applied — <strong>recommended for learning</strong> so you see what you'd actually owe</td></tr>
+<tr><td><code>IncludeRefund</code></td><td><code>true</code></td><td>Include refunds in the calculation</td></tr>
+<tr><td><code>IncludeSupport</code></td><td><code>true</code></td><td>Include AWS Support plan charges</td></tr>
+<tr><td><code>IncludeDiscount</code></td><td><code>true</code></td><td>Include volume and bundled discounts</td></tr>
+<tr><td><code>UseBlended</code></td><td><code>false</code></td><td>Set <code>true</code> for blended rate (averaged across linked accounts in an Organization)</td></tr>
+<tr><td><code>UseAmortized</code></td><td><code>false</code></td><td>Set <code>true</code> to spread upfront RI/SP payments across their term</td></tr>
+<tr><td><code>IncludeUpfront</code></td><td><code>true</code></td><td>Include one-time upfront fees</td></tr>
+<tr><td><code>IncludeRecurring</code></td><td><code>true</code></td><td>Include recurring monthly fees</td></tr>
+<tr><td><code>IncludeOtherSubscription</code></td><td><code>true</code></td><td>Include other subscription costs</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>CostFilters (optional — narrow budget to specific services):</strong></p>
+<pre data-lang="json">// Track ALL services (recommended — don't add this field)
 // No CostFilters = everything is tracked
 
 // Track only EC2
@@ -2072,34 +1966,31 @@ aws budgets create-budget \
 "CostFilters": {
   "TagKeyValue": ["user:Project$ecommerce-platform"]
 }</pre>
-            <div class="fact fact-fail"><span class="tag">Recommendation</span><p>Don't filter by service for a learning budget — you'll miss NAT Gateway ($32/month), ALB ($16/month), and other costs that aren't EC2. Track everything.</p></div>
-
-            <p><strong>Notification fields:</strong></p>
-            <div class="table-scroll">
-              <table>
-                <thead><tr><th>Field</th><th>Possible values</th><th>Description</th></tr></thead>
-                <tbody>
-                  <tr><td><code>NotificationType</code></td><td><code>ACTUAL</code> | <code>FORECASTED</code></td><td><code>ACTUAL</code> = alert when you've already spent X. <code>FORECASTED</code> = alert when AWS predicts you'll exceed X by end of period.</td></tr>
-                  <tr><td><code>ComparisonOperator</code></td><td><code>GREATER_THAN</code> | <code>LESS_THAN</code> | <code>EQUAL_TO</code></td><td>Usually <code>GREATER_THAN</code>. <code>LESS_THAN</code> is useful for RI utilization ("alert if utilization drops below 80%").</td></tr>
-                  <tr><td><code>Threshold</code></td><td>0–100 (when <code>PERCENTAGE</code>) or absolute number</td><td>The value to compare against. 50 = 50% or $50 depending on ThresholdType.</td></tr>
-                  <tr><td><code>ThresholdType</code></td><td><code>PERCENTAGE</code> | <code>ABSOLUTE_VALUE</code></td><td><code>PERCENTAGE</code> = % of BudgetLimit. <code>ABSOLUTE_VALUE</code> = exact dollar amount.</td></tr>
-                </tbody>
-              </table>
-            </div>
-
-            <p><strong>Subscriber fields:</strong></p>
-            <div class="table-scroll">
-              <table>
-                <thead><tr><th>Field</th><th>Possible values</th><th>Description</th></tr></thead>
-                <tbody>
-                  <tr><td><code>SubscriptionType</code></td><td><code>EMAIL</code> | <code>SNS</code></td><td><code>EMAIL</code> sends directly to the address. <code>SNS</code> publishes to an SNS topic (can trigger Lambda, Slack, PagerDuty).</td></tr>
-                  <tr><td><code>Address</code></td><td>Email address or SNS topic ARN</td><td>Where the alert goes.</td></tr>
-                </tbody>
-              </table>
-            </div>
-
-            <h4 class="mini">Manage existing budgets</h4>
-            <pre data-lang="bash"># List all budgets
+<div class="fact fact-fail"><span class="tag">Recommendation</span><p>Don't filter by service for a learning budget — you'll miss NAT Gateway ($32/month), ALB ($16/month), and other costs that aren't EC2. Track everything.</p></div>
+<p><strong>Notification fields:</strong></p>
+<div class="table-scroll">
+<table>
+<thead><tr><th>Field</th><th>Possible values</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>NotificationType</code></td><td><code>ACTUAL</code> | <code>FORECASTED</code></td><td><code>ACTUAL</code> = alert when you've already spent X. <code>FORECASTED</code> = alert when AWS predicts you'll exceed X by end of period.</td></tr>
+<tr><td><code>ComparisonOperator</code></td><td><code>GREATER_THAN</code> | <code>LESS_THAN</code> | <code>EQUAL_TO</code></td><td>Usually <code>GREATER_THAN</code>. <code>LESS_THAN</code> is useful for RI utilization ("alert if utilization drops below 80%").</td></tr>
+<tr><td><code>Threshold</code></td><td>0–100 (when <code>PERCENTAGE</code>) or absolute number</td><td>The value to compare against. 50 = 50% or $50 depending on ThresholdType.</td></tr>
+<tr><td><code>ThresholdType</code></td><td><code>PERCENTAGE</code> | <code>ABSOLUTE_VALUE</code></td><td><code>PERCENTAGE</code> = % of BudgetLimit. <code>ABSOLUTE_VALUE</code> = exact dollar amount.</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>Subscriber fields:</strong></p>
+<div class="table-scroll">
+<table>
+<thead><tr><th>Field</th><th>Possible values</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>SubscriptionType</code></td><td><code>EMAIL</code> | <code>SNS</code></td><td><code>EMAIL</code> sends directly to the address. <code>SNS</code> publishes to an SNS topic (can trigger Lambda, Slack, PagerDuty).</td></tr>
+<tr><td><code>Address</code></td><td>Email address or SNS topic ARN</td><td>Where the alert goes.</td></tr>
+</tbody>
+</table>
+</div>
+<h4 class="mini">Manage existing budgets</h4>
+<pre data-lang="bash"># List all budgets
 aws budgets describe-budgets \
   --account-id 111122223333 \
   --query "Budgets[].{Name:BudgetName,Limit:BudgetLimit.Amount,Spent:CalculatedSpend.ActualSpend.Amount,Type:BudgetType,TimeUnit:TimeUnit}" \
@@ -2141,33 +2032,30 @@ aws ce get-cost-and-usage \
   --metrics "UnblendedCost" \
   --group-by Type=DIMENSION,Key=SERVICE \
   --profile fahad</pre>
-
-            <h4 class="mini">Common budget patterns</h4>
-            <div class="table-scroll">
-              <table>
-                <thead><tr><th>Pattern</th><th>Settings</th><th>Use case</th></tr></thead>
-                <tbody>
-                  <tr><td><strong>Zero-spend trip-wire</strong></td><td>Limit: $1, TimeUnit: MONTHLY, Threshold: 80%</td><td>Catch any unexpected spend immediately. Alert at $0.80.</td></tr>
-                  <tr><td><strong>Learning budget</strong></td><td>Limit: $80, TimeUnit: QUARTERLY, Thresholds: 50% + 80%</td><td>Your current setup. Covers the full ramp plan period.</td></tr>
-                  <tr><td><strong>Monthly guard rail</strong></td><td>Limit: $50, TimeUnit: MONTHLY, Threshold: 90%</td><td>Per-month cap for ongoing projects.</td></tr>
-                  <tr><td><strong>Forecast alert</strong></td><td>NotificationType: FORECASTED, Threshold: 100%</td><td>Alert before you exceed — AWS predicts the trajectory and warns early.</td></tr>
-                  <tr><td><strong>Per-service budget</strong></td><td>CostFilter on SERVICE, Limit: $30</td><td>Track one expensive service (e.g. RDS only).</td></tr>
-                  <tr><td><strong>Per-project budget</strong></td><td>CostFilter on TagKeyValue, Limit: $100</td><td>Track spend by project tag — requires tagged resources.</td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </details>
-
-      </div>
-    </details>
-
-    <!-- ===================== DAY 9 ===================== -->
-    <details class="day" id="d9" style="border-color:var(--warn)">
-      <summary><span class="day-badge" style="color:var(--warn); border-color:var(--warn)">09</span><span class="day-title"><h2>Build Day + Checkpoint 1</h2><div class="day-sub">05 Sep (Fri) — Full stack running, Manager's review</div></span><span class="chev"></span></summary>
-      <div class="day-body">
-        <p>This is the integration day. Everything you built in Days 5–8 comes together into a single working stack:</p>
-        <pre class="diagram">Route 53 (DNS)
+<h4 class="mini">Common budget patterns</h4>
+<div class="table-scroll">
+<table>
+<thead><tr><th>Pattern</th><th>Settings</th><th>Use case</th></tr></thead>
+<tbody>
+<tr><td><strong>Zero-spend trip-wire</strong></td><td>Limit: $1, TimeUnit: MONTHLY, Threshold: 80%</td><td>Catch any unexpected spend immediately. Alert at $0.80.</td></tr>
+<tr><td><strong>Learning budget</strong></td><td>Limit: $80, TimeUnit: QUARTERLY, Thresholds: 50% + 80%</td><td>Your current setup. Covers the full ramp plan period.</td></tr>
+<tr><td><strong>Monthly guard rail</strong></td><td>Limit: $50, TimeUnit: MONTHLY, Threshold: 90%</td><td>Per-month cap for ongoing projects.</td></tr>
+<tr><td><strong>Forecast alert</strong></td><td>NotificationType: FORECASTED, Threshold: 100%</td><td>Alert before you exceed — AWS predicts the trajectory and warns early.</td></tr>
+<tr><td><strong>Per-service budget</strong></td><td>CostFilter on SERVICE, Limit: $30</td><td>Track one expensive service (e.g. RDS only).</td></tr>
+<tr><td><strong>Per-project budget</strong></td><td>CostFilter on TagKeyValue, Limit: $100</td><td>Track spend by project tag — requires tagged resources.</td></tr>
+</tbody>
+</table>
+</div>
+</div>
+</details>
+</div>
+</details>
+<!-- ===================== DAY 9 ===================== -->
+<details class="day" id="d9" style="border-color:var(--warn)">
+<summary><span class="day-badge" style="color:var(--warn); border-color:var(--warn)">09</span><span class="day-title"><h2>Build Day + Checkpoint 1</h2><div class="day-sub">05 Sep (Fri) — Full stack running, Manager's review</div></span><span class="chev"></span></summary>
+<div class="day-body">
+<p>This is the integration day. Everything you built in Days 5–8 comes together into a single working stack:</p>
+<pre class="diagram">Route 53 (DNS)
   └── ALB (HTTPS, TLS from ACM)
         ├── Target group → ASG → EC2 instances (app)
         │                         ├── reads secrets from Secrets Manager
@@ -2180,44 +2068,45 @@ aws ce get-cost-and-usage \
 
 CloudWatch: dashboard + alarms + log groups for every component
 </pre>
-        <h4 class="mini">Checkpoint 1 deliverables</h4>
-        <ul>
-          <li><strong>Full stack running:</strong> a request hits the DNS name, reaches the ALB, is forwarded to an EC2 instance, which queries RDS and returns a response.</li>
-          <li><strong>Architecture diagram:</strong> draw every component, subnet, AZ, security group, and data flow path.</li>
-          <li><strong>Cost estimate:</strong> document expected monthly cost. Compare against the $60 budget. Identify the top cost drivers.</li>
-          <li><strong>Manager's review:</strong> walk through the architecture, demonstrate each component, explain every design choice and its trade-off.</li>
-        </ul>
-        <div class="fact fact-fail"><span class="tag">Common failures</span><p>Security group not allowing ALB → EC2 traffic. RDS in a public subnet. No health check endpoint. Secrets hardcoded in user-data. No tags. No monitoring. Manager will check all of these.</p></div>
-      </div>
-    </details>
+<h4 class="mini">Checkpoint 1 deliverables</h4>
+<ul>
+<li><strong>Full stack running:</strong> a request hits the DNS name, reaches the ALB, is forwarded to an EC2 instance, which queries RDS and returns a response.</li>
+<li><strong>Architecture diagram:</strong> draw every component, subnet, AZ, security group, and data flow path.</li>
+<li><strong>Cost estimate:</strong> document expected monthly cost. Compare against the $60 budget. Identify the top cost drivers.</li>
+<li><strong>Manager's review:</strong> walk through the architecture, demonstrate each component, explain every design choice and its trade-off.</li>
+</ul>
+<div class="fact fact-fail"><span class="tag">Common failures</span><p>Security group not allowing ALB → EC2 traffic. RDS in a public subnet. No health check endpoint. Secrets hardcoded in user-data. No tags. No monitoring. Manager will check all of these.</p></div>
+</div>
+</details>
+<!-- ===================== CHECKLIST ===================== -->
+<details class="day" id="checklist" style="border-color:var(--warn)">
+<summary><span class="day-badge" style="color:var(--warn); border-color:var(--warn)">✓</span><span class="day-title"><h2>A2 Checklist</h2><div class="day-sub">Week 2 — Full Stack Build Checklist</div></span><span class="chev"></span></summary>
+<div class="day-body">
+<p>Checks are saved in this browser only.</p>
+<ul class="checklist" id="checklist-list">
+<li data-id="w2c1"><input id="w2c1" type="checkbox"/><label for="w2c1"><strong>EC2 instance launches</strong> from a launch template with all 6 tags (Name, Environment, Owner, Project, CostCenter, ManagedBy)</label></li>
+<li data-id="w2c2"><input id="w2c2" type="checkbox"/><label for="w2c2"><strong>Auto Scaling Group</strong> with min/desired/max set, spread across 2 AZs, ELB health checks enabled</label></li>
+<li data-id="w2c3"><input id="w2c3" type="checkbox"/><label for="w2c3"><strong>Scaling policy</strong> configured (target tracking on CPU or request count)</label></li>
+<li data-id="w2c4"><input id="w2c4" type="checkbox"/><label for="w2c4"><strong>ALB</strong> with HTTPS listener, ACM certificate, path-based routing rules, health check on <code>/health</code></label></li>
+<li data-id="w2c5"><input id="w2c5" type="checkbox"/><label for="w2c5"><strong>Route 53</strong> Alias record pointing to the ALB</label></li>
+<li data-id="w2c6"><input id="w2c6" type="checkbox"/><label for="w2c6"><strong>RDS PostgreSQL</strong> in private subnet, security group allows only from app-sg on port 5432</label></li>
+<li data-id="w2c7"><input id="w2c7" type="checkbox"/><label for="w2c7"><strong>RDS backups</strong> enabled with retention period, point-in-time recovery tested</label></li>
+<li data-id="w2c8"><input id="w2c8" type="checkbox"/><label for="w2c8"><strong>S3 bucket</strong> with versioning enabled and lifecycle policy (Standard → IA → Glacier → Delete)</label></li>
+<li data-id="w2c9"><input id="w2c9" type="checkbox"/><label for="w2c9"><strong>Secrets Manager</strong> storing DB credentials; app reads them at runtime, not hardcoded</label></li>
+<li data-id="w2c10"><input id="w2c10" type="checkbox"/><label for="w2c10"><strong>CloudWatch dashboard</strong> with request rate, error rate, latency, CPU, DB connections</label></li>
+<li data-id="w2c11"><input id="w2c11" type="checkbox"/><label for="w2c11"><strong>CloudWatch alarms</strong> for high CPU, high error rate, low disk space — connected to SNS for email alerts</label></li>
+<li data-id="w2c12"><input id="w2c12" type="checkbox"/><label for="w2c12"><strong>Architecture diagram</strong> showing all components, subnets, AZs, security groups, and data flow</label></li>
+</ul>
+</div>
+</details>
+<footer>
+<div class="rule"></div>
+<div class="footer-nav">
+<a class="footer-prev" href="index.html">← Week 1 — Delivery Principles &amp; AWS Foundations</a>
+<a class="footer-next" href="week3.html">Week 2 complete. Next: Week 3 — Containers, ECS Fargate &amp; EKS →</a>
+</div>
+</footer>
 
-    <!-- ===================== CHECKLIST ===================== -->
-    <details class="day" id="checklist" style="border-color:var(--warn)">
-      <summary><span class="day-badge" style="color:var(--warn); border-color:var(--warn)">✓</span><span class="day-title"><h2>A2 Checklist</h2><div class="day-sub">Week 2 — Full Stack Build Checklist</div></span><span class="chev"></span></summary>
-      <div class="day-body">
-        <p>Checks are saved in this browser only.</p>
-        <ul class="checklist" id="checklist-list">
-          <li data-id="w2c1"><input type="checkbox" id="w2c1"><label for="w2c1"><strong>EC2 instance launches</strong> from a launch template with all 6 tags (Name, Environment, Owner, Project, CostCenter, ManagedBy)</label></li>
-          <li data-id="w2c2"><input type="checkbox" id="w2c2"><label for="w2c2"><strong>Auto Scaling Group</strong> with min/desired/max set, spread across 2 AZs, ELB health checks enabled</label></li>
-          <li data-id="w2c3"><input type="checkbox" id="w2c3"><label for="w2c3"><strong>Scaling policy</strong> configured (target tracking on CPU or request count)</label></li>
-          <li data-id="w2c4"><input type="checkbox" id="w2c4"><label for="w2c4"><strong>ALB</strong> with HTTPS listener, ACM certificate, path-based routing rules, health check on <code>/health</code></label></li>
-          <li data-id="w2c5"><input type="checkbox" id="w2c5"><label for="w2c5"><strong>Route 53</strong> Alias record pointing to the ALB</label></li>
-          <li data-id="w2c6"><input type="checkbox" id="w2c6"><label for="w2c6"><strong>RDS PostgreSQL</strong> in private subnet, security group allows only from app-sg on port 5432</label></li>
-          <li data-id="w2c7"><input type="checkbox" id="w2c7"><label for="w2c7"><strong>RDS backups</strong> enabled with retention period, point-in-time recovery tested</label></li>
-          <li data-id="w2c8"><input type="checkbox" id="w2c8"><label for="w2c8"><strong>S3 bucket</strong> with versioning enabled and lifecycle policy (Standard → IA → Glacier → Delete)</label></li>
-          <li data-id="w2c9"><input type="checkbox" id="w2c9"><label for="w2c9"><strong>Secrets Manager</strong> storing DB credentials; app reads them at runtime, not hardcoded</label></li>
-          <li data-id="w2c10"><input type="checkbox" id="w2c10"><label for="w2c10"><strong>CloudWatch dashboard</strong> with request rate, error rate, latency, CPU, DB connections</label></li>
-          <li data-id="w2c11"><input type="checkbox" id="w2c11"><label for="w2c11"><strong>CloudWatch alarms</strong> for high CPU, high error rate, low disk space — connected to SNS for email alerts</label></li>
-          <li data-id="w2c12"><input type="checkbox" id="w2c12"><label for="w2c12"><strong>Architecture diagram</strong> showing all components, subnets, AZs, security groups, and data flow</label></li>
-        </ul>
-      </div>
-    </details>
-
-    <footer>
-      <div class="rule"></div>
-      <a class="footer-prev" href="index.html">← Week 1 — Delivery Principles &amp; AWS Foundations</a>
-      Week 2 complete. Next: Week 3 — Containers: Docker, ECS &amp; EKS.
-    </footer>
   </main>
 </div>
 
@@ -2253,7 +2142,6 @@ CloudWatch: dashboard + alarms + log groups for every component
     }, {rootMargin:'-10% 0px -70% 0px'});
     observed.forEach(function(el){ io.observe(el); });
   }
-
   var STORAGE_KEY = 'devops-ramp-a2-checklist';
   var checkboxes = Array.prototype.slice.call(document.querySelectorAll('.checklist input[type="checkbox"]'));
   var countEl = document.getElementById('progress-count');

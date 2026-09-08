@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DevOps Ramp Plan — Week 3</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="shell">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand"><span class="brand-mark"></span><span class="eyebrow">DevOps Ramp Plan</span></div>
+    <h1>Week 3</h1>
+
+    <span class="eyebrow">Jump to week</span>
+    <div class="week-switch">
+      <a href="index.html" class="week-tab" title="Week 1 — Delivery Principles &amp; AWS Foundations">1</a>
+      <a href="week2.html" class="week-tab" title="Week 2 — Compute, Networking, Data &amp; Observability">2</a>
+      <a href="week3.html" class="week-tab active" title="Week 3 — Containers, ECS Fargate &amp; EKS">3</a>
+      <a href="week4.html" class="week-tab" title="Week 4 — The Platform as Code">4</a>
+      <a href="week5.html" class="week-tab" title="Week 5 — Delivery Pipeline &amp; Readiness Review">5</a>
+    </div>
+
+    <div class="nav-controls">
+      <button class="btn" id="expand-all">Expand all</button>
+      <button class="btn" id="collapse-all">Collapse all</button>
+    </div>
+
+    <nav class="nav" id="nav">
+      <ul>
+        <li>
+          <a class="day-link" href="#d10"><span class="day-num">10</span> Production Container Images</a>
+        </li>
+        <li>
+          <a class="day-link" href="#d11"><span class="day-num">11</span> ECS Fargate</a>
+        </li>
+        <li>
+          <a class="day-link" href="#d12"><span class="day-num">12</span> ECS With Real Deployment Strategies</a>
+        </li>
+        <li>
+          <a class="day-link" href="#d13"><span class="day-num">13</span> EKS Fundamentals</a>
+        </li>
+        <li>
+          <a class="day-link" href="#d14"><span class="day-num">14</span> ECS vs EKS, Decided</a>
+        </li>
+      </ul>
+    </nav>
+  </aside>
+
+  <main>
+<div class="hero">
+<span class="eyebrow">Assignment A3 · One Service, Two Runtimes</span>
+<h1>Containers, ECS Fargate &amp; EKS</h1>
+<p class="goal">Ship a containerised microservice to ECS Fargate with zero downtime, run the same service on EKS, and hold a credible opinion on which the customer should use.</p>
+<div class="deliverables">
+<span class="eyebrow">This week's deliverables</span>
+<ol>
+<li>Order service running on both ECS Fargate and EKS, each behind a load balancer, reachable over HTTPS</li>
+<li>A zero-downtime deployment demonstrated on each, with the request-failure count recorded</li>
+<li>A recommendation memo — operational burden, cost, team readiness, migration risk, and a clear answer on when new microservices should go to EKS</li>
+</ol>
+</div>
+</div>
+<details class="day" id="d10" open="">
+<summary><span class="day-badge">10</span><span class="day-title"><h2>Production Container Images</h2><div class="day-sub">Mon 14 Sep</div></span><span class="chev"></span></summary>
+<div class="day-body">
+<p>Building an image that's actually fit to run in production, not just to work on a laptop.</p>
+<ul>
+<li>A Dockerfile that's small and cacheable</li>
+<li>Multi-stage builds</li>
+<li>Non-root users</li>
+<li>Health endpoints</li>
+<li>Configuration through the environment, not baked into the image</li>
+<li>Tagging by commit</li>
+<li>ECR and image scanning</li>
+<li>A local multi-container stack to develop against</li>
+</ul>
+</div>
+</details>
+<details class="day" id="d11">
+<summary><span class="day-badge">11</span><span class="day-title"><h2>ECS Fargate</h2><div class="day-sub">Tue 15 Sep</div></span><span class="chev"></span></summary>
+<div class="day-body">
+<p>The serverless container runtime the customer's platform already runs on.</p>
+<ul>
+<li>Clusters, task definitions and revisions, services</li>
+<li>Task role vs execution role</li>
+<li>CPU and memory sizing</li>
+<li><code>awsvpc</code> networking and ENI limits</li>
+<li>ALB integration and service discovery</li>
+<li>Service auto scaling</li>
+<li>Rolling deployments and the deployment circuit breaker</li>
+</ul>
+</div>
+</details>
+<details class="day" id="d12">
+<summary><span class="day-badge">12</span><span class="day-title"><h2>ECS With Real Deployment Strategies</h2><div class="day-sub">Wed 16 Sep</div></span><span class="chev"></span></summary>
+<div class="day-body">
+<p>Three services routed by path, sharing a database — Week 1's deployment-strategy decision matrix applied for real.</p>
+<ul>
+<li>Blue/green deployment with CodeDeploy</li>
+<li>A canary release</li>
+<li>A schema change deployed backward-compatibly</li>
+<li>Deploy under load and prove zero dropped requests</li>
+</ul>
+</div>
+</details>
+<details class="day" id="d13">
+<summary><span class="day-badge">13</span><span class="day-title"><h2>EKS Fundamentals</h2><div class="day-sub">Thu 17 Sep</div></span><span class="chev"></span></summary>
+<div class="day-body">
+<p>The Kubernetes side of the ECS-vs-EKS conversation the customer keeps having.</p>
+<ul>
+<li>Control plane vs data plane</li>
+<li>Managed node groups vs Fargate profiles</li>
+<li><code>kubectl</code> and contexts</li>
+<li>Pods, deployments, services, ingress</li>
+<li>ConfigMaps and secrets</li>
+<li>Requests and limits</li>
+<li>IRSA for pod-level IAM</li>
+<li>The horizontal pod autoscaler and the AWS Load Balancer Controller</li>
+</ul>
+</div>
+</details>
+<details class="day" id="d14">
+<summary><span class="day-badge">14</span><span class="day-title"><h2>ECS vs EKS, Decided</h2><div class="day-sub">Fri 18 Sep</div></span><span class="chev"></span></summary>
+<div class="day-body">
+<p>Deploy the same service to EKS behind an ALB ingress and perform a rolling update, then a troubleshooting clinic across both runtimes.</p>
+<ul>
+<li>Image pull failure</li>
+<li>Wrong subnet</li>
+<li>Missing permission</li>
+<li>Failing probe</li>
+<li>Out-of-memory kill</li>
+<li>Write the ECS-vs-EKS comparison</li>
+</ul>
+<div class="fact fact-note"><span class="tag">Designated give</span><p>This Friday is the only flexible day in the month. If a public holiday or absence costs a day anywhere in September, it's taken from here — EKS drops to a single day and the comparison becomes a written exercise instead. AWS, Terraform and Jenkins weeks are never compressed.</p></div>
+</div>
+</details>
+<div class="deliverables">
+<span class="eyebrow">Assignment A3 — done when</span>
+<p style="margin:0">The recommendation memo survives Akil arguing the opposite position, and both clusters are destroyed by Friday evening.</p>
+</div>
+<footer>
+<div class="rule"></div>
+<div class="footer-nav">
+<a class="footer-prev" href="week2.html">← Week 2 — Compute, Networking, Data &amp; Observability</a>
+<a class="footer-next" href="week4.html">Week 3 complete. Next: Week 4 — Terraform →</a>
+</div>
+</footer>
+
+  </main>
+</div>
+
+<script>
+(function(){
+  var expandAll = document.getElementById('expand-all');
+  var collapseAll = document.getElementById('collapse-all');
+  function allDetails(){ return document.querySelectorAll('main details'); }
+  expandAll.addEventListener('click', function(){ allDetails().forEach(function(d){ d.open = true; }); });
+  collapseAll.addEventListener('click', function(){ allDetails().forEach(function(d){ d.open = false; }); });
+
+  document.querySelectorAll('.nav a[href^="#"]').forEach(function(a){
+    a.addEventListener('click', function(e){
+      var id = a.getAttribute('href').slice(1);
+      var target = document.getElementById(id);
+      if(!target) return;
+      var details = target.closest('details');
+      while(details){ details.open = true; details = details.parentElement.closest('details'); }
+      if(target.tagName === 'DETAILS') target.open = true;
+    });
+  });
+
+  if('IntersectionObserver' in window){
+    var observed = document.querySelectorAll('details.day, details.sub');
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(entry){
+        var id = entry.target.id;
+        var link = document.querySelector('.nav a[href="#'+id+'"]');
+        if(!link) return;
+        if(entry.isIntersecting) link.classList.add('active');
+        else link.classList.remove('active');
+      });
+    }, {rootMargin:'-10% 0px -70% 0px'});
+    observed.forEach(function(el){ io.observe(el); });
+  }
+})();
+</script>
+
+</body>
+</html>

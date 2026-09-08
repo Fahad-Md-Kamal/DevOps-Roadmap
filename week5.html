@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DevOps Ramp Plan — Week 5</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="shell">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand"><span class="brand-mark"></span><span class="eyebrow">DevOps Ramp Plan</span></div>
+    <h1>Week 5</h1>
+
+    <span class="eyebrow">Jump to week</span>
+    <div class="week-switch">
+      <a href="index.html" class="week-tab" title="Week 1 — Delivery Principles &amp; AWS Foundations">1</a>
+      <a href="week2.html" class="week-tab" title="Week 2 — Compute, Networking, Data &amp; Observability">2</a>
+      <a href="week3.html" class="week-tab" title="Week 3 — Containers, ECS Fargate &amp; EKS">3</a>
+      <a href="week4.html" class="week-tab" title="Week 4 — The Platform as Code">4</a>
+      <a href="week5.html" class="week-tab active" title="Week 5 — Delivery Pipeline &amp; Readiness Review">5</a>
+    </div>
+
+    <div class="nav-controls">
+      <button class="btn" id="expand-all">Expand all</button>
+      <button class="btn" id="collapse-all">Collapse all</button>
+    </div>
+
+    <nav class="nav" id="nav">
+      <ul>
+        <li>
+          <a class="day-link" href="#d20"><span class="day-num">20</span> Jenkins Provisioned, Pipeline as Code</a>
+        </li>
+        <li>
+          <a class="day-link" href="#d21"><span class="day-num">21</span> CI and CD, End to End</a>
+        </li>
+        <li>
+          <a class="day-link" href="#d22"><span class="day-num">22</span> Progressive Delivery, Runbook, Readiness Review</a>
+        </li>
+      </ul>
+    </nav>
+  </aside>
+
+  <main>
+<div class="hero">
+<span class="eyebrow">Assignment A5 · Readiness Review</span>
+<h1>Delivery Pipeline &amp; Readiness Review</h1>
+<p class="goal">A commit goes from pull request to a running ECS service through Jenkins — plan review, approval, canary, rollback — with nobody touching the AWS console.</p>
+<div class="deliverables">
+<span class="eyebrow">This week's deliverables</span>
+<ol>
+<li>On pull request: format, validate, lint, scan, test, and the <code>terraform plan</code> posted as a comment</li>
+<li>On merge: build and push the image, apply to dev, smoke test, hold for approval, then staging</li>
+<li>One service released by canary or blue/green with promotion and abort criteria written beforehand</li>
+<li>A rollback job used at least once, plus two parameterised operations jobs</li>
+<li>An operations runbook covering deploy, rollback, log extraction, safe SQL execution and 5xx triage</li>
+</ol>
+</div>
+</div>
+<details class="day" id="d20" open="">
+<summary><span class="day-badge">20</span><span class="day-title"><h2>Jenkins Provisioned, Pipeline as Code</h2><div class="day-sub">Mon 28 Sep</div></span><span class="chev"></span></summary>
+<div class="day-body">
+<p>Standing up Jenkins itself, then writing pipelines as code from day one.</p>
+<ul>
+<li>Controller and agent model</li>
+<li>The controller itself provisioned with Terraform</li>
+<li>Plugin hygiene, the credentials store, folder-level security</li>
+<li>Backing up <code>JENKINS_HOME</code></li>
+<li>The declarative <code>Jenkinsfile</code>: agents, stages, environment, parameters, <code>when</code> and <code>post</code></li>
+<li>Multibranch pipelines, webhooks, a first shared-library step</li>
+</ul>
+</div>
+</details>
+<details class="day" id="d21">
+<summary><span class="day-badge">21</span><span class="day-title"><h2>CI and CD, End to End</h2><div class="day-sub">Tue 29 Sep</div></span><span class="chev"></span></summary>
+<div class="day-body">
+<p>The full path from commit to running service, plus the two operations jobs the customer names explicitly.</p>
+<ul>
+<li>Lint and test stages</li>
+<li>Container build and push to ECR tagged by commit</li>
+<li><code>terraform fmt</code>, <code>validate</code> and <code>plan</code> posted onto the pull request</li>
+<li>The approval gate, <code>terraform apply</code></li>
+<li>ECS service update with wait-for-stable, smoke tests</li>
+<li>A one-click rollback job, notifications</li>
+<li>Safe SQL execution inside a transaction, and log extraction for a time window</li>
+</ul>
+</div>
+</details>
+<details class="day" id="d22">
+<summary><span class="day-badge">22</span><span class="day-title"><h2>Progressive Delivery, Runbook, Readiness Review</h2><div class="day-sub">Wed 30 Sep</div></span><span class="chev"></span></summary>
+<div class="day-body">
+<p>Morning: finishing the pipeline. Afternoon: the readiness review itself.</p>
+<ul>
+<li>Blue/green and canary driven from the pipeline</li>
+<li>Migration step ordering around a deploy</li>
+<li>OIDC and IAM roles instead of static credentials</li>
+<li>Timeouts, retries and idempotency</li>
+<li>The operations runbook, written from what's been built</li>
+<li>Readiness review: live demo, architecture defence, customer-style questioning</li>
+</ul>
+<div class="fact fact-note"><span class="tag">Known thinness</span><p>Three days is enough to build and operate this pipeline, not to design a delivery platform from nothing. Jenkins is targeted at L2 on 30 September and finishes during October's knowledge transfer, on the customer's own Jenkins, with the tech lead pairing.</p></div>
+</div>
+</details>
+<div class="deliverables">
+<span class="eyebrow">Assignment A5 — done when</span>
+<p style="margin:0">A single commit travels from push to running container with nobody touching the console, and each engineer can rebuild and redeploy the environment alone while answering questions about any resource in it.</p>
+</div>
+<footer>
+<div class="rule"></div>
+<div class="footer-nav">
+<a class="footer-prev" href="week4.html">← Week 4 — The Platform as Code</a>
+<span>Week 5 complete. Readiness review 30 Sep — project knowledge transfer begins 1 Oct.</span>
+</div>
+</footer>
+
+  </main>
+</div>
+
+<script>
+(function(){
+  var expandAll = document.getElementById('expand-all');
+  var collapseAll = document.getElementById('collapse-all');
+  function allDetails(){ return document.querySelectorAll('main details'); }
+  expandAll.addEventListener('click', function(){ allDetails().forEach(function(d){ d.open = true; }); });
+  collapseAll.addEventListener('click', function(){ allDetails().forEach(function(d){ d.open = false; }); });
+
+  document.querySelectorAll('.nav a[href^="#"]').forEach(function(a){
+    a.addEventListener('click', function(e){
+      var id = a.getAttribute('href').slice(1);
+      var target = document.getElementById(id);
+      if(!target) return;
+      var details = target.closest('details');
+      while(details){ details.open = true; details = details.parentElement.closest('details'); }
+      if(target.tagName === 'DETAILS') target.open = true;
+    });
+  });
+
+  if('IntersectionObserver' in window){
+    var observed = document.querySelectorAll('details.day, details.sub');
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(entry){
+        var id = entry.target.id;
+        var link = document.querySelector('.nav a[href="#'+id+'"]');
+        if(!link) return;
+        if(entry.isIntersecting) link.classList.add('active');
+        else link.classList.remove('active');
+      });
+    }, {rootMargin:'-10% 0px -70% 0px'});
+    observed.forEach(function(el){ io.observe(el); });
+  }
+})();
+</script>
+
+</body>
+</html>

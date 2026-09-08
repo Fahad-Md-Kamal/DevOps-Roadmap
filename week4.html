@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DevOps Ramp Plan — Week 4</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="shell">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand"><span class="brand-mark"></span><span class="eyebrow">DevOps Ramp Plan</span></div>
+    <h1>Week 4</h1>
+
+    <span class="eyebrow">Jump to week</span>
+    <div class="week-switch">
+      <a href="index.html" class="week-tab" title="Week 1 — Delivery Principles &amp; AWS Foundations">1</a>
+      <a href="week2.html" class="week-tab" title="Week 2 — Compute, Networking, Data &amp; Observability">2</a>
+      <a href="week3.html" class="week-tab" title="Week 3 — Containers, ECS Fargate &amp; EKS">3</a>
+      <a href="week4.html" class="week-tab active" title="Week 4 — The Platform as Code">4</a>
+      <a href="week5.html" class="week-tab" title="Week 5 — Delivery Pipeline &amp; Readiness Review">5</a>
+    </div>
+
+    <div class="nav-controls">
+      <button class="btn" id="expand-all">Expand all</button>
+      <button class="btn" id="collapse-all">Collapse all</button>
+    </div>
+
+    <nav class="nav" id="nav">
+      <ul>
+        <li>
+          <a class="day-link" href="#d15"><span class="day-num">15</span> From Clicks to Code</a>
+        </li>
+        <li>
+          <a class="day-link" href="#d16"><span class="day-num">16</span> Iteration and Modules</a>
+        </li>
+        <li>
+          <a class="day-link" href="#d17"><span class="day-num">17</span> State, Environments and Regions</a>
+        </li>
+        <li>
+          <a class="day-link" href="#d18"><span class="day-num">18</span> The Whole Platform in Code</a>
+        </li>
+        <li>
+          <a class="day-link" href="#d19"><span class="day-num">19</span> Operating Terraform, Checkpoint 2</a>
+        </li>
+      </ul>
+    </nav>
+  </aside>
+
+  <main>
+<div class="hero">
+<span class="eyebrow">Assignment A4 · Checkpoint 2</span>
+<h1>The Platform as Code</h1>
+<p class="goal">Everything built by hand in Weeks 1–3, rebuilt from an empty account in code — two environments, a second region as a variable, no console.</p>
+<div class="deliverables">
+<span class="eyebrow">This week's deliverables</span>
+<ol>
+<li>Reusable modules for network, security groups, compute and ECS service, with validated inputs</li>
+<li>Remote backend with state locking; <code>dev</code> and <code>stg</code> differing only by variable values</li>
+<li>The same code applied to a second region by changing variables only</li>
+<li>A pull request carrying the full <code>terraform plan</code> output, reviewed before Akil sees it</li>
+<li>A teardown-and-rebuild log proving the environment is genuinely disposable</li>
+</ol>
+</div>
+</div>
+<details class="day" id="d15" open="">
+<summary><span class="day-badge">15</span><span class="day-title"><h2>From Clicks to Code</h2><div class="day-sub">Mon 21 Sep</div></span><span class="chev"></span></summary>
+<div class="day-body">
+<p>The core workflow, and reading a plan diff without skimming it.</p>
+<ul>
+<li>Provider and version pinning</li>
+<li>Resources and data sources</li>
+<li>The plan / apply / destroy cycle</li>
+<li>Reading a plan diff line by line</li>
+<li>Variables with validation, locals, outputs</li>
+</ul>
+</div>
+</details>
+<details class="day" id="d16">
+<summary><span class="day-badge">16</span><span class="day-title"><h2>Iteration and Modules</h2><div class="day-sub">Tue 22 Sep</div></span><span class="chev"></span></summary>
+<div class="day-body">
+<p>The language features that shape everything downstream, then packaging it for reuse.</p>
+<ul>
+<li><code>for_each</code> vs <code>count</code>, and why the choice haunts you later</li>
+<li>Dynamic blocks</li>
+<li><code>lifecycle</code> and explicit dependencies</li>
+<li>Module interface design, versioning and sourcing</li>
+<li>Composition vs over-abstraction</li>
+<li>A repository layout that survives a year of change</li>
+</ul>
+</div>
+</details>
+<details class="day" id="d17">
+<summary><span class="day-badge">17</span><span class="day-title"><h2>State, Environments and Regions</h2><div class="day-sub">Wed 23 Sep</div></span><span class="chev"></span></summary>
+<div class="day-body">
+<p>What state actually holds, and how one codebase serves multiple environments and regions safely.</p>
+<ul>
+<li>What state holds</li>
+<li>Remote backend with locking</li>
+<li>Environment isolation — directories vs workspaces</li>
+<li>Remote state data sources between layers</li>
+<li>Provider aliases</li>
+<li>Parameterising the stack so a second region is a variable</li>
+<li><code>fmt</code>, <code>validate</code>, a linter and a security scanner in the loop from the first commit</li>
+</ul>
+</div>
+</details>
+<details class="day" id="d18">
+<summary><span class="day-badge">18</span><span class="day-title"><h2>The Whole Platform in Code</h2><div class="day-sub">Thu 24 Sep</div></span><span class="chev"></span></summary>
+<div class="day-body">
+<p>Every resource from Weeks 1–3, declared.</p>
+<ul>
+<li>ALB with listeners and rules</li>
+<li>Auto scaling group</li>
+<li>ACM with DNS validation, Route 53</li>
+<li>RDS with parameter and subnet groups, Multi-AZ</li>
+<li>Secrets referenced from Secrets Manager, never stored</li>
+<li>A reusable ECS service module — adding a microservice becomes one block</li>
+<li>The EKS cluster, node group and IRSA declared</li>
+</ul>
+</div>
+</details>
+<details class="day" id="d19">
+<summary><span class="day-badge">19</span><span class="day-title"><h2>Operating Terraform, Checkpoint 2</h2><div class="day-sub">Fri 25 Sep</div></span><span class="chev"></span></summary>
+<div class="day-body">
+<p>Keeping state healthy once real changes start landing, then the checkpoint.</p>
+<ul>
+<li>Drift detection</li>
+<li>Targeted apply, and when it's a mistake</li>
+<li><code>moved</code> blocks</li>
+<li><code>state mv</code> and <code>rm</code></li>
+<li>Recovering a half-applied state</li>
+<li>Machine-readable plans for automation</li>
+</ul>
+<div class="fact fact-note"><span class="tag">Checkpoint 2</span><p>Given a diagram, produce working, readable, reproducible code inside the session, and perform state operations without notes — then hand over the repository.</p></div>
+</div>
+</details>
+<div class="deliverables">
+<span class="eyebrow">Assignment A4 — done when</span>
+<p style="margin:0"><code>destroy</code> then <code>apply</code> from empty produces a working environment in both regions with no manual step, an immediate second <code>plan</code> is clean, and no credential appears in the repository or the plan output.</p>
+</div>
+<footer>
+<div class="rule"></div>
+<div class="footer-nav">
+<a class="footer-prev" href="week3.html">← Week 3 — Containers, ECS Fargate &amp; EKS</a>
+<a class="footer-next" href="week5.html">Week 4 complete. Next: Week 5 — Jenkins &amp; Readiness Review →</a>
+</div>
+</footer>
+
+  </main>
+</div>
+
+<script>
+(function(){
+  var expandAll = document.getElementById('expand-all');
+  var collapseAll = document.getElementById('collapse-all');
+  function allDetails(){ return document.querySelectorAll('main details'); }
+  expandAll.addEventListener('click', function(){ allDetails().forEach(function(d){ d.open = true; }); });
+  collapseAll.addEventListener('click', function(){ allDetails().forEach(function(d){ d.open = false; }); });
+
+  document.querySelectorAll('.nav a[href^="#"]').forEach(function(a){
+    a.addEventListener('click', function(e){
+      var id = a.getAttribute('href').slice(1);
+      var target = document.getElementById(id);
+      if(!target) return;
+      var details = target.closest('details');
+      while(details){ details.open = true; details = details.parentElement.closest('details'); }
+      if(target.tagName === 'DETAILS') target.open = true;
+    });
+  });
+
+  if('IntersectionObserver' in window){
+    var observed = document.querySelectorAll('details.day, details.sub');
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(entry){
+        var id = entry.target.id;
+        var link = document.querySelector('.nav a[href="#'+id+'"]');
+        if(!link) return;
+        if(entry.isIntersecting) link.classList.add('active');
+        else link.classList.remove('active');
+      });
+    }, {rootMargin:'-10% 0px -70% 0px'});
+    observed.forEach(function(el){ io.observe(el); });
+  }
+})();
+</script>
+
+</body>
+</html>

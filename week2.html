@@ -1200,6 +1200,36 @@ aws autoscaling delete-policy \
 <summary><span class="sub-num">6.1</span><h3>Application Load Balancer (ALB) Deep Dive</h3><span class="chev-sm"></span></summary>
 <div class="sub-content">
 <p>The ALB operates at Layer 7 (HTTP/HTTPS). Think of it as a smart receptionist — every request arrives at the front desk, the receptionist checks what's needed (path, host, headers) and sends the guest to the right team (target group). It also checks which team members are healthy — if someone failed their health check, no traffic goes their way.</p>
+
+<h4 class="mini">Where the ALB sits in the network</h4>
+<pre class="diagram">Internet
+   │
+   │  HTTPS :443 — TLS terminates here (cert from ACM, see 6.3)
+   ▼
+Internet Gateway  (fahad-igw)
+   │
+   ▼
+┌─────────────────────────────────────────────────┐
+│  ALB — public subnets, both AZs                  │
+│  fahad-public-a (10.0.1.0/24)                    │
+│  fahad-public-b (10.0.2.0/24)                    │
+└─────────────────────┬─────────────────────────────┘
+                       │  HTTP :80 — plain, never leaves the VPC
+                       ▼
+┌─────────────────────────────────────────────────┐
+│  Target group → EC2 (Auto Scaling Group)         │
+│  fahad-private-app-a (10.0.10.0/24)              │
+│  fahad-private-app-b (10.0.11.0/24)              │
+└─────────────────────┬─────────────────────────────┘
+                       │  :5432
+                       ▼
+┌─────────────────────────────────────────────────┐
+│  RDS — private DB subnets                        │
+│  fahad-private-db-a (10.0.20.0/24)               │
+│  fahad-private-db-b (10.0.21.0/24)               │
+└─────────────────────────────────────────────────┘</pre>
+<p>Same three-tier VPC from Week 1 (4.9) — the ALB is the only new resource sitting in the public tier. Everything below it, including the instances it forwards to, stays in private subnets with no route to the internet.</p>
+
 <h4 class="mini">Key components</h4>
 <pre class="diagram">Listener → Rule → Target Group → Instances
 
@@ -1686,6 +1716,60 @@ aws acm describe-certificate \
 </table>
 </div>
 <p>For your ramp plan: use ALB for everything HTTP. NLB is for when you need TCP pass-through (database proxies, gRPC, gaming servers) or static IPs for firewall allowlisting.</p>
+
+<h4 class="mini">Two behaviors that surprise people coming from ALB</h4>
+<dl class="termlist">
+<dt>Client IP is preserved by default</dt>
+<dd>An ALB always shows your instance its own IP as the source (you read the real client IP from the <code>X-Forwarded-For</code> header). An NLB, by default, preserves the original client IP at the TCP layer — your instance sees the actual visitor IP directly, which matters if your app does IP-based logic (rate limiting, geo-blocking) without an HTTP layer to read headers from.</dd>
+<dt>Cross-zone load balancing is off by default</dt>
+<dd>An ALB always balances evenly across every AZ's targets. An NLB defaults to keeping traffic <em>within</em> the AZ it arrived in — if AZ-a has 1 healthy target and AZ-b has 5, an NLB won't rebalance across zones unless you explicitly enable cross-zone load balancing (which then also starts charging inter-AZ data transfer).</dd>
+</dl>
+
+<h4 class="mini">Lab: create an NLB with a TCP listener</h4>
+<pre data-lang="bash"># 1. Allocate a static Elastic IP per AZ (this is what gives the NLB a fixed IP)
+aws ec2 allocate-address --domain vpc --profile fahad
+
+# 2. Create the NLB, one EIP per public subnet
+aws elbv2 create-load-balancer \
+  --name fahad-tcp-nlb \
+  --type network \
+  --scheme internet-facing \
+  --subnet-mappings SubnetId=subnet-0aaa1111aaaa11111,AllocationId=&lt;EIP_ALLOC_A&gt; \
+                     SubnetId=subnet-0bbb2222bbbb22222,AllocationId=&lt;EIP_ALLOC_B&gt; \
+  --query "LoadBalancers[0].{ARN:LoadBalancerArn,DNS:DNSName}" \
+  --output table \
+  --profile fahad
+
+# 3. Target group — note the protocol is TCP, not HTTP
+aws elbv2 create-target-group \
+  --name fahad-tcp-tg \
+  --protocol TCP \
+  --port 5432 \
+  --vpc-id vpc-0123456789abcdef0 \
+  --target-type instance \
+  --health-check-protocol TCP \
+  --query "TargetGroups[0].TargetGroupArn" \
+  --output text \
+  --profile fahad
+
+# 4. Listener — forwards raw TCP, no path/header awareness at all
+aws elbv2 create-listener \
+  --load-balancer-arn &lt;NLB_ARN&gt; \
+  --protocol TCP \
+  --port 5432 \
+  --default-actions Type=forward,TargetGroupArn=&lt;TARGET_GROUP_ARN&gt; \
+  --profile fahad</pre>
+<div class="fact fact-note"><span class="tag">TCP health checks are shallower</span><p>A TCP health check only confirms the port accepts a connection — it can't tell you the app behind it is actually healthy (a hung process still accepts TCP connections). For anything where that distinction matters, add an HTTP health check on a different port even though the listener itself stays TCP.</p></div>
+
+<h4 class="mini">Manage &amp; cleanup</h4>
+<pre data-lang="bash"># List NLBs
+aws elbv2 describe-load-balancers --query "LoadBalancers[?Type=='network']" --profile fahad
+
+# Delete — same commands as ALB cleanup
+aws elbv2 delete-load-balancer --load-balancer-arn &lt;NLB_ARN&gt; --profile fahad
+aws ec2 release-address --allocation-id &lt;EIP_ALLOC_A&gt; --profile fahad
+aws ec2 release-address --allocation-id &lt;EIP_ALLOC_B&gt; --profile fahad</pre>
+<div class="fact fact-fail"><span class="tag">Elastic IPs cost money when idle</span><p>An unattached Elastic IP is billed hourly. Release both EIPs right after deleting the NLB — it's easy to delete the load balancer and forget the IPs are still sitting there charging.</p></div>
 </div>
 </details>
 <details class="sub" id="d6-5">
@@ -1717,6 +1801,68 @@ aws acm describe-certificate \
 </tbody>
 </table>
 </div>
+
+<h4 class="mini">Public vs private hosted zones</h4>
+<dl class="termlist">
+<dt>Public hosted zone</dt>
+<dd>Resolvable from the internet. This is what you use for a real domain — <code>example.com</code>, delegated to Route 53's name servers at your registrar.</dd>
+<dt>Private hosted zone</dt>
+<dd>Only resolvable from inside VPCs you attach it to. Useful for internal service discovery (<code>db.internal</code>) without exposing internal names publicly.</dd>
+</dl>
+
+<h4 class="mini">Lab: create a hosted zone and point it at the ALB</h4>
+<pre data-lang="bash"># 1. Create the public hosted zone
+aws route53 create-hosted-zone \
+  --name example.com \
+  --caller-reference "fahad-$(date +%s)" \
+  --query "HostedZone.Id" \
+  --output text \
+  --profile fahad
+
+# 2. Get the 4 name servers Route 53 assigned — these go at your domain registrar
+aws route53 get-hosted-zone \
+  --id &lt;HOSTED_ZONE_ID&gt; \
+  --query "DelegationSet.NameServers" \
+  --output table \
+  --profile fahad
+
+# 3. Alias record pointing the apex domain straight at the ALB (no CNAME needed)
+aws route53 change-resource-record-sets \
+  --hosted-zone-id &lt;HOSTED_ZONE_ID&gt; \
+  --change-batch '{
+    "Changes": [{
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "example.com",
+        "Type": "A",
+        "AliasTarget": {
+          "HostedZoneId": "&lt;ALB_HOSTED_ZONE_ID&gt;",
+          "DNSName": "&lt;ALB_DNS_NAME&gt;",
+          "EvaluateTargetHealth": true
+        }
+      }
+    }]
+  }' \
+  --profile fahad
+
+# 4. Verify resolution
+dig example.com +short
+nslookup example.com</pre>
+<div class="fact fact-fail"><span class="tag">NS delegation is the step people skip</span><p>Creating the hosted zone alone does nothing for a live domain — until you copy Route 53's 4 name servers into your registrar's NS records, the internet has no idea Route 53 is authoritative for your domain. This is the single most common "why doesn't my domain resolve" cause, and it can take up to 48 hours to propagate (usually much faster).</p></div>
+
+<h4 class="mini">TTL — the trade-off you're actually making</h4>
+<p>Time-to-live controls how long resolvers cache a record before re-checking. Low TTL (60s) means changes propagate fast but you pay more DNS query volume and clients feel any Route 53 blip. High TTL (3600s+) is cheaper and steadier but a bad record takes longer to fix everywhere. <strong>Drop the TTL to 60 seconds before a planned cutover</strong> (like switching to a new ALB), then raise it back afterward.</p>
+
+<h4 class="mini">Manage &amp; cleanup</h4>
+<pre data-lang="bash"># List all hosted zones
+aws route53 list-hosted-zones --query "HostedZones[].{Name:Name,Id:Id}" --output table --profile fahad
+
+# List records in a zone
+aws route53 list-resource-record-sets --hosted-zone-id &lt;HOSTED_ZONE_ID&gt; --output table --profile fahad
+
+# Delete the hosted zone (all records must be removed first, except the default NS/SOA)
+aws route53 delete-hosted-zone --id &lt;HOSTED_ZONE_ID&gt; --profile fahad</pre>
+<div class="fact fact-good"><span class="tag">Cost</span><p>A hosted zone is $0.50/month regardless of traffic — the one thing in this whole lab that isn't free to leave idle, though it's small enough that most people just keep the zone and delete the records pointing at expensive resources (ALB, NLB) instead.</p></div>
 </div>
 </details>
 </div>
@@ -1795,6 +1941,49 @@ aws rds delete-db-instance \
   --db-instance-identifier fahad-ecommerce-db \
   --skip-final-snapshot</pre>
 <div class="fact fact-fail"><span class="tag">Cost</span><p><code>db.t3.micro</code> is free tier (750 hrs/month). Multi-AZ doubles it. Don't forget to delete the RDS instance when done studying — unlike EC2, there's no "stop" for single-AZ RDS (Multi-AZ can be stopped for up to 7 days).</p></div>
+
+<h4 class="mini">Splitting reads to the replica in Django</h4>
+<p>A read replica does nothing by itself — your app has to be told to send read queries there. Django's multi-database routing handles this:</p>
+<pre data-lang="python"># settings.py
+DATABASES = {
+    'default': {  # primary — all writes
+        'ENGINE': 'django.db.backends.postgresql',
+        'HOST': 'fahad-ecommerce-db.xxxxx.ap-south-1.rds.amazonaws.com',
+    },
+    'replica': {  # read replica — reads only
+        'ENGINE': 'django.db.backends.postgresql',
+        'HOST': 'fahad-ecommerce-db-read.xxxxx.ap-south-1.rds.amazonaws.com',
+    },
+}
+
+# A router that sends reads to the replica, writes to the primary
+class ReplicaRouter:
+    def db_for_read(self, model, **hints):
+        return 'replica'
+    def db_for_write(self, model, **hints):
+        return 'default'
+
+DATABASE_ROUTERS = ['myapp.routers.ReplicaRouter']</pre>
+<div class="fact fact-note"><span class="tag">Replication lag is real</span><p>A read immediately after a write can hit the replica before the write has replicated — a user submits a form, gets redirected, and doesn't see their own data yet. Read-your-own-writes flows (checkout confirmation, profile update) should read from <code>default</code>, not <code>replica</code>.</p></div>
+
+<h4 class="mini">Promoting a read replica</h4>
+<p>If the primary needs replacing permanently (not a failover — a deliberate migration), a replica can be promoted to a standalone, writable instance. This is one-way — you can't turn it back into a replica afterward.</p>
+<pre data-lang="bash">aws rds promote-read-replica \
+  --db-instance-identifier fahad-ecommerce-db-read \
+  --backup-retention-period 7 \
+  --profile fahad</pre>
+
+<h4 class="mini">Watching replica lag</h4>
+<pre data-lang="bash">aws cloudwatch get-metric-statistics \
+  --namespace AWS/RDS \
+  --metric-name ReplicaLag \
+  --dimensions Name=DBInstanceIdentifier,Value=fahad-ecommerce-db-read \
+  --start-time $(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%S) \
+  --end-time $(date -u +%Y-%m-%dT%H:%M:%S) \
+  --period 300 \
+  --statistics Average Maximum \
+  --profile fahad</pre>
+<p>Measured in seconds. A steadily growing number means the replica can't keep up with write volume — usually a sign to upsize the replica's instance class, not just tolerate the lag.</p>
 </div>
 </details>
 <details class="sub" id="d7-2">
@@ -1812,6 +2001,42 @@ aws rds restore-db-instance-to-point-in-time \
   --target-db-instance-identifier my-prod-db-restored \
   --restore-time "2026-09-03T10:30:00Z"</pre>
 <div class="fact fact-fail"><span class="tag">Critical</span><p>Point-in-time recovery creates a <strong>new</strong> RDS instance — it does NOT overwrite the existing one. You must update your app's connection string to point to the new instance. Plan for this in your runbook.</p></div>
+
+<h4 class="mini">Manual snapshots vs automated backups</h4>
+<dl class="termlist">
+<dt>Automated backups</dt>
+<dd>Run inside your configured backup window, deleted automatically when the instance is deleted (unless you keep a final snapshot). Feed the point-in-time recovery window.</dd>
+<dt>Manual snapshots</dt>
+<dd>You trigger these yourself, they persist forever until you delete them — even after the source instance is gone. This is what you take before a risky migration, and what you copy to another region for disaster recovery.</dd>
+</dl>
+<pre data-lang="bash"># Set the automated backup window and retention
+aws rds modify-db-instance \
+  --db-instance-identifier fahad-ecommerce-db \
+  --backup-retention-period 7 \
+  --preferred-backup-window "17:00-17:30" \
+  --apply-immediately \
+  --profile fahad
+
+# Take a manual snapshot before a risky change
+aws rds create-db-snapshot \
+  --db-instance-identifier fahad-ecommerce-db \
+  --db-snapshot-identifier fahad-ecommerce-db-pre-migration-$(date +%Y%m%d) \
+  --profile fahad
+
+# Copy a snapshot to another region (DR)
+aws rds copy-db-snapshot \
+  --source-db-snapshot-identifier arn:aws:rds:ap-south-1:111122223333:snapshot:fahad-ecommerce-db-pre-migration-20260903 \
+  --target-db-snapshot-identifier fahad-ecommerce-db-pre-migration-20260903-eu \
+  --source-region ap-south-1 \
+  --region eu-west-1 \
+  --profile fahad
+
+# Restore an instance FROM a snapshot (different from point-in-time restore)
+aws rds restore-db-instance-from-db-snapshot \
+  --db-instance-identifier fahad-ecommerce-db-restored \
+  --db-snapshot-identifier fahad-ecommerce-db-pre-migration-20260903 \
+  --profile fahad</pre>
+<div class="fact fact-note"><span class="tag">Backup window vs maintenance window</span><p>The backup window and the maintenance window (for engine patches) must not overlap — RDS won't let a patch and a backup fight for the same I/O at once. Pick windows in your lowest-traffic hours, offset by a few hours from each other.</p></div>
 </div>
 </details>
 <details class="sub" id="d7-3">
@@ -1824,6 +2049,34 @@ aws rds restore-db-instance-to-point-in-time \
   --db-parameter-group-family postgres16 \
   --description "Tuned for ecommerce workload"</pre>
 <div class="fact fact-note"><span class="tag">Reboot required</span><p>Some parameter changes (like <code>shared_buffers</code>) require a reboot to take effect. Others (like <code>work_mem</code>) apply immediately. The console shows "pending-reboot" for the ones that need it.</p></div>
+
+<h4 class="mini">Attach it, tune a value, apply it</h4>
+<pre data-lang="bash"># Attach the custom parameter group to the instance
+aws rds modify-db-instance \
+  --db-instance-identifier fahad-ecommerce-db \
+  --db-parameter-group-name ecommerce-pg16 \
+  --apply-immediately \
+  --profile fahad
+
+# Change a dynamic parameter — takes effect without a reboot
+aws rds modify-db-parameter-group \
+  --db-parameter-group-name ecommerce-pg16 \
+  --parameters "ParameterName=work_mem,ParameterValue=16384,ApplyMethod=immediate" \
+  --profile fahad
+
+# Change a static parameter — queued until the next reboot
+aws rds modify-db-parameter-group \
+  --db-parameter-group-name ecommerce-pg16 \
+  --parameters "ParameterName=shared_buffers,ParameterValue={DBInstanceClassMemory/32768},ApplyMethod=pending-reboot" \
+  --profile fahad
+
+# Check what's pending vs applied
+aws rds describe-db-instances \
+  --db-instance-identifier fahad-ecommerce-db \
+  --query "DBInstances[0].DBParameterGroups[0].ParameterApplyStatus" \
+  --output text \
+  --profile fahad</pre>
+<div class="fact fact-fail"><span class="tag">Parameter groups aren't per-instance</span><p>The same parameter group can be attached to multiple instances. Changing it changes the config for every instance using it — don't tune "just for one database" without first checking <code>describe-db-instances</code> for who else is attached to that group.</p></div>
 </div>
 </details>
 <details class="sub" id="d7-4">
@@ -1852,6 +2105,36 @@ COMMIT;</pre>
 ├── 042_add_full_name_column_REVERSE.sql ← the undo script
 └── 042_add_full_name_column_README.md   ← what it does and when it was run</pre>
 <p>Test the reverse script <strong>before</strong> you run the forward migration. If you can't undo it cleanly, that changes your deployment plan (you need a longer bake time before committing).</p>
+
+<h4 class="mini">Connecting to a private RDS instance</h4>
+<p>Your database has no public IP — <code>psql</code> from your laptop can't reach it directly. Tunnel through an instance inside the VPC using Session Manager, no bastion or open SSH port needed:</p>
+<pre data-lang="bash">aws ssm start-session \
+  --target &lt;INSTANCE_ID_IN_VPC&gt; \
+  --document-name AWS-StartPortForwardingSessionToRemoteHost \
+  --parameters '{"host":["fahad-ecommerce-db.xxxxx.ap-south-1.rds.amazonaws.com"],"portNumber":["5432"],"localPortNumber":["5433"]}' \
+  --profile fahad
+
+# In another terminal, connect through the tunnel
+psql -h localhost -p 5433 -U ecomadmin -d postgres</pre>
+
+<h4 class="mini">Batching destructive changes on large tables</h4>
+<p>A single <code>UPDATE</code> or <code>DELETE</code> touching millions of rows holds locks for the whole duration and can bloat the transaction log. Batch it instead:</p>
+<pre data-lang="sql">-- Instead of one giant UPDATE, loop in batches
+DO $$
+DECLARE
+  rows_affected INT;
+BEGIN
+  LOOP
+    UPDATE orders SET archived = true
+    WHERE id IN (
+      SELECT id FROM orders WHERE archived = false AND created_at &lt; '2024-01-01' LIMIT 1000
+    );
+    GET DIAGNOSTICS rows_affected = ROW_COUNT;
+    EXIT WHEN rows_affected = 0;
+    COMMIT;
+  END LOOP;
+END $$;</pre>
+<div class="fact fact-note"><span class="tag">Maintenance window awareness</span><p>Schedule large batch operations outside RDS's maintenance window and outside your backup window (7.2) — a patch, a backup, and a million-row batch job all competing for I/O at once is how a routine migration turns into an incident.</p></div>
 </div>
 </details>
 <details class="sub" id="d7-5">
@@ -1872,6 +2155,47 @@ AND o.created_at &gt; '2026-08-01';</pre>
 <li><strong>Actual rows ≫ estimated rows:</strong> stale statistics. Run <code>ANALYZE tablename;</code></li>
 </ul>
 <div class="fact fact-good"><span class="tag">Your Django context</span><p>Django's ORM generates SQL you don't always see. Use <code>django-debug-toolbar</code> or <code>queryset.query</code> to inspect the SQL, then run EXPLAIN on the slow ones directly in psql.</p></div>
+
+<h4 class="mini">Reading the plan tree</h4>
+<p>Plans nest — the innermost (most indented) lines run first, feeding rows up to the operations above them. Two costs matter per node:</p>
+<pre class="diagram">Nested Loop  (cost=0.43..8.45 rows=1 width=40) (actual time=0.03..0.05 rows=1 loops=1)
+  ->  Index Scan using orders_status_idx on orders o  (cost=0.29..4.30 ...)
+  ->  Index Scan using users_pkey on users u  (cost=0.14..4.15 ...)
+
+cost=START..TOTAL   — PostgreSQL's own estimate, in arbitrary units, before running
+actual time=START..TOTAL rows=N loops=M — what really happened when EXPLAIN ANALYZE ran it
+                                          (multiply time by loops for the real total)</pre>
+<p>The gap between the estimated <code>rows=</code> and the actual <code>rows=</code> is the single most useful number on the page — a huge gap means the planner is choosing a bad strategy because its statistics are wrong, not because the query itself is bad.</p>
+
+<h4 class="mini"><code>BUFFERS</code> — is it even hitting disk?</h4>
+<pre data-lang="sql">EXPLAIN (ANALYZE, BUFFERS)
+SELECT o.id, o.total, u.email
+FROM orders o
+JOIN users u ON u.id = o.user_id
+WHERE o.status = 'pending';</pre>
+<p><code>shared hit</code> = read from cache (fast). <code>shared read</code> = read from disk (slow). A query that's fast in your test but slow in production is often the same query hitting a cold cache instead of a warm one — <code>BUFFERS</code> is how you tell the difference from the plan alone, without guessing.</p>
+
+<h4 class="mini">Adding the index this query is missing</h4>
+<pre data-lang="sql">-- Matches the WHERE clause from the query above
+CREATE INDEX CONCURRENTLY idx_orders_status_created
+  ON orders (status, created_at)
+  WHERE status = 'pending';
+
+-- Confirm the planner picked it up
+EXPLAIN ANALYZE
+SELECT o.id, o.total, u.email
+FROM orders o JOIN users u ON u.id = o.user_id
+WHERE o.status = 'pending' AND o.created_at &gt; '2026-08-01';
+-- Seq Scan should now read Index Scan (or Bitmap Index Scan)</pre>
+<div class="fact fact-fail"><span class="tag">Always CONCURRENTLY in production</span><p>A plain <code>CREATE INDEX</code> takes a lock that blocks writes to the table for the whole build — on a large table that can be minutes of a frozen app. <code>CREATE INDEX CONCURRENTLY</code> takes longer and can't run inside a transaction block, but never blocks writes.</p></div>
+
+<h4 class="mini">Finding what to EXPLAIN in the first place</h4>
+<pre data-lang="sql">-- Requires the pg_stat_statements extension (enable via parameter group: shared_preload_libraries)
+SELECT query, calls, mean_exec_time, total_exec_time
+FROM pg_stat_statements
+ORDER BY total_exec_time DESC
+LIMIT 10;</pre>
+<p>Sort by <code>total_exec_time</code> to find what's costing the most aggregate time (a cheap query called 100,000 times can outweigh a slow query called twice) — that's usually a better place to start than guessing from user complaints.</p>
 </div>
 </details>
 </div>

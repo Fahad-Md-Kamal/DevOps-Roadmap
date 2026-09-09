@@ -1199,15 +1199,20 @@ aws autoscaling delete-policy \
 <details class="sub" id="d6-1">
 <summary><span class="sub-num">6.1</span><h3>Application Load Balancer (ALB) Deep Dive</h3><span class="chev-sm"></span></summary>
 <div class="sub-content">
-<p>The ALB operates at Layer 7 (HTTP/HTTPS). It receives all incoming requests and distributes them to healthy targets based on rules you define.</p>
+<p>The ALB operates at Layer 7 (HTTP/HTTPS). Think of it as a smart receptionist — every request arrives at the front desk, the receptionist checks what's needed (path, host, headers) and sends the guest to the right team (target group). It also checks which team members are healthy — if someone failed their health check, no traffic goes their way.</p>
 <h4 class="mini">Key components</h4>
+<pre class="diagram">Listener → Rule → Target Group → Instances
+
+Listener:      "I'm listening on port 443 for HTTPS traffic"
+Rule:          "If the path starts with /api, forward to target group A"
+Target group:  "Here are 2 healthy EC2 instances that can handle this"</pre>
 <dl class="termlist">
 <dt>Listener</dt>
 <dd>Listens on a port (80 for HTTP, 443 for HTTPS). Each listener has rules that determine where to send traffic.</dd>
 <dt>Rule</dt>
 <dd>Conditions (path, host, headers) + an action (forward to target group, redirect, fixed response).</dd>
 <dt>Target group</dt>
-<dd>A group of instances (or IPs, or Lambda functions) that receive traffic. Each has its own health check.</dd>
+<dd>A group of instances (or IPs, or Lambda functions) that receive traffic. Each has its own health check. <strong>You cannot change a target group's traffic port after creation</strong> — if you need a different port, create a new target group.</dd>
 </dl>
 <h4 class="mini">Path-based routing</h4>
 <pre class="diagram">ALB :443
@@ -1216,74 +1221,148 @@ aws autoscaling delete-policy \
 ├── /health     → fixed response: 200 "OK"
 └── default     → target-group-web (EC2 instances running Nginx)</pre>
 <p>One ALB replaces what would otherwise be multiple Nginx reverse proxy configurations. You define the routing in the AWS console or CLI, not in config files.</p>
-<h4 class="mini">CLI: Create ALB + Target Group + Listener</h4>
-<pre data-lang="bash"># 1. Create the ALB (internet-facing, in public subnets)
-aws elbv2 create-load-balancer \
+
+<h4 class="mini">Lab: build the ALB step by step</h4>
+
+<p><strong>Step 1: Create the ALB</strong> — must be in public subnets (both AZs) with the ALB security group. AWS requires at least 2 AZs for redundancy.</p>
+<pre data-lang="bash">aws elbv2 create-load-balancer \
   --name fahad-web-alb \
   --subnets subnet-0aaa1111aaaa11111 subnet-0bbb2222bbbb22222 \
-  --security-groups &lt;ALB_SG_ID&gt; \
+  --security-groups sg-0aaa1111aaaa11111 \
   --scheme internet-facing \
   --type application \
-  --query "LoadBalancers[0].{ARN:LoadBalancerArn,DNS:DNSName}" \
-  --output table
+  --query "LoadBalancers[0].{ARN:LoadBalancerArn,DNS:DNSName,State:State.Code}" \
+  --output table \
+  --profile fahad</pre>
+<p>Save the <strong>ALB ARN</strong> and <strong>DNS name</strong> from the output. The DNS name is what users hit in their browser.</p>
 
-# 2. Create a target group (where the ALB sends traffic)
-aws elbv2 create-target-group \
+<p><strong>Step 2: Create a target group</strong> — tells the ALB where to forward traffic.</p>
+<pre data-lang="bash">aws elbv2 create-target-group \
   --name fahad-web-tg \
   --protocol HTTP \
-  --port 8080 \
+  --port 80 \
   --vpc-id vpc-0123456789abcdef0 \
   --target-type instance \
-  --health-check-path /health \
+  --health-check-path / \
+  --health-check-port 80 \
   --health-check-interval-seconds 30 \
   --healthy-threshold-count 2 \
   --unhealthy-threshold-count 3 \
   --query "TargetGroups[0].TargetGroupArn" \
-  --output text
+  --output text \
+  --profile fahad</pre>
+<div class="fact fact-fail"><span class="tag">Port must match</span><p>The target group port must match what your app actually listens on. If Nginx listens on port 80, use port 80. If Django listens on 8080, use 8080. The health check port should also match — a mismatch is the #1 cause of "unhealthy" targets.</p></div>
 
-# 3. Register EC2 instances as targets
-aws elbv2 register-targets \
-  --target-group-arn &lt;TARGET_GROUP_ARN&gt; \
-  --targets Id=i-xxxxx Id=i-yyyyy
-
-# 4. Create a listener (HTTP on port 80 → forward to target group)
-aws elbv2 create-listener \
+<p><strong>Step 3: Create a listener</strong> — connects the ALB to the target group.</p>
+<pre data-lang="bash">aws elbv2 create-listener \
   --load-balancer-arn &lt;ALB_ARN&gt; \
   --protocol HTTP \
   --port 80 \
-  --default-actions Type=forward,TargetGroupArn=&lt;TARGET_GROUP_ARN&gt;
+  --default-actions Type=forward,TargetGroupArn=&lt;TARGET_GROUP_ARN&gt; \
+  --profile fahad</pre>
+<div class="fact fact-fail"><span class="tag">Gotcha: swapped ARNs</span><p>The ALB ARN and target group ARN look similar. Putting the wrong one in <code>--load-balancer-arn</code> gives: <em>"is not a valid load balancer ARN"</em>. Tell them apart by the middle of the string: <code>.../loadbalancer/app/...</code> = ALB, <code>.../targetgroup/...</code> = target group.</p></div>
 
-# 5. Check target health
-aws elbv2 describe-target-health \
+<p><strong>Step 4: Attach the ASG to the target group</strong></p>
+<pre data-lang="bash">aws autoscaling attach-load-balancer-target-groups \
+  --auto-scaling-group-name fahad-web-asg \
+  --target-group-arns &lt;TARGET_GROUP_ARN&gt; \
+  --profile fahad</pre>
+<div class="fact fact-fail"><span class="tag">Existing instances don't auto-register</span><p>Attaching a target group to an ASG only affects <strong>future launches</strong>. Instances already running must be registered manually:</p></div>
+<pre data-lang="bash"># Manually register an existing instance
+aws elbv2 register-targets \
+  --target-group-arn &lt;TARGET_GROUP_ARN&gt; \
+  --targets Id=i-0aaa1111aaaa11111 \
+  --profile fahad
+
+# Or force the ASG to replace all instances (rolling update)
+aws autoscaling start-instance-refresh \
+  --auto-scaling-group-name fahad-web-asg \
+  --profile fahad</pre>
+
+<p><strong>Step 5: Verify target health</strong></p>
+<pre data-lang="bash">aws elbv2 describe-target-health \
   --target-group-arn &lt;TARGET_GROUP_ARN&gt; \
   --query "TargetHealthDescriptions[].{ID:Target.Id,Health:TargetHealth.State,Reason:TargetHealth.Reason}" \
-  --output table
+  --output table \
+  --profile fahad</pre>
+<div class="table-scroll">
+<table>
+<thead><tr><th>State</th><th>What it means</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><code>initial</code></td><td>Just registered, first health checks running</td><td>Wait 30–60 seconds</td></tr>
+<tr><td><code>healthy</code></td><td>Health checks passing, ALB sends traffic here</td><td>You're good — try the browser</td></tr>
+<tr><td><code>unhealthy</code></td><td>Health checks failing, ALB stops sending traffic</td><td>Check the Reason field — see troubleshooting below</td></tr>
+<tr><td><code>draining</code></td><td>Instance being removed, finishing in-flight requests</td><td>Normal during scale-in or deregistration</td></tr>
+</tbody>
+</table>
+</div>
 
-# List all ALBs
-aws elbv2 describe-load-balancers \
-  --query "LoadBalancers[].{Name:LoadBalancerName,DNS:DNSName,State:State.Code}" \
-  --output table
+<p><strong>Step 6: Test in browser</strong></p>
+<pre class="diagram">http://fahad-web-alb-XXXXXXXXXX.ap-south-1.elb.amazonaws.com
 
-# Delete ALB (must delete listeners first)
-aws elbv2 delete-load-balancer --load-balancer-arn &lt;ALB_ARN&gt;</pre>
+Expected results:
+  ✓ Nginx welcome page  → full path working (internet → ALB → EC2 → Nginx)
+  ✗ 502 Bad Gateway     → target unhealthy or traffic port mismatch
+  ✗ 503 Service Unavail → no healthy targets registered in the target group</pre>
+
 <h4 class="mini">Weighted target groups (canary deployments)</h4>
 <p>One rule, two target groups, adjustable weights:</p>
 <pre data-lang="bash">aws elbv2 modify-rule \
-  --rule-arn arn:aws:elasticloadbalancing:...:rule/... \
+  --rule-arn &lt;RULE_ARN&gt; \
   --actions '[{
     "Type": "forward",
     "ForwardConfig": {
       "TargetGroups": [
-        {"TargetGroupArn": "arn:...tg-v1", "Weight": 90},
-        {"TargetGroupArn": "arn:...tg-v2", "Weight": 10}
+        {"TargetGroupArn": "&lt;TG_V1_ARN&gt;", "Weight": 90},
+        {"TargetGroupArn": "&lt;TG_V2_ARN&gt;", "Weight": 10}
       ]
     }
-  }]'</pre>
+  }]' \
+  --profile fahad</pre>
 <p>90% of traffic to v1, 10% to v2. Change weights to shift traffic during canary deploys — no server restart needed.</p>
+
+<h4 class="mini">Manage ALB</h4>
+<pre data-lang="bash"># List all ALBs
+aws elbv2 describe-load-balancers \
+  --query "LoadBalancers[].{Name:LoadBalancerName,DNS:DNSName,State:State.Code}" \
+  --output table \
+  --profile fahad
+
+# List all target groups
+aws elbv2 describe-target-groups \
+  --query "TargetGroups[].{Name:TargetGroupName,Port:Port,HealthPort:HealthCheckPort,HealthPath:HealthCheckPath}" \
+  --output table \
+  --profile fahad
+
+# List listeners on an ALB
+aws elbv2 describe-listeners \
+  --load-balancer-arn &lt;ALB_ARN&gt; \
+  --query "Listeners[].{Port:Port,Protocol:Protocol}" \
+  --output table \
+  --profile fahad</pre>
+
+<h4 class="mini">End-of-session cleanup</h4>
+<div class="fact fact-fail"><span class="tag">ALB costs ~$16/month</span><p>Delete the ALB and target groups at the end of each study session. Recreating takes 3 commands.</p></div>
+<pre data-lang="bash"># Delete ALB (stops the charge)
+aws elbv2 delete-load-balancer \
+  --load-balancer-arn &lt;ALB_ARN&gt; \
+  --profile fahad
+
+# Delete target groups (free, but cleanup)
+aws elbv2 delete-target-group \
+  --target-group-arn &lt;TG_ARN&gt; \
+  --profile fahad
+
+# Delete ASG (stops extra EC2 charge)
+aws autoscaling delete-auto-scaling-group \
+  --auto-scaling-group-name fahad-web-asg \
+  --force-delete \
+  --profile fahad</pre>
 </div>
 </details>
+
 <details class="sub" id="d6-2">
-<summary><span class="sub-num">6.2</span><h3>Health Checks</h3><span class="chev-sm"></span></summary>
+<summary><span class="sub-num">6.2</span><h3>Health Checks — Debugging Guide</h3><span class="chev-sm"></span></summary>
 <div class="sub-content">
 <p>The ALB periodically sends an HTTP request to each target. If the response is healthy, traffic flows. If unhealthy, the target is removed from rotation.</p>
 <div class="table-scroll">
@@ -1291,6 +1370,7 @@ aws elbv2 delete-load-balancer --load-balancer-arn &lt;ALB_ARN&gt;</pre>
 <thead><tr><th>Setting</th><th>What it does</th><th>Recommended</th></tr></thead>
 <tbody>
 <tr><td><strong>Path</strong></td><td>URL the ALB hits</td><td><code>/health</code> — a lightweight endpoint that checks DB connectivity</td></tr>
+<tr><td><strong>Port</strong></td><td>Which port to check on</td><td>Same as traffic port (avoid mismatches)</td></tr>
 <tr><td><strong>Interval</strong></td><td>How often to check</td><td>30 seconds</td></tr>
 <tr><td><strong>Timeout</strong></td><td>How long to wait for a response</td><td>5 seconds</td></tr>
 <tr><td><strong>Healthy threshold</strong></td><td>Consecutive successes to mark healthy</td><td>2</td></tr>
@@ -1299,7 +1379,138 @@ aws elbv2 delete-load-balancer --load-balancer-arn &lt;ALB_ARN&gt;</pre>
 </tbody>
 </table>
 </div>
-<div class="fact fact-fail"><span class="tag">Common mistake</span><p>Setting the health check path to <code>/</code> on a Django app that redirects <code>/</code> to <code>/login</code> (302). The ALB sees a 302, not a 200, and marks the target unhealthy. Always use a dedicated <code>/health</code> endpoint that returns 200 directly.</p></div>
+
+<pre data-lang="bash"># Modify health check settings on an existing target group
+aws elbv2 modify-target-group \
+  --target-group-arn &lt;TARGET_GROUP_ARN&gt; \
+  --health-check-path /health \
+  --health-check-port 80 \
+  --health-check-interval-seconds 30 \
+  --healthy-threshold-count 2 \
+  --unhealthy-threshold-count 3 \
+  --profile fahad</pre>
+
+<h4 class="mini">Troubleshooting by error reason</h4>
+
+<p><strong>Reason: <code>Target.FailedHealthChecks</code></strong></p>
+<p>The ALB reached the instance but got an unexpected HTTP response (not 200).</p>
+<ul>
+<li>Health check path (<code>/health</code>) doesn't exist — app returns 404</li>
+<li>App redirects the path (e.g. <code>/</code> → <code>/login</code> returns 302, not 200)</li>
+<li>Nothing listening on the health check port — app crashed or wrong port</li>
+</ul>
+<pre data-lang="bash"># Fix: change health check to a path that returns 200
+aws elbv2 modify-target-group \
+  --target-group-arn &lt;TARGET_GROUP_ARN&gt; \
+  --health-check-path / \
+  --profile fahad</pre>
+
+<p><strong>Reason: <code>Target.Timeout</code></strong></p>
+<p>The ALB sent the health check but got <strong>no response at all</strong>. Packets were silently dropped. Almost always a security group issue.</p>
+<pre class="diagram">What we experienced:
+  ALB health check → port 80 → App-sg → BLOCKED (only port 8080 was allowed)
+  Result: Target.Timeout
+
+  The security group had:
+    ✓ port 8080 from ALB-sg    (traffic port)
+    ✗ port 80 from ALB-sg      (health check port — MISSING)
+  
+  The health check packets arrived at the instance but the security group
+  silently dropped them → ALB never got a response → timeout</pre>
+<pre data-lang="bash"># Check what the security group allows
+aws ec2 describe-security-groups \
+  --group-ids &lt;APP_SG_ID&gt; \
+  --query "SecurityGroups[0].IpPermissions[].{Port:FromPort,Source:UserIdGroupPairs[0].GroupId}" \
+  --output table \
+  --profile fahad
+
+# If the health check port isn't listed, add it
+aws ec2 authorize-security-group-ingress \
+  --group-id &lt;APP_SG_ID&gt; \
+  --protocol tcp --port 80 \
+  --source-group &lt;ALB_SG_ID&gt; \
+  --profile fahad</pre>
+<div class="fact fact-note"><span class="tag">Rule</span><p>The health check port must be explicitly allowed in the target's security group with the ALB security group as the source. Same VPC doesn't matter — security groups still apply.</p></div>
+
+<p><strong>Reason: <code>Elb.RegistrationInProgress</code></strong></p>
+<p>The target was just registered. Wait 30–60 seconds for the first health checks to complete.</p>
+
+<p><strong>Reason: <code>Elb.InternalError</code></strong></p>
+<p>ALB internal error. Rare and usually transient. Wait a few minutes and check again.</p>
+
+<h4 class="mini">Troubleshooting: 502 Bad Gateway (healthy target, wrong port)</h4>
+<p>Health check passes but browser shows 502. This means the health check port and traffic port are different:</p>
+<pre class="diagram">What we experienced:
+  Target group created on port 8080 (nothing listening there)
+  Health check changed to port 80 (Nginx responds → target shows "healthy")
+  
+  Browser → ALB forwards to port 8080 → connection refused → 502
+
+  The fix: can't change a target group's traffic port after creation.
+  Must create a new target group on port 80.</pre>
+<pre data-lang="bash"># Create new target group on the correct port
+aws elbv2 create-target-group \
+  --name fahad-web-tg-80 \
+  --protocol HTTP \
+  --port 80 \
+  --vpc-id vpc-0123456789abcdef0 \
+  --target-type instance \
+  --health-check-path / \
+  --health-check-port 80 \
+  --query "TargetGroups[0].TargetGroupArn" \
+  --output text \
+  --profile fahad
+
+# Update the listener to use the new target group
+aws elbv2 modify-listener \
+  --listener-arn &lt;LISTENER_ARN&gt; \
+  --default-actions Type=forward,TargetGroupArn=&lt;NEW_TG_ARN&gt; \
+  --profile fahad
+
+# Swap ASG attachment
+aws autoscaling detach-load-balancer-target-groups \
+  --auto-scaling-group-name fahad-web-asg \
+  --target-group-arns &lt;OLD_TG_ARN&gt; \
+  --profile fahad
+
+aws autoscaling attach-load-balancer-target-groups \
+  --auto-scaling-group-name fahad-web-asg \
+  --target-group-arns &lt;NEW_TG_ARN&gt; \
+  --profile fahad
+
+# Register existing instances (attach only affects future launches)
+aws elbv2 register-targets \
+  --target-group-arn &lt;NEW_TG_ARN&gt; \
+  --targets Id=i-0aaa1111aaaa11111 \
+  --profile fahad
+
+# Clean up old target group
+aws elbv2 delete-target-group \
+  --target-group-arn &lt;OLD_TG_ARN&gt; \
+  --profile fahad</pre>
+
+<h4 class="mini">Troubleshooting: 503 Service Unavailable</h4>
+<p>The ALB has no healthy targets at all.</p>
+<pre data-lang="bash"># Check if any targets are registered
+aws elbv2 describe-target-health \
+  --target-group-arn &lt;TARGET_GROUP_ARN&gt; \
+  --profile fahad
+
+# Empty = no targets registered → attach ASG + register instances (see 6.1 step 4)
+# All unhealthy = follow the debugging steps above</pre>
+
+<h4 class="mini">Summary: the debugging decision tree</h4>
+<pre class="diagram">Browser shows error
+├── 502 Bad Gateway
+│   ├── Target unhealthy? → check Reason field (FailedHealthChecks / Timeout)
+│   └── Target healthy but 502? → traffic port ≠ health check port → new TG
+├── 503 Service Unavailable
+│   ├── No targets? → register-targets or attach ASG
+│   └── All unhealthy? → fix the health check (see above)
+└── Timeout (page never loads)
+    └── ALB in wrong subnets (private instead of public) or SG missing 80/443</pre>
+
+<div class="fact fact-fail"><span class="tag">Django tip</span><p>Don't set the health check path to <code>/</code> on a Django app that redirects <code>/</code> to <code>/login</code> (302). The ALB sees a 302, not a 200, and marks the target unhealthy. Always create a dedicated <code>/health</code> endpoint that returns 200 directly.</p></div>
 </div>
 </details>
 <details class="sub" id="d6-3">
@@ -1310,7 +1521,151 @@ aws elbv2 delete-load-balancer --load-balancer-arn &lt;ALB_ARN&gt;</pre>
                                     ↑ TLS terminates here
                                     Certificate from ACM</pre>
 <p>Benefits: your EC2 instances don't need to handle TLS certificates, reducing complexity and CPU overhead. The certificate auto-renews — no more expired cert emergencies.</p>
-<div class="fact fact-good"><span class="tag">Best practice</span><p>Add an HTTP (port 80) listener that redirects all traffic to HTTPS (port 443). This ensures no one accidentally uses unencrypted HTTP.</p></div>
+
+<h4 class="mini">Key concepts</h4>
+<dl class="termlist">
+<dt>Certificate</dt>
+<dd>A public/private key pair issued by ACM for a domain name (or a wildcard like <code>*.example.com</code>). ACM holds the private key — you never download it, which is exactly why the ALB can use it without you handling key files.</dd>
+<dt>Domain validation</dt>
+<dd><strong>DNS validation</strong> (recommended): ACM gives you a CNAME record to add to your DNS zone, proving you control the domain. <strong>Email validation</strong>: ACM emails the domain's registered contacts — slower, and breaks auto-renewal if no one clicks the link next time. Always use DNS validation.</dd>
+<dt>Region requirement</dt>
+<dd>An ACM certificate can only be attached to resources <strong>in the same region it was issued in</strong>. A cert for an ALB in <code>ap-south-1</code> must be requested in <code>ap-south-1</code> — this is the single most common ACM mistake. (CloudFront is the one exception: it always needs its certs in <code>us-east-1</code>, regardless of where your other resources live.)</dd>
+<dt>Certificate ARN</dt>
+<dd>What you actually reference when creating the HTTPS listener — not the domain name, not the certificate ID by itself.</dd>
+<dt>SSL security policy</dt>
+<dd>A named bundle of allowed TLS versions and cipher suites, attached to the HTTPS listener (not the certificate). Older policies still allow TLS 1.0/1.1; pick a modern one (<code>ELBSecurityPolicy-TLS13-1-2-2021-06</code>) unless you have a legacy client that genuinely needs an older protocol.</dd>
+</dl>
+
+<h4 class="mini">The lifecycle</h4>
+<pre class="diagram">1. Request certificate (ACM)              — status: PENDING_VALIDATION
+2. Add CNAME validation record (Route 53) — proves you own the domain
+3. ACM validates the record               — status: ISSUED (few minutes)
+4. Attach cert ARN to ALB HTTPS listener  — port 443 now serves HTTPS
+5. Redirect HTTP → HTTPS on port 80       — no unencrypted path left
+6. ACM auto-renews ~60 days before expiry — as long as the CNAME still exists</pre>
+
+<h4 class="mini">Lab: request a certificate and wire it to the ALB</h4>
+
+<p><strong>Step 1: Request the certificate — DNS validation, same region as the ALB</strong></p>
+<pre data-lang="bash">aws acm request-certificate \
+  --domain-name app.example.com \
+  --validation-method DNS \
+  --tags Key=Name,Value=fahad-app-cert Key=Owner,Value=fahad \
+  --query "CertificateArn" \
+  --output text \
+  --profile fahad</pre>
+<div class="fact fact-fail"><span class="tag">Wrong region = invisible certificate</span><p>ACM certificates don't show up across regions in the console or CLI by default. If <code>describe-certificates</code> comes back empty, check <code>--region</code> matches where you actually requested it — this alone accounts for most "my certificate disappeared" moments.</p></div>
+
+<p><strong>Step 2: Get the DNS validation record ACM wants</strong></p>
+<pre data-lang="bash">aws acm describe-certificate \
+  --certificate-arn &lt;CERT_ARN&gt; \
+  --query "Certificate.DomainValidationOptions[0].ResourceRecord" \
+  --output table \
+  --profile fahad
+# Returns a Name (CNAME record name), Type (CNAME), and Value (the target)</pre>
+
+<p><strong>Step 3: Add that record to Route 53</strong></p>
+<pre data-lang="bash">aws route53 change-resource-record-sets \
+  --hosted-zone-id &lt;HOSTED_ZONE_ID&gt; \
+  --change-batch '{
+    "Changes": [{
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "&lt;VALIDATION_RECORD_NAME&gt;",
+        "Type": "CNAME",
+        "TTL": 300,
+        "ResourceRecords": [{"Value": "&lt;VALIDATION_RECORD_VALUE&gt;"}]
+      }
+    }]
+  }' \
+  --profile fahad</pre>
+<div class="fact fact-note"><span class="tag">Don't delete this record later</span><p>ACM re-checks this CNAME every time it auto-renews. Deleting it after issuance "to tidy up" is what silently breaks renewal 13 months later — leave it in place for the life of the certificate.</p></div>
+
+<p><strong>Step 4: Wait for validation, then confirm ISSUED</strong></p>
+<pre data-lang="bash">aws acm wait certificate-validated --certificate-arn &lt;CERT_ARN&gt; --profile fahad
+
+aws acm describe-certificate \
+  --certificate-arn &lt;CERT_ARN&gt; \
+  --query "Certificate.Status" \
+  --output text \
+  --profile fahad
+# PENDING_VALIDATION → ISSUED, usually within a few minutes once DNS propagates</pre>
+
+<p><strong>Step 5: Create the HTTPS listener on the ALB</strong></p>
+<pre data-lang="bash">aws elbv2 create-listener \
+  --load-balancer-arn &lt;ALB_ARN&gt; \
+  --protocol HTTPS \
+  --port 443 \
+  --certificates CertificateArn=&lt;CERT_ARN&gt; \
+  --ssl-policy ELBSecurityPolicy-TLS13-1-2-2021-06 \
+  --default-actions Type=forward,TargetGroupArn=&lt;TARGET_GROUP_ARN&gt; \
+  --profile fahad</pre>
+
+<p><strong>Step 6: Redirect the existing HTTP listener to HTTPS</strong></p>
+<pre data-lang="bash"># Modify the port-80 listener's default action from "forward" to "redirect"
+aws elbv2 modify-listener \
+  --listener-arn &lt;HTTP_LISTENER_ARN&gt; \
+  --default-actions '[{
+    "Type": "redirect",
+    "RedirectConfig": {
+      "Protocol": "HTTPS",
+      "Port": "443",
+      "StatusCode": "HTTP_301"
+    }
+  }]' \
+  --profile fahad</pre>
+<div class="fact fact-good"><span class="tag">Best practice</span><p>Every HTTP request now gets a 301 straight to HTTPS instead of being forwarded to a target group. Nobody can reach your app unencrypted, even by typing <code>http://</code> by hand.</p></div>
+
+<p><strong>Step 7: Point DNS at the ALB, then test</strong></p>
+<pre data-lang="bash"># Alias record — same ALB, now serving HTTPS
+aws route53 change-resource-record-sets \
+  --hosted-zone-id &lt;HOSTED_ZONE_ID&gt; \
+  --change-batch '{
+    "Changes": [{
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "app.example.com",
+        "Type": "A",
+        "AliasTarget": {
+          "HostedZoneId": "&lt;ALB_HOSTED_ZONE_ID&gt;",
+          "DNSName": "&lt;ALB_DNS_NAME&gt;",
+          "EvaluateTargetHealth": true
+        }
+      }
+    }]
+  }' \
+  --profile fahad
+
+# Inspect the handshake and certificate chain directly
+curl -vI https://app.example.com 2>&amp;1 | grep -A5 "Server certificate"</pre>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Symptom</th><th>Likely cause</th></tr></thead>
+<tbody>
+<tr><td>Certificate stuck at <code>PENDING_VALIDATION</code></td><td>CNAME record missing, in the wrong hosted zone, or not yet propagated — re-check Step 3</td></tr>
+<tr><td><code>describe-certificates</code> returns nothing</td><td>Wrong <code>--region</code> — certificate was requested somewhere else</td></tr>
+<tr><td>Browser shows <code>NET::ERR_CERT_COMMON_NAME_INVALID</code></td><td>Requested domain doesn't match the URL — a cert for <code>example.com</code> doesn't cover <code>app.example.com</code> unless requested as a SAN or wildcard</td></tr>
+<tr><td>Renewal fails after ~13 months</td><td>The validation CNAME was deleted from Route 53 after issuance</td></tr>
+</tbody>
+</table>
+</div>
+
+<h4 class="mini">Manage certificates</h4>
+<pre data-lang="bash"># List all certificates in this region
+aws acm list-certificates \
+  --query "CertificateSummaryList[].{Domain:DomainName,ARN:CertificateArn,Status:Status}" \
+  --output table \
+  --profile fahad
+
+# Full detail on one certificate (validation status, expiry, in-use resources)
+aws acm describe-certificate \
+  --certificate-arn &lt;CERT_ARN&gt; \
+  --query "Certificate.{Domain:DomainName,Status:Status,NotAfter:NotAfter,InUseBy:InUseBy}" \
+  --output table \
+  --profile fahad</pre>
+
+<div class="fact fact-good"><span class="tag">Cleanup note</span><p>Unlike the ALB or NAT Gateway, an ACM certificate costs nothing to leave alone — there's no per-hour charge. You only need to delete one if it's actually <code>InUseBy</code> nothing and you're tidying up; leaving it (and its validation CNAME) in place between study sessions is fine and saves you re-validating next time.</p></div>
 </div>
 </details>
 <details class="sub" id="d6-4">

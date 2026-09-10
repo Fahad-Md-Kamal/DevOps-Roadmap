@@ -160,6 +160,16 @@ provider "aws" {
   profile = "fahad"
 }</pre>
 <div class="fact fact-fail"><span class="tag">Unpinned = unreproducible</span><p>Skip <code>required_providers</code> and Terraform silently installs whatever the latest provider version is the first time anyone runs <code>init</code>. Two engineers running <code>init</code> a week apart can end up on two different AWS provider versions, applying the exact same <code>.tf</code> files with different results.</p></div>
+<h4 class="mini">Widening the constraint later needs -upgrade</h4>
+<p>Bump <code>version = "~> 5.0"</code> to <code>"~> 6.0"</code> after <code>init</code> has already run once, and a plain <code>terraform init</code> fails instead of picking up the new version:</p>
+<pre data-lang="text">│ Error: Failed to query available provider packages
+│
+│ Could not retrieve the list of available versions for provider hashicorp/aws:
+│ locked provider registry.terraform.io/hashicorp/aws 5.100.0 does not match
+│ configured version constraint ~> 6.0; must use terraform init -upgrade to
+│ allow selection of new versions</pre>
+<pre data-lang="bash">terraform init -upgrade</pre>
+<div class="fact fact-note"><span class="tag">Why plain init can't fix this on its own</span><p><code>.terraform.lock.hcl</code> records the exact provider version everyone on the project is currently using — that's the whole point of a lock file (same reason a <code>package-lock.json</code> exists). A bare <code>init</code> only <em>installs</em> whatever the lock file already says; it deliberately never widens a lock to satisfy a new constraint on its own, since silently upgrading everyone's provider version on a routine <code>init</code> is exactly the unreproducible behavior the lock file exists to prevent. <code>-upgrade</code> is the explicit, opt-in step that re-resolves the constraint and rewrites the lock file — commit that rewritten lock file so the rest of the team gets the same resolved version.</p></div>
 </div>
 </details>
 
@@ -167,6 +177,28 @@ provider "aws" {
 <summary><span class="sub-num">15.3</span><h3>HCL Basics: Resources &amp; Data Sources</h3><span class="chev-sm"></span></summary>
 <div class="sub-content">
 <p>Terraform's config language is HCL. Everything is a named block: a <strong>type</strong>, a <strong>local name</strong> you choose, and a body of arguments.</p>
+
+<h4 class="mini">If you already know a programming language</h4>
+<p>HCL isn't object-oriented, but the shapes rhyme closely enough that mapping onto OOP terms you already know is a legitimate shortcut — as long as you also clock where the mapping breaks down.</p>
+<div class="table-scroll">
+<table>
+<thead><tr><th>HCL</th><th>OOP equivalent</th></tr></thead>
+<tbody>
+<tr><td>A provider (<code>hashicorp/aws</code>)</td><td>An imported library/SDK — brings a vocabulary of pre-built "classes" into scope, the way <code>import boto3</code> brings AWS's API surface into a Python script</td></tr>
+<tr><td>A resource/data <strong>type</strong> (<code>aws_instance</code>, <code>aws_ami</code>)</td><td>A class — a fixed blueprint of what arguments and attributes this kind of thing has. You never define one yourself; the provider plugin ships it, versioned (15.2)</td></tr>
+<tr><td><code>resource "aws_instance" "app" { ami = ... }</code></td><td>Instantiating an object: <code>app = aws_instance(ami=...)</code>. The local name (<code>"app"</code>) is the variable you're assigning that instance to</td></tr>
+<tr><td>A <code>data</code> block</td><td>Calling a read-only getter/query function — not constructing something new, just fetching an existing object's attributes into a reference you can use</td></tr>
+<tr><td><code>aws_instance.app.public_ip</code></td><td>Dot-notation property access on an object instance — exactly like <code>my_object.public_ip</code></td></tr>
+<tr><td>A <code>variable</code> block</td><td>A typed function parameter, complete with a default value and validation — closer to a TypeScript-style typed parameter than an untyped one</td></tr>
+<tr><td>A <code>locals</code> block</td><td>A local constant computed once — like <code>const</code> in JS or <code>final</code> in Java: read-only, can't be overridden from outside</td></tr>
+<tr><td>An <code>output</code> block</td><td>A <code>return</code> statement — hands a value back to whoever called this config: a human at the CLI for a root module, or the parent config for a child module</td></tr>
+<tr><td>A <code>module</code> call</td><td>Calling a function with named arguments (its <code>variable</code>s) that hands back named return values (its <code>output</code>s) — see 16.4 for designing that interface</td></tr>
+</tbody>
+</table>
+</div>
+<div class="fact fact-fail"><span class="tag">Where the analogy breaks</span><p>You can't subclass <code>aws_instance</code>, add a method to it, or define your own resource types — the "classes" here are closed, fixed by whatever the provider version ships (15.2). And critically, HCL isn't executed top-to-bottom like a script: block order in the file is irrelevant. Terraform reads the references between blocks (see the dependency-order note further down this section) and builds a dependency graph, then executes in whatever order that graph requires — closer to how a spreadsheet evaluates formulas by their cell references than to a program running line by line.</p></div>
+<div class="fact fact-note"><span class="tag">Typed, but not general-purpose</span><p><code>variable</code> blocks are genuinely strictly typed (<code>string</code>, <code>number</code>, <code>bool</code>, <code>list(...)</code>, <code>map(...)</code>, <code>object({...})</code>) with no implicit coercion between incompatible types, and support the same kind of input validation you'd write at a typed function's boundary (16.4). What HCL doesn't have is general-purpose control flow — no user-defined classes, no arbitrary loops, no if/else statements outside of a handful of expression-level substitutes (a ternary, <code>for</code> expressions, <code>dynamic</code> blocks). It's a declarative configuration language with a real type system bolted on, not a programming language you'd write an algorithm in.</p></div>
+
 <pre data-lang="hcl">resource "aws_security_group" "web" {
   name   = "web-sg"
   vpc_id = var.vpc_id
@@ -179,6 +211,32 @@ provider "aws" {
   }
 }</pre>
 <p><code>resource</code> means "create and manage this" — Terraform will create it, and destroy it if you remove the block. <code>data</code> means "look this up, don't manage it" — for something that already exists and you just need to reference (an existing AMI, an existing VPC someone else created).</p>
+
+<h4 class="mini">What you can set vs what Terraform tells you afterward</h4>
+<p>An <code>aws_instance</code> plan shows 40+ fields, but only a handful are ones you control — the rest are marked <code>(known after apply)</code> because AWS assigns them at creation time and no config value could ever have set them.</p>
+<pre data-lang="text">  + resource "aws_instance" "app_server" {
+      + ami                          = "ami-0333333333333333"   # you set this
+      + instance_type                = "t3.micro"                # you set this
+      + arn                          = (known after apply)        # AWS assigns this
+      + id                           = (known after apply)        # AWS assigns this
+      + key_name                     = (known after apply)        # settable, just unset
+      + public_ip                    = (known after apply)        # AWS assigns this
+      + subnet_id                    = (known after apply)        # settable, just unset
+      + vpc_security_group_ids       = (known after apply)        # settable, just unset
+    }</pre>
+<p><code>(known after apply)</code> covers two different situations that look identical in a plan: an argument you simply didn't set (like <code>key_name</code> or <code>subnet_id</code> above — add it and it stops being unknown), and a true output that no config value could ever populate (like <code>arn</code> or <code>id</code> — those only exist once AWS creates the real object).</p>
+<div class="table-scroll">
+<table>
+<thead><tr><th>Category</th><th>Examples on <code>aws_instance</code></th></tr></thead>
+<tbody>
+<tr><td>Set, and showing a real value</td><td><code>ami</code>, <code>instance_type</code>, <code>tags</code></td></tr>
+<tr><td>Optional, unset — add these to customise</td><td><code>key_name</code>, <code>subnet_id</code>, <code>vpc_security_group_ids</code>, <code>associate_public_ip_address</code>, <code>availability_zone</code>, <code>user_data</code>, <code>monitoring</code>, <code>root_block_device</code>, <code>metadata_options</code>, <code>iam_instance_profile</code></td></tr>
+<tr><td>Pure output — never settable, at all</td><td><code>arn</code>, <code>id</code>, <code>instance_state</code>, <code>private_dns</code>, <code>public_dns</code>, <code>primary_network_interface_id</code>, <code>password_data</code></td></tr>
+</tbody>
+</table>
+</div>
+<div class="fact fact-good"><span class="tag">The registry docs tell you which is which</span><p>Every resource page on the <a href="https://registry.terraform.io/providers/hashicorp/aws/latest/docs">Terraform Registry</a> splits into an "Argument Reference" section (settable — everything in the second row above) and an "Attributes Reference" section (read-only — the third row). If something's listed only under Attributes, no amount of config will ever set it directly; it's always read back via a reference like <code>aws_instance.app_server.public_ip</code>, the same dot-notation used for <code>data.aws_ami.ubuntu.id</code> below.</p></div>
+
 <pre data-lang="hcl">data "aws_ami" "ubuntu" {
   most_recent = true
   owners      = ["099720109477"]  # Canonical

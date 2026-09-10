@@ -1058,6 +1058,53 @@ aws ec2 describe-instances \
 <div class="sub-content">
 <p>A VPC (Virtual Private Cloud) is your own isolated network within an AWS region — think of it as your private data centre network in the cloud. Nothing can enter or leave your VPC unless you explicitly allow it.</p>
 <p>When you create a VPC, you define a CIDR block — the total pool of private IP addresses available to everything inside it.</p>
+
+<svg width="100%" viewBox="0 0 480 340" style="display:block;margin:16px 0" role="img" aria-label="A VPC containing a public subnet with a route to the Internet Gateway and a private subnet with no direct internet route">
+<style>
+.vi-title{font-family:'IBM Plex Sans Condensed',sans-serif;font-size:13px;font-weight:700;fill:var(--ink)}
+.vi-label{font-family:'IBM Plex Sans Condensed',sans-serif;font-size:13px;font-weight:700;fill:var(--accent-strong)}
+.vi-chip{font-family:'IBM Plex Mono',monospace;font-size:11px;fill:var(--surface);letter-spacing:.01em}
+.vi-note{font-family:'IBM Plex Sans',sans-serif;font-size:11px;fill:var(--ink-muted)}
+.vi-legend{font-family:'IBM Plex Sans',sans-serif;font-size:11px;fill:var(--ink-muted)}
+</style>
+<defs>
+<marker id="vi-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+<path d="M0,0 L10,5 L0,10 z" fill="var(--ink-muted)"/>
+</marker>
+</defs>
+
+<text class="vi-title" x="240" y="20" text-anchor="middle">VPC — public and private subnets</text>
+
+<rect x="180" y="34" width="120" height="24" rx="12" fill="none" stroke="var(--ink-muted)" stroke-width="1.2"/>
+<text class="vi-note" x="240" y="50" text-anchor="middle">Internet</text>
+<line x1="240" y1="58" x2="240" y2="80" stroke="var(--ink-muted)" stroke-width="1.5" marker-end="url(#vi-arrow)"/>
+
+<rect x="140" y="82" width="200" height="32" rx="6" fill="var(--accent-tint)" stroke="var(--accent)" stroke-width="1.2"/>
+<text class="vi-label" x="240" y="103" text-anchor="middle">Internet Gateway</text>
+
+<line x1="200" y1="114" x2="135" y2="150" stroke="var(--ink-muted)" stroke-width="1.5" marker-end="url(#vi-arrow)"/>
+
+<rect x="20" y="126" width="440" height="128" rx="8" fill="none" stroke="var(--line)" stroke-width="1.5"/>
+<text class="vi-label" x="34" y="142">VPC 10.0.0.0/16 — fahad-devops-vpc</text>
+
+<rect x="40" y="150" width="190" height="90" rx="6" fill="var(--warn)" opacity=".12" stroke="var(--warn)" stroke-width="1.2"/>
+<text class="vi-note" x="50" y="164">Public — 10.0.1.0/24</text>
+<rect x="50" y="175" width="170" height="28" rx="4" fill="var(--warn)" opacity=".85"/>
+<text class="vi-chip" x="135" y="193" text-anchor="middle">ALB · NAT Gateway</text>
+
+<rect x="250" y="150" width="190" height="90" rx="6" fill="var(--accent)" opacity=".12" stroke="var(--accent)" stroke-width="1.2"/>
+<text class="vi-note" x="260" y="164">Private — 10.0.10.0/24</text>
+<rect x="260" y="175" width="170" height="28" rx="4" fill="var(--accent)" opacity=".85"/>
+<text class="vi-chip" x="345" y="193" text-anchor="middle">EC2 · RDS</text>
+
+<rect x="40" y="266" width="14" height="14" rx="2" fill="var(--warn)" opacity=".85"/>
+<text class="vi-legend" x="62" y="277">Public subnet — has a route to the Internet Gateway</text>
+<rect x="40" y="288" width="14" height="14" rx="2" fill="var(--accent)" opacity=".85"/>
+<text class="vi-legend" x="62" y="299">Private subnet — no direct internet route</text>
+
+<text class="vi-note" x="240" y="314" text-anchor="middle">The real build (4.8) uses 3 tiers × 2 AZs = 6 subnets.</text>
+<text class="vi-note" x="240" y="328" text-anchor="middle">See 4.9 for the full picture.</text>
+</svg>
 </div>
 </details>
 <details class="sub" id="d4-2">

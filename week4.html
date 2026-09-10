@@ -35,6 +35,14 @@
         </li>
         <li>
           <a class="day-link" href="#d16"><span class="day-num">16</span> Iteration and Modules</a>
+          <ul class="sub-list">
+            <li><a href="#d16-1">count vs for_each</a></li>
+            <li><a href="#d16-2">Dynamic Blocks</a></li>
+            <li><a href="#d16-3">lifecycle &amp; Dependencies</a></li>
+            <li><a href="#d16-4">Module Interface Design</a></li>
+            <li><a href="#d16-5">Versioning &amp; Sourcing</a></li>
+            <li><a href="#d16-6">Composition &amp; Repo Layout</a></li>
+          </ul>
         </li>
         <li>
           <a class="day-link" href="#d17"><span class="day-num">17</span> State, Environments and Regions</a>
@@ -82,14 +90,229 @@
 <summary><span class="day-badge">16</span><span class="day-title"><h2>Iteration and Modules</h2><div class="day-sub">Tue 22 Sep</div></span><span class="chev"></span></summary>
 <div class="day-body">
 <p>The language features that shape everything downstream, then packaging it for reuse.</p>
-<ul>
-<li><code>for_each</code> vs <code>count</code>, and why the choice haunts you later</li>
-<li>Dynamic blocks</li>
-<li><code>lifecycle</code> and explicit dependencies</li>
-<li>Module interface design, versioning and sourcing</li>
-<li>Composition vs over-abstraction</li>
-<li>A repository layout that survives a year of change</li>
-</ul>
+
+<details class="sub" id="d16-1">
+<summary><span class="sub-num">16.1</span><h3>count vs for_each</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>Both repeat a resource block. <code>count</code> indexes by number (<code>0</code>, <code>1</code>, <code>2</code>…). <code>for_each</code> indexes by a stable key from a map or set of strings. That difference is small on day one and expensive a month later.</p>
+<pre data-lang="hcl"># count -- indexed by position
+resource "aws_subnet" "private" {
+  count      = length(var.private_cidrs)
+  vpc_id     = var.vpc_id
+  cidr_block = var.private_cidrs[count.index]
+  tags       = { Name = "private-${count.index}" }
+}
+# state addresses: aws_subnet.private[0], aws_subnet.private[1], aws_subnet.private[2]
+
+# for_each -- indexed by key
+resource "aws_subnet" "private" {
+  for_each   = var.private_subnets   # map(object({ cidr = string, az = string }))
+  vpc_id     = var.vpc_id
+  cidr_block = each.value.cidr
+  availability_zone = each.value.az
+  tags       = { Name = "private-${each.key}" }
+}
+# state addresses: aws_subnet.private["a"], aws_subnet.private["b"], aws_subnet.private["c"]</pre>
+<div class="fact fact-fail"><span class="tag">The gotcha</span><p>Remove the middle element from a <code>count</code>-driven list and every subnet after it shifts down one index. Terraform doesn't see "one subnet removed" — it sees <code>[2]</code> now holding what used to be at <code>[3]</code>, so it destroys and recreates every resource from that index onward, not just the one you actually deleted. On a subnet with an attached NAT gateway or an RDS instance, that's an outage triggered by an unrelated one-line diff.</p></div>
+<div class="fact fact-good"><span class="tag">The fix</span><p><code>for_each</code> keys are strings, not positions, so removing one entry (<code>aws_subnet.private["b"]</code>) only touches that address — everything else in state is untouched. If you're stuck with a list, convert it to a map keyed by something stable first: <code>{ for s in var.list : s.name => s }</code>.</p></div>
+<table><thead><tr><th></th><th><code>count</code></th><th><code>for_each</code></th></tr></thead>
+<tbody>
+<tr><td>Index type</td><td>Number</td><td>String key (map or set)</td></tr>
+<tr><td>Removing a middle item</td><td>Reshuffles and recreates everything after it</td><td>Destroys only that one resource</td></tr>
+<tr><td>Reference syntax</td><td><code>count.index</code></td><td><code>each.key</code> / <code>each.value</code></td></tr>
+<tr><td>Good fit</td><td>N identical, disposable copies (e.g. N NAT gateways, one per AZ index)</td><td>Anything you'll add to, remove from, or look up by name later</td></tr>
+</tbody>
+</table>
+<p>Default to <code>for_each</code>. Reach for <code>count</code> only for a genuinely fixed, order-independent replication count, or the simple <code>count = var.enabled ? 1 : 0</code> toggle for an optional resource.</p>
+</div>
+</details>
+
+<details class="sub" id="d16-2">
+<summary><span class="sub-num">16.2</span><h3>Dynamic Blocks</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>A <code>dynamic</code> block generates a repeatable <em>nested</em> block from a list or map — for arguments that appear once per resource, plain interpolation is enough; <code>dynamic</code> is for things like a security group's <code>ingress</code> block, where you need a variable number of them.</p>
+<pre data-lang="hcl">variable "ingress_rules" {
+  type = list(object({
+    port        = number
+    cidr_blocks = list(string)
+    description = string
+  }))
+}
+
+resource "aws_security_group" "app" {
+  name   = "app-sg"
+  vpc_id = var.vpc_id
+
+  dynamic "ingress" {
+    for_each = var.ingress_rules
+    content {
+      from_port   = ingress.value.port
+      to_port     = ingress.value.port
+      protocol    = "tcp"
+      cidr_blocks = ingress.value.cidr_blocks
+      description = ingress.value.description
+    }
+  }
+}</pre>
+<div class="fact fact-note"><span class="tag">Only for nested blocks</span><p><code>dynamic</code> exists because <code>ingress { ... }</code> is a nested block, not an argument — you can't just pass it a list the way you'd pass a list to <code>cidr_blocks</code>. If the thing you're repeating is a plain argument, you don't need <code>dynamic</code> at all; a <code>for</code> expression inside the argument is enough.</p></div>
+<div class="fact fact-fail"><span class="tag">Readable but easy to overuse</span><p>A security group with one <code>dynamic "ingress"</code> block driven by a well-named variable is clear. Three or four nested <code>dynamic</code> blocks inside one resource, each driven by a different variable, is usually a sign the resource wants to be a module instead — dynamic blocks trade explicitness for flexibility, and that trade stops paying off past one level of nesting.</p></div>
+</div>
+</details>
+
+<details class="sub" id="d16-3">
+<summary><span class="sub-num">16.3</span><h3><code>lifecycle</code> and Explicit Dependencies</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>Terraform infers most dependencies automatically from references between resources. <code>lifecycle</code> and <code>depends_on</code> exist for the cases it can't infer, or gets wrong for your situation.</p>
+<h4 class="mini">lifecycle meta-argument</h4>
+<pre data-lang="hcl">resource "aws_launch_template" "app" {
+  name_prefix   = "app-"
+  image_id      = var.ami_id
+  instance_type = var.instance_type
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+resource "aws_db_instance" "primary" {
+  # ...
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = [password]   # rotated out-of-band, don't fight it
+  }
+}</pre>
+<dl class="termlist">
+<dt><code>create_before_destroy</code></dt>
+<dd>Builds the replacement before tearing down the original. Without it, a launch template change destroys the old template first — if the new one fails to create, the ASG is left pointing at nothing. Essential for anything an ASG or ALB target group references.</dd>
+<dt><code>prevent_destroy</code></dt>
+<dd>Makes <code>terraform destroy</code> (and any plan that would replace the resource) fail loudly instead of deleting it. Use it on anything with data you can't regenerate from code — the primary database, not the ASG.</dd>
+<dt><code>ignore_changes</code></dt>
+<dd>Tells Terraform to stop diffing specific attributes, even if the real resource drifts from what's in config. Use it for values something else legitimately manages (autoscaling-adjusted <code>desired_capacity</code>, a password rotated by Secrets Manager) — never as a blanket way to silence a diff you don't understand.</dd>
+</dl>
+<div class="fact fact-fail"><span class="tag">prevent_destroy blocks real teardown too</span><p>It doesn't distinguish "someone fat-fingered <code>destroy</code>" from "we're intentionally decommissioning this." A genuine teardown means removing the <code>lifecycle</code> block (or setting <code>prevent_destroy = false</code>) first, applying that change, then destroying — an explicit two-step, by design.</p></div>
+<h4 class="mini">Explicit depends_on</h4>
+<p>Terraform sees a dependency wherever one resource's argument references another resource's attribute. <code>depends_on</code> is for ordering that exists only in AWS's behavior, not in any attribute reference — e.g. an IAM role's policy attachment finishing before the compute resource that assumes that role is created.</p>
+<pre data-lang="hcl">resource "aws_ecs_service" "app" {
+  # nothing here references aws_iam_role_policy_attachment.ecs_exec directly,
+  # but the task will fail to start if the permissions aren't attached yet
+  depends_on = [aws_iam_role_policy_attachment.ecs_exec]
+  # ...
+}</pre>
+<div class="fact fact-good"><span class="tag">Reach for it last</span><p>Every explicit <code>depends_on</code> is a sign Terraform couldn't infer the relationship from your config. Before adding one, check whether restructuring the reference (e.g. reading the role's ARN from an output instead of hardcoding it) would let Terraform infer the same ordering automatically — that stays correct even if the resources are later refactored.</p></div>
+</div>
+</details>
+
+<details class="sub" id="d16-4">
+<summary><span class="sub-num">16.4</span><h3>Module Interface Design</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>A module's <code>variables.tf</code> and <code>outputs.tf</code> are its API. Everything inside <code>main.tf</code> is an implementation detail the caller shouldn't need to know about.</p>
+<pre data-lang="hcl"># variables.tf
+variable "name" {
+  type        = string
+  description = "Prefix applied to every resource this module creates."
+}
+
+variable "instance_type" {
+  type        = string
+  default     = "t3.micro"
+  description = "EC2 instance type for the ASG's launch template."
+  validation {
+    condition     = can(regex("^t3\\.", var.instance_type))
+    error_message = "Only t3.* instance types are approved for this environment."
+  }
+}
+
+variable "vpc_id" {
+  type        = string
+  description = "VPC to launch into. No default -- callers must be explicit."
+}
+
+# outputs.tf
+output "asg_name" {
+  value       = aws_autoscaling_group.this.name
+  description = "Name of the created Auto Scaling Group, for attaching alarms."
+}
+
+output "security_group_id" {
+  value       = aws_security_group.this.id
+  description = "SG ID, so callers can add extra ingress rules without editing this module."
+}</pre>
+<div class="fact fact-note"><span class="tag">Required vs optional</span><p>A variable with no <code>default</code> is required — the caller must supply it, and Terraform refuses to plan without it. That's the right choice for anything with no safe guess (<code>vpc_id</code>, <code>name</code>). Give a <code>default</code> only to genuinely optional knobs (<code>instance_type</code>, tag overrides) — defaulting something like <code>vpc_id</code> "for convenience" is how a module quietly gets applied into the wrong VPC.</p></div>
+<div class="fact fact-good"><span class="tag">Validate at the boundary</span><p>A <code>validation</code> block turns "the apply failed 4 minutes in with an opaque AWS error" into "the plan refused to run with a one-line message," for the exact same underlying mistake. Put constraints you already know at input time (allowed instance families, CIDR shape, name length limits) into <code>validation</code> blocks rather than discovering them from a provider error.</p></div>
+<p>Pin the module's own required versions too, so a caller can't apply it against an incompatible Terraform or provider release without being told explicitly:</p>
+<pre data-lang="hcl"># versions.tf
+terraform {
+  required_version = ">= 1.7.0"
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}</pre>
+</div>
+</details>
+
+<details class="sub" id="d16-5">
+<summary><span class="sub-num">16.5</span><h3>Versioning &amp; Sourcing Modules</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>Where a module's code lives, and how a caller pins to a specific version of it, has direct consequences for whether a <code>plan</code> run next month reproduces the one you ran today.</p>
+<div class="table-scroll">
+<table>
+<thead><tr><th>Source</th><th>Syntax</th><th>Reproducible?</th></tr></thead>
+<tbody>
+<tr><td>Local path</td><td><code>source = "../modules/network"</code></td><td>Yes, but only within one repo — fine for this ramp plan's single-repo layout</td></tr>
+<tr><td>Git, floating branch</td><td><code>source = "git::https://.../network.git?ref=main"</code></td><td>No — <code>main</code> keeps moving, the same config can resolve to different code tomorrow</td></tr>
+<tr><td>Git, pinned tag</td><td><code>source = "git::https://.../network.git?ref=v1.4.0"</code></td><td>Yes — a tag is (by convention) immutable</td></tr>
+<tr><td>Terraform Registry</td><td><code>source = "app.terraform.io/org/network/aws"</code>, <code>version = "~> 1.4"</code></td><td>Yes, with the added benefit of registry-enforced semver</td></tr>
+</tbody>
+</table>
+</div>
+<pre data-lang="hcl">module "network" {
+  source  = "git::https://github.com/example-org/tf-modules.git//network?ref=v1.4.0"
+  name    = "app"
+  vpc_cidr = "10.0.0.0/16"
+}
+
+module "ecs_service" {
+  source  = "app.terraform.io/example-org/ecs-service/aws"
+  version = "~> 2.1"
+
+  name        = "api"
+  cluster_arn = module.ecs_cluster.arn
+}</pre>
+<div class="fact fact-fail"><span class="tag">A floating ref isn't a version</span><p><code>?ref=main</code> means "whatever the module author most recently pushed." Two engineers running <code>terraform plan</code> an hour apart, on the exact same calling code, can get different plans if <code>main</code> moved in between — and there's no diff in your own repo to explain why. Always pin to a tag or a full commit SHA, never a branch name.</p></div>
+<div class="fact fact-good"><span class="tag">Semver on the module itself</span><p>A published module should bump its major version on any breaking interface change (a variable removed, a required input added, an output renamed) — exactly like a library. Callers then use <code>~></code> constraints to accept patch/minor updates automatically while breaking changes require a deliberate version bump in the caller's own code.</p></div>
+</div>
+</details>
+
+<details class="sub" id="d16-6">
+<summary><span class="sub-num">16.6</span><h3>Composition vs Over-Abstraction, and Repo Layout</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>A module is worth the indirection when it's used more than once, or when its interface has genuinely stabilized. Before either is true, a module is just a resource block wearing a costume — one more file to open to see what actually gets created.</p>
+<div class="fact fact-good"><span class="tag">Rule of three</span><p>Write the resource inline the first time. Copy it the second time. Only extract a module the third time a near-identical block shows up — by then the actual variable inputs (what really differs between the three copies) are obvious, instead of guessed at up front.</p></div>
+<div class="fact fact-fail"><span class="tag">Over-abstraction looks like caution</span><p>A module with 40 input variables "for flexibility," most of which every caller sets to the same default, isn't reusable — it's one specific configuration with extra steps. It hides the actual resource shape from anyone reading the calling code, and every new requirement means threading one more variable through the whole interface. If every caller passes the same value for a variable, that value belongs inside the module, not in its interface.</p></div>
+<h4 class="mini">A repository layout that survives a year of change</h4>
+<pre data-lang="text">.
+├── modules/
+│   ├── network/          # VPC, subnets, route tables, NAT
+│   ├── security-groups/
+│   ├── compute-asg/      # launch template + ASG + target group attachment
+│   └── ecs-service/      # task def + service, one block per microservice
+├── environments/
+│   ├── dev/
+│   │   ├── main.tf       # calls the modules above with dev's variable values
+│   │   ├── backend.tf    # dev's remote state config
+│   │   └── terraform.tfvars
+│   └── stg/
+│       ├── main.tf       # same module calls, staging's variable values
+│       ├── backend.tf
+│       └── terraform.tfvars
+└── .github/workflows/    # or Jenkinsfile -- fmt, validate, plan-on-PR</pre>
+<p>The two environment directories call the <em>same</em> modules with different variable values and a different backend key — that's what makes "dev and stg differ only by variable values" (this week's deliverable) actually true, rather than aspirational. Nothing about a module's internals should need to know which environment is calling it.</p>
+</div>
+</details>
+
 </div>
 </details>
 <details class="day" id="d17">

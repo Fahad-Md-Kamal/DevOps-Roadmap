@@ -167,6 +167,10 @@ th{background:var(--surface-2); font-family:'IBM Plex Sans Condensed',sans-serif
 td{font-variant-numeric:tabular-nums}
 tr:last-child td{border-bottom:none}
 
+figure.diagram-fig{margin:0 0 16px; border:1px solid var(--line); background:var(--surface)}
+figure.diagram-fig img{display:block; width:100%; background:#fff}
+figure.diagram-fig figcaption{padding:8px 12px; font-family:'IBM Plex Mono',monospace; font-size:.74rem; color:var(--ink-muted); border-top:1px solid var(--line)}
+
 pre{
   background:var(--surface-2); color:var(--code-fg); border:1px solid var(--line); border-left:3px solid var(--accent);
   padding:14px 16px; overflow-x:auto; font-size:.82rem; line-height:1.55; margin:0 0 16px; position:relative;

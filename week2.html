@@ -1702,6 +1702,10 @@ aws acm describe-certificate \
 <summary><span class="sub-num">6.4</span><h3>Network Load Balancer (NLB)</h3><span class="chev-sm"></span></summary>
 <div class="sub-content">
 <p>The NLB operates at Layer 4 (TCP/UDP). It doesn't inspect HTTP headers or paths — it just forwards TCP connections extremely fast.</p>
+<figure class="diagram-fig">
+<img src="images/alb-nlb-diagram.png" alt="ALB routing HTTP path-based traffic and NLB routing raw TCP traffic, both to the same EC2 target group inside fahad-devops-vpc">
+<figcaption>ALB (path-based, HTTP) vs NLB (TCP passthrough) — both landing on the same target group</figcaption>
+</figure>
 <div class="table-scroll">
 <table>
 <thead><tr><th>Feature</th><th>ALB</th><th>NLB</th></tr></thead>

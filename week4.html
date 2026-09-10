@@ -65,9 +65,26 @@
         </li>
         <li>
           <a class="day-link" href="#d18"><span class="day-num">18</span> The Whole Platform in Code</a>
+          <ul class="sub-list">
+            <li><a href="#d18-1">ALB — Listeners &amp; Rules</a></li>
+            <li><a href="#d18-2">Auto Scaling Group</a></li>
+            <li><a href="#d18-3">ACM &amp; Route 53</a></li>
+            <li><a href="#d18-4">RDS, Multi-AZ</a></li>
+            <li><a href="#d18-5">Secrets Manager</a></li>
+            <li><a href="#d18-6">Reusable ECS Service Module</a></li>
+            <li><a href="#d18-7">EKS Cluster, Node Group &amp; IRSA</a></li>
+          </ul>
         </li>
         <li>
           <a class="day-link" href="#d19"><span class="day-num">19</span> Operating Terraform, Checkpoint 2</a>
+          <ul class="sub-list">
+            <li><a href="#d19-1">Drift Detection</a></li>
+            <li><a href="#d19-2">Targeted Apply</a></li>
+            <li><a href="#d19-3">moved Blocks</a></li>
+            <li><a href="#d19-4">state mv &amp; rm</a></li>
+            <li><a href="#d19-5">Recovering Half-Applied State</a></li>
+            <li><a href="#d19-6">Machine-Readable Plans</a></li>
+          </ul>
         </li>
       </ul>
     </nav>
@@ -684,30 +701,413 @@ tfsec .
 <details class="day" id="d18">
 <summary><span class="day-badge">18</span><span class="day-title"><h2>The Whole Platform in Code</h2><div class="day-sub">Thu 24 Sep</div></span><span class="chev"></span></summary>
 <div class="day-body">
-<p>Every resource from Weeks 1–3, declared.</p>
-<ul>
-<li>ALB with listeners and rules</li>
-<li>Auto scaling group</li>
-<li>ACM with DNS validation, Route 53</li>
-<li>RDS with parameter and subnet groups, Multi-AZ</li>
-<li>Secrets referenced from Secrets Manager, never stored</li>
-<li>A reusable ECS service module — adding a microservice becomes one block</li>
-<li>The EKS cluster, node group and IRSA declared</li>
-</ul>
+<p>Every resource from Weeks 1–3, declared. Nothing new conceptually — this is Day 15–17's language and workflow, applied to the actual shape of the platform.</p>
+
+<details class="sub" id="d18-1">
+<summary><span class="sub-num">18.1</span><h3>ALB — Listeners and Rules in Code</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>The four-resource shape from week2.html 6.1 (load balancer, target group, listener, listener rule) as a module, driven by a map so adding a second path-routed service is a new map entry, not a new resource block.</p>
+<pre data-lang="hcl">resource "aws_lb" "app" {
+  name               = "${var.name_prefix}-alb"
+  load_balancer_type = "application"
+  subnets            = var.public_subnet_ids
+  security_groups    = [aws_security_group.alb.id]
+}
+
+resource "aws_lb_target_group" "service" {
+  for_each = var.services   # map(object({ port = number, health_check_path = string }))
+  name     = "${var.name_prefix}-${each.key}-tg"
+  port     = each.value.port
+  protocol = "HTTP"
+  vpc_id   = var.vpc_id
+  health_check { path = each.value.health_check_path }
+}
+
+resource "aws_lb_listener" "https" {
+  load_balancer_arn = aws_lb.app.arn
+  port              = 443
+  protocol          = "HTTPS"
+  certificate_arn   = var.acm_certificate_arn
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.service[var.default_service].arn
+  }
+}
+
+resource "aws_lb_listener_rule" "path" {
+  for_each     = { for k, v in var.services : k => v if k != var.default_service }
+  listener_arn = aws_lb_listener.https.arn
+  priority     = index(keys(var.services), each.key) + 1
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.service[each.key].arn
+  }
+  condition {
+    path_pattern { values = ["/${each.key}", "/${each.key}/*"] }
+  }
+}</pre>
+<div class="fact fact-note"><span class="tag">The 404 from week2.html, encoded as a fixed pattern</span><p>The <code>path_pattern</code> values include both the exact path and the wildcard (<code>/bar</code> and <code>/bar/*</code>) — this is the fix from the live <code>/bar</code> 404 investigation (week2.html 6.1), written once into the module instead of remembered per rule.</p></div>
+</div>
+</details>
+
+<details class="sub" id="d18-2">
+<summary><span class="sub-num">18.2</span><h3>Auto Scaling Group in Code</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<pre data-lang="hcl">resource "aws_launch_template" "app" {
+  name_prefix   = "${var.name_prefix}-"
+  image_id      = var.golden_ami_id
+  instance_type = var.instance_type
+  vpc_security_group_ids = [aws_security_group.app.id]
+  lifecycle { create_before_destroy = true }
+}
+
+resource "aws_autoscaling_group" "app" {
+  name                = "${var.name_prefix}-asg"
+  vpc_zone_identifier = var.private_subnet_ids
+  min_size            = var.min_size
+  max_size            = var.max_size
+  desired_capacity    = var.desired_capacity
+  target_group_arns   = [aws_lb_target_group.service[var.default_service].arn]
+
+  launch_template {
+    id      = aws_launch_template.app.id
+    version = "$Latest"
+  }
+}
+
+resource "aws_autoscaling_policy" "cpu_target" {
+  name                   = "${var.name_prefix}-cpu-target"
+  autoscaling_group_name = aws_autoscaling_group.app.name
+  policy_type            = "TargetTrackingScaling"
+  target_tracking_configuration {
+    predefined_metric_specification {
+      predefined_metric_type = "ASGAverageCPUUtilization"
+    }
+    target_value = 60
+  }
+}</pre>
+<div class="fact fact-good"><span class="tag">create_before_destroy earns its keep here</span><p>Changing <code>golden_ami_id</code> (a new Golden AMI baked from week2.html 5.3) replaces the launch template. Without <code>create_before_destroy</code> (16.3), the ASG would briefly reference a deleted template if the new one failed to create — with it, the new template exists before the old one is removed.</p></div>
+</div>
+</details>
+
+<details class="sub" id="d18-3">
+<summary><span class="sub-num">18.3</span><h3>ACM and Route 53 in Code</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<pre data-lang="hcl">resource "aws_acm_certificate" "app" {
+  domain_name       = var.domain_name
+  validation_method = "DNS"
+  lifecycle { create_before_destroy = true }
+}
+
+resource "aws_route53_record" "cert_validation" {
+  for_each = {
+    for dvo in aws_acm_certificate.app.domain_validation_options : dvo.domain_name => dvo
+  }
+  zone_id = var.hosted_zone_id
+  name    = each.value.resource_record_name
+  type    = each.value.resource_record_type
+  records = [each.value.resource_record_value]
+  ttl     = 60
+}
+
+resource "aws_acm_certificate_validation" "app" {
+  certificate_arn         = aws_acm_certificate.app.arn
+  validation_record_fqdns = [for r in aws_route53_record.cert_validation : r.fqdn]
+}
+
+resource "aws_route53_record" "app" {
+  zone_id = var.hosted_zone_id
+  name    = var.domain_name
+  type    = "A"
+  alias {
+    name                   = aws_lb.app.dns_name
+    zone_id                = aws_lb.app.zone_id
+    evaluate_target_health = true
+  }
+}</pre>
+<div class="fact fact-note"><span class="tag">The manual CNAME step from week2.html 6.3, now self-completing</span><p><code>aws_acm_certificate_validation</code> is what makes <code>apply</code> actually wait for DNS validation to finish before moving on — by hand, this was watching <code>describe-certificates</code> for <code>ISSUED</code>. Here it's one dependency edge, and it means <code>destroy</code> then <code>apply</code> from empty (this week's deliverable) needs no manual pause at all.</p></div>
+</div>
+</details>
+
+<details class="sub" id="d18-4">
+<summary><span class="sub-num">18.4</span><h3>RDS with Parameter and Subnet Groups, Multi-AZ</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<pre data-lang="hcl">resource "aws_db_subnet_group" "app" {
+  name       = "${var.name_prefix}-db-subnets"
+  subnet_ids = var.private_data_subnet_ids   # a distinct subnet tier from app (week2.html 7.1)
+}
+
+resource "aws_db_parameter_group" "app" {
+  family = "postgres16"
+  parameter {
+    name  = "log_min_duration_statement"
+    value = "500"   # ms -- feeds the slow-query workflow from week2.html 7.5
+  }
+}
+
+resource "aws_db_instance" "primary" {
+  identifier             = "${var.name_prefix}-db"
+  engine                 = "postgres"
+  engine_version         = "16.4"
+  instance_class         = var.db_instance_class
+  allocated_storage      = 20
+  multi_az               = var.environment == "stg"   # Multi-AZ only where the deliverable calls for it
+  db_subnet_group_name   = aws_db_subnet_group.app.name
+  parameter_group_name   = aws_db_parameter_group.app.name
+  vpc_security_group_ids = [aws_security_group.rds.id]
+  manage_master_user_password = true   # password generated and rotated in Secrets Manager -- see 18.5
+  lifecycle { prevent_destroy = true }
+}</pre>
+<div class="fact fact-fail"><span class="tag">prevent_destroy is deliberate here, not everywhere</span><p>Every other resource in this module accepts <code>destroy</code> then <code>apply</code> from empty (this week's deliverable). The database is the one exception — real data must never disappear because a teardown script ran against the wrong workspace. Tearing down for real means removing this <code>lifecycle</code> block first, as an explicit, separate step (16.3).</p></div>
+</div>
+</details>
+
+<details class="sub" id="d18-5">
+<summary><span class="sub-num">18.5</span><h3>Secrets Referenced from Secrets Manager, Never Stored</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p><code>manage_master_user_password = true</code> above already keeps the RDS password out of state and out of config entirely — AWS generates it and stores it in Secrets Manager directly. The application still needs to read that secret at runtime, without it ever appearing in a <code>.tf</code> file or a plan.</p>
+<pre data-lang="hcl">data "aws_secretsmanager_secret_version" "db" {
+  secret_id = aws_db_instance.primary.master_user_secret[0].secret_arn
+}
+
+# passed to the app as an environment variable pointing at the secret ARN,
+# never as the decrypted value -- the app fetches and decrypts it at boot
+resource "aws_ecs_task_definition" "order_service" {
+  # ...
+  container_definitions = jsonencode([{
+    name = "order-service"
+    secrets = [
+      { name = "DB_PASSWORD", valueFrom = aws_db_instance.primary.master_user_secret[0].secret_arn }
+    ]
+  }])
+}</pre>
+<div class="fact fact-fail"><span class="tag">A data source that reads a secret still writes it to state</span><p>The <code>aws_secretsmanager_secret_version</code> data source above pulls the plaintext value into Terraform state the moment anything references its <code>secret_string</code> attribute — same exposure as 17.1's warning about <code>sensitive</code> variables. Prefer passing the secret's <strong>ARN</strong> to the running service (as the ECS task definition does above) and letting the container fetch and decrypt it at boot, so the plaintext value never has a reason to pass through Terraform at all.</p></div>
+</div>
+</details>
+
+<details class="sub" id="d18-6">
+<summary><span class="sub-num">18.6</span><h3>A Reusable ECS Service Module</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>week3.html's order service, task definition and all, as a module — so that a second microservice is one more module call, not a copy-pasted block of ECS resources.</p>
+<pre data-lang="hcl"># modules/ecs-service/variables.tf
+variable "name" {}
+variable "image" {}
+variable "container_port" { type = number }
+variable "cluster_arn" {}
+variable "target_group_arn" {}
+variable "desired_count" {
+  type    = number
+  default = 2
+}
+
+# modules/ecs-service/main.tf
+resource "aws_ecs_task_definition" "this" {
+  family                   = var.name
+  requires_compatibilities = ["FARGATE"]
+  network_mode             = "awsvpc"
+  cpu                      = 256
+  memory                   = 512
+  container_definitions = jsonencode([{
+    name  = var.name
+    image = var.image
+    portMappings = [{ containerPort = var.container_port }]
+  }])
+}
+
+resource "aws_ecs_service" "this" {
+  name            = var.name
+  cluster         = var.cluster_arn
+  task_definition = aws_ecs_task_definition.this.arn
+  desired_count   = var.desired_count
+  launch_type     = "FARGATE"
+  load_balancer {
+    target_group_arn = var.target_group_arn
+    container_name   = var.name
+    container_port   = var.container_port
+  }
+}
+
+# root: adding a microservice is one block
+module "order_service" {
+  source            = "./modules/ecs-service"
+  name              = "order-service"
+  image             = "${var.ecr_repo_url}:order-service-latest"
+  container_port    = 8080
+  cluster_arn       = aws_ecs_cluster.main.arn
+  target_group_arn  = aws_lb_target_group.service["order"].arn
+}</pre>
+<div class="fact fact-good"><span class="tag">This is the payoff from Day 16</span><p>The module's interface (16.4) exposes exactly five inputs — everything about clusters, task CPU/memory defaults, and Fargate wiring stays inside the module. A second service, say <code>payments-service</code>, is a second <code>module</code> block with different values for those five inputs, not a second copy of the task-definition JSON.</p></div>
+</div>
+</details>
+
+<details class="sub" id="d18-7">
+<summary><span class="sub-num">18.7</span><h3>The EKS Cluster, Node Group and IRSA</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>week3.html's second runtime for the same order service, declared. More moving parts than ECS: the control plane, a node group of worker EC2 instances, and IRSA (IAM Roles for Service Accounts) so pods get scoped AWS permissions without static credentials baked into a container image.</p>
+<pre data-lang="hcl">resource "aws_eks_cluster" "main" {
+  name     = "${var.name_prefix}-eks"
+  role_arn = aws_iam_role.eks_cluster.arn
+  vpc_config { subnet_ids = var.private_subnet_ids }
+}
+
+resource "aws_eks_node_group" "main" {
+  cluster_name    = aws_eks_cluster.main.name
+  node_group_name = "${var.name_prefix}-ng"
+  node_role_arn   = aws_iam_role.eks_node.arn
+  subnet_ids      = var.private_subnet_ids
+  scaling_config {
+    desired_size = 2
+    min_size     = 2
+    max_size     = 4
+  }
+}
+
+# IRSA -- lets the order-service pod assume an IAM role scoped to just its own needs
+resource "aws_iam_openid_connect_provider" "eks" {
+  url             = aws_eks_cluster.main.identity[0].oidc[0].issuer
+  client_id_list  = ["sts.amazonaws.com"]
+  thumbprint_list = [data.tls_certificate.eks.certificates[0].sha1_fingerprint]
+}
+
+resource "aws_iam_role" "order_service_pod" {
+  name = "order-service-irsa"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Federated = aws_iam_openid_connect_provider.eks.arn }
+      Action    = "sts:AssumeRoleWithWebIdentity"
+      Condition = {
+        StringEquals = {
+          "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:sub" =
+            "system:serviceaccount:default:order-service"
+        }
+      }
+    }]
+  })
+}</pre>
+<div class="fact fact-note"><span class="tag">Why IRSA over a node-wide IAM role</span><p>Without IRSA, every pod on a node inherits the node group's own IAM role — the order-service pod and any other pod scheduled on that same worker would share identical AWS permissions. IRSA scopes credentials to the individual Kubernetes service account instead, matching the least-privilege principle the customer's readiness review (week5.html Day 22) explicitly checks for.</p></div>
+</div>
+</details>
+
 </div>
 </details>
 <details class="day" id="d19">
 <summary><span class="day-badge">19</span><span class="day-title"><h2>Operating Terraform, Checkpoint 2</h2><div class="day-sub">Fri 25 Sep</div></span><span class="chev"></span></summary>
 <div class="day-body">
 <p>Keeping state healthy once real changes start landing, then the checkpoint.</p>
-<ul>
-<li>Drift detection</li>
-<li>Targeted apply, and when it's a mistake</li>
-<li><code>moved</code> blocks</li>
-<li><code>state mv</code> and <code>rm</code></li>
-<li>Recovering a half-applied state</li>
-<li>Machine-readable plans for automation</li>
-</ul>
+
+<details class="sub" id="d19-1">
+<summary><span class="sub-num">19.1</span><h3>Drift Detection</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>Drift is state disagreeing with reality — someone widened a security group rule in the console during an incident, or an ASG's <code>desired_capacity</code> moved because a scaling policy fired (17.1 introduced the concept; this is catching it in practice).</p>
+<pre data-lang="bash"># Refresh Terraform's view of reality and show any drift, without touching anything
+terraform plan -refresh-only
+
+# Older/equivalent: refresh state, then a normal plan will show the same drift
+terraform apply -refresh-only</pre>
+<pre data-lang="text">  # aws_security_group.app has changed
+  ~ resource "aws_security_group" "app" {
+      ~ ingress = [
+          + {
+              + cidr_blocks = ["0.0.0.0/0"]
+              + from_port   = 22
+              + to_port     = 22
+              + protocol    = "tcp"
+            },
+        ]
+    }
+
+This is a refresh-only plan, so Terraform will not take any actions.</pre>
+<div class="fact fact-good"><span class="tag">Schedule it, don't wait to trip over it</span><p>A weekly <code>plan -refresh-only</code> run in CI, posting its output somewhere visible, catches console-made changes within a week instead of at the next unrelated <code>apply</code>, when the drifted resource shows up mixed in with changes nobody intended to make.</p></div>
+<div class="fact fact-fail"><span class="tag">Detecting drift isn't fixing it</span><p><code>-refresh-only</code> only updates what Terraform believes state to be — it does not push your config back onto AWS, and it does not pull the drifted value into your <code>.tf</code> files either. Deciding whether the <em>console change</em> or the <em>code</em> is correct is still a human call every time.</p></div>
+</div>
+</details>
+
+<details class="sub" id="d19-2">
+<summary><span class="sub-num">19.2</span><h3>Targeted Apply, and When It's a Mistake</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<pre data-lang="bash"># Apply changes to just this one resource, ignoring other pending diffs
+terraform apply -target=aws_launch_template.app</pre>
+<div class="fact fact-good"><span class="tag">Legitimate use: an emergency, isolated fix</span><p>Production is down because of one resource, the fix is known, and a full <code>plan</code> right now would also apply three unrelated in-flight changes nobody's reviewed yet. <code>-target</code> applies only the fix.</p></div>
+<div class="fact fact-fail"><span class="tag">The mistake: using it as a habit</span><p>Repeated <code>-target</code> applies let a config and its state quietly drift apart from each other in a different way than 19.1 — not AWS vs. state, but "the parts of config that get applied" vs. "the parts that don't." The next full, untargeted <code>apply</code> can produce a surprisingly large plan, because everything skipped over every targeted run finally shows up at once. Terraform itself warns about this every time <code>-target</code> is used — treat that warning as accurate, not boilerplate.</p></div>
+</div>
+</details>
+
+<details class="sub" id="d19-3">
+<summary><span class="sub-num">19.3</span><h3><code>moved</code> Blocks</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>Renaming a resource in code, or moving it into a module, changes its address (<code>aws_instance.app</code> → <code>module.compute.aws_instance.app</code>). Terraform matches state by address, not by intent — without help, it reads that as "the old one was deleted, a new one must be created," and plans a destroy-and-recreate of something that never actually changed on AWS.</p>
+<pre data-lang="hcl"># after moving aws_instance.app into a module, add this alongside it
+moved {
+  from = aws_instance.app
+  to   = module.compute.aws_instance.app
+}</pre>
+<pre data-lang="text">$ terraform plan
+Note: Objects have changed outside of Terraform
+
+  # aws_instance.app has moved to module.compute.aws_instance.app
+    resource "aws_instance" "app" {
+        id = "i-0aaa1111aaaa11111"
+    }
+
+No changes. Your infrastructure matches the configuration.</pre>
+<div class="fact fact-good"><span class="tag">This is exactly what 16.6's repo layout refactor needs</span><p>Extracting an inline resource into a module — the "third time" moment from 16.6's rule of three — is precisely when a <code>moved</code> block matters: it lets the refactor be a no-op against real infrastructure, instead of an accidental destroy-and-recreate of something already running in production.</p></div>
+</div>
+</details>
+
+<details class="sub" id="d19-4">
+<summary><span class="sub-num">19.4</span><h3><code>state mv</code> and <code>state rm</code></h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p><code>moved</code> blocks (19.3) are the modern, declarative way to record a rename — they live in code and survive a fresh checkout. <code>terraform state mv</code> does the same rewrite imperatively, once, from the CLI — useful when you need it done immediately and won't remember (or won't bother) to leave a <code>moved</code> block behind.</p>
+<pre data-lang="bash"># Same effect as the moved block in 19.3, done directly against the state file
+terraform state mv aws_instance.app module.compute.aws_instance.app
+
+# Remove a resource from Terraform's management without destroying it in AWS --
+# for handing a resource off to another team's config, or before a manual takeover
+terraform state rm aws_instance.legacy_bastion
+
+# List what's actually in state right now
+terraform state list</pre>
+<div class="fact fact-fail"><span class="tag"><code>state rm</code> doesn't delete anything in AWS</span><p>It only removes the resource from Terraform's bookkeeping — the real EC2 instance keeps running, untouched. The easy mistake is expecting <code>state rm</code> to be a lightweight <code>destroy</code>; it's the opposite, a way to stop managing something while leaving it exactly as it is.</p></div>
+</div>
+</details>
+
+<details class="sub" id="d19-5">
+<summary><span class="sub-num">19.5</span><h3>Recovering a Half-Applied State</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>An <code>apply</code> can be interrupted mid-run — a killed terminal, a lost network connection, a lock timeout — after some resources succeeded and before others did. State reflects whatever finished before the interruption; nothing about it is inherently corrupt, but it needs deliberate steps to get back to normal, not blind re-running.</p>
+<pre data-lang="bash"># 1. If a lock was left behind by the interrupted run, confirm nothing else is actually applying, then:
+terraform force-unlock &lt;LOCK_ID&gt;
+
+# 2. Reconcile state with what's actually on AWS before touching anything else
+terraform plan -refresh-only
+
+# 3. A normal plan now shows only the resources still pending from the interrupted apply --
+#    read it like any other plan before applying
+terraform plan
+terraform apply</pre>
+<div class="fact fact-fail"><span class="tag">force-unlock is a last resort, not a first reaction</span><p>Run it while the original process might still be applying, and two applies now race against the same state with no lock protecting either — the exact failure mode locking (17.2) exists to prevent. Confirm the original process is actually dead (check who holds the lock, ask the team) before force-unlocking.</p></div>
+<div class="fact fact-good"><span class="tag">Half-applied is recoverable precisely because state is incremental</span><p>Each resource is recorded as it succeeds, not all-or-nothing at the end — that's why <code>plan</code> after an interruption shows only what's left to do, rather than an all-or-nothing do-over of the entire config.</p></div>
+</div>
+</details>
+
+<details class="sub" id="d19-6">
+<summary><span class="sub-num">19.6</span><h3>Machine-Readable Plans for Automation</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>The human-readable plan output from 15.5 is for a person reading a terminal. A CI pipeline (Week 5) needs to act on a plan programmatically — post it as a PR comment, gate an approval on whether anything destructive is in it — which means parsing it as structured data instead of text.</p>
+<pre data-lang="bash"># Save the plan to a binary file, then export it as JSON
+terraform plan -out=tfplan.binary
+terraform show -json tfplan.binary > tfplan.json
+
+# Pull out just the destructive actions -- exactly the check Week 5's
+# approval gate runs before anyone clicks "approve"
+jq '.resource_changes[] | select(.change.actions | index("delete"))' tfplan.json</pre>
+<div class="fact fact-note"><span class="tag">Why -out matters here</span><p><code>terraform show -json</code> without a saved plan file re-runs <code>plan</code> against current state — which can differ from the plan a human or a pipeline already reviewed, if anything changed in between. Saving with <code>-out</code> and applying that exact file (<code>terraform apply tfplan.binary</code>) guarantees the plan that was reviewed is the plan that gets applied, with nothing able to slip in between the two.</p></div>
+<div class="fact fact-good"><span class="tag">This is the actual mechanism behind Week 5's PR gate</span><p>"terraform plan posted as a comment" and "the approval gate" (week5.html Day 21) are both built on exactly this JSON output — a script reads <code>tfplan.json</code>, formats a summary, and posts it; the approval step re-checks it for anything destructive before allowing <code>apply</code> to run the saved <code>tfplan.binary</code>.</p></div>
+</div>
+</details>
+
 <div class="fact fact-note"><span class="tag">Checkpoint 2</span><p>Given a diagram, produce working, readable, reproducible code inside the session, and perform state operations without notes — then hand over the repository.</p></div>
 </div>
 </details>

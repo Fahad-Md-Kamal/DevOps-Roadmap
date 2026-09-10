@@ -32,6 +32,14 @@
       <ul>
         <li>
           <a class="day-link" href="#d15"><span class="day-num">15</span> From Clicks to Code</a>
+          <ul class="sub-list">
+            <li><a href="#d15-1">What Terraform Is, and Why</a></li>
+            <li><a href="#d15-2">Install &amp; Provider Config</a></li>
+            <li><a href="#d15-3">HCL Basics: Resources &amp; Data</a></li>
+            <li><a href="#d15-4">The Workflow</a></li>
+            <li><a href="#d15-5">Reading a Plan Diff</a></li>
+            <li><a href="#d15-6">Variables, Locals &amp; Outputs</a></li>
+          </ul>
         </li>
         <li>
           <a class="day-link" href="#d16"><span class="day-num">16</span> Iteration and Modules</a>
@@ -46,6 +54,14 @@
         </li>
         <li>
           <a class="day-link" href="#d17"><span class="day-num">17</span> State, Environments and Regions</a>
+          <ul class="sub-list">
+            <li><a href="#d17-1">What State Holds</a></li>
+            <li><a href="#d17-2">Remote Backend &amp; Locking</a></li>
+            <li><a href="#d17-3">Directories vs Workspaces</a></li>
+            <li><a href="#d17-4">Remote State Between Layers</a></li>
+            <li><a href="#d17-5">Provider Aliases &amp; Regions</a></li>
+            <li><a href="#d17-6">fmt, validate, lint &amp; scan</a></li>
+          </ul>
         </li>
         <li>
           <a class="day-link" href="#d18"><span class="day-num">18</span> The Whole Platform in Code</a>
@@ -76,14 +92,188 @@
 <details class="day" id="d15" open="">
 <summary><span class="day-badge">15</span><span class="day-title"><h2>From Clicks to Code</h2><div class="day-sub">Mon 21 Sep</div></span><span class="chev"></span></summary>
 <div class="day-body">
-<p>The core workflow, and reading a plan diff without skimming it.</p>
-<ul>
-<li>Provider and version pinning</li>
-<li>Resources and data sources</li>
-<li>The plan / apply / destroy cycle</li>
-<li>Reading a plan diff line by line</li>
-<li>Variables with validation, locals, outputs</li>
-</ul>
+<p>Everything in Weeks 1–3 was built by clicking in the AWS console or typing one-off <code>aws</code> CLI commands. Neither leaves behind a record of the <em>intended</em> state of the infrastructure — only whatever state it happens to be in right now. Terraform's job is to make that intended state a file you can read, diff, review and re-apply.</p>
+
+<details class="sub" id="d15-1">
+<summary><span class="sub-num">15.1</span><h3>What Terraform Is, and Why</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>Terraform is an Infrastructure-as-Code (IaC) tool: you describe the infrastructure you want in text files, and Terraform figures out which API calls turn what currently exists into that. This is a <strong>declarative</strong> model — you say <em>what</em> should exist ("one t3.micro instance, this security group attached"), not <em>how</em> to get there. Compare that to the CLI work from Weeks 1–3, which was <strong>imperative</strong> — each <code>aws ec2 run-instances</code> command was a step, and nothing recorded that the step had happened except the resource itself.</p>
+<div class="table-scroll">
+<table>
+<thead><tr><th></th><th>Console / CLI (Weeks 1–3)</th><th>Terraform</th></tr></thead>
+<tbody>
+<tr><td>What you write</td><td>A sequence of clicks or commands to run once</td><td>A description of the end state, applied repeatedly</td></tr>
+<tr><td>Record of intent</td><td>None — only whatever exists right now</td><td>The <code>.tf</code> files, committed to git</td></tr>
+<tr><td>Re-running it</td><td>Re-clicking or re-running risks creating duplicates</td><td>Re-applying an unchanged config does nothing (idempotent)</td></tr>
+<tr><td>Review before change</td><td>Not possible — the change already happened</td><td><code>terraform plan</code> shows the change before it happens</td></tr>
+</tbody>
+</table>
+</div>
+<div class="fact fact-note"><span class="tag">Idempotent</span><p>Running the same Terraform config twice in a row with nothing changed produces "no changes" the second time — it doesn't create a second copy of anything. This is the property that makes it safe to re-run in CI on every commit, unlike re-running a one-off <code>aws</code> command by hand.</p></div>
+<p>Terraform itself is cloud-agnostic — the same tool manages AWS, GitHub, Datadog, or a Kubernetes cluster. What connects it to a specific system is a <strong>provider</strong> (covered next): a plugin that translates Terraform's generic "create this resource" into that system's actual API calls.</p>
+</div>
+</details>
+
+<details class="sub" id="d15-2">
+<summary><span class="sub-num">15.2</span><h3>Install &amp; Provider Configuration</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<pre data-lang="bash"># Install (Linux, via HashiCorp's apt repo)
+wget -O- https://apt.releases.hashicorp.com/gpg | gpg --dearmor | \
+  sudo tee /usr/share/keyrings/hashicorp-archive-keyring.gpg > /dev/null
+echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] \
+  https://apt.releases.hashicorp.com $(lsb_release -cs) main" | \
+  sudo tee /etc/apt/sources.list.d/hashicorp.list
+sudo apt update && sudo apt install terraform
+
+terraform version</pre>
+<p>Every Terraform project starts by declaring which providers it needs, and pinning their versions — the same principle as pinning a package version in <code>requirements.txt</code>, for the same reason: an unpinned provider can ship a breaking change and your next <code>plan</code> behaves differently with no line changed in your own code.</p>
+<pre data-lang="hcl"># versions.tf
+terraform {
+  required_version = ">= 1.7.0"
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"   # any 5.x, never 6.x
+    }
+  }
+}
+
+provider "aws" {
+  region  = "ap-south-1"
+  profile = "fahad"
+}</pre>
+<div class="fact fact-fail"><span class="tag">Unpinned = unreproducible</span><p>Skip <code>required_providers</code> and Terraform silently installs whatever the latest provider version is the first time anyone runs <code>init</code>. Two engineers running <code>init</code> a week apart can end up on two different AWS provider versions, applying the exact same <code>.tf</code> files with different results.</p></div>
+</div>
+</details>
+
+<details class="sub" id="d15-3">
+<summary><span class="sub-num">15.3</span><h3>HCL Basics: Resources &amp; Data Sources</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>Terraform's config language is HCL. Everything is a named block: a <strong>type</strong>, a <strong>local name</strong> you choose, and a body of arguments.</p>
+<pre data-lang="hcl">resource "aws_security_group" "web" {
+  name   = "web-sg"
+  vpc_id = var.vpc_id
+
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}</pre>
+<p><code>resource</code> means "create and manage this" — Terraform will create it, and destroy it if you remove the block. <code>data</code> means "look this up, don't manage it" — for something that already exists and you just need to reference (an existing AMI, an existing VPC someone else created).</p>
+<pre data-lang="hcl">data "aws_ami" "ubuntu" {
+  most_recent = true
+  owners      = ["099720109477"]  # Canonical
+  filter {
+    name   = "name"
+    values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
+  }
+}
+
+resource "aws_instance" "app" {
+  ami           = data.aws_ami.ubuntu.id   # reference: type.name.attribute
+  instance_type = "t3.micro"
+  vpc_security_group_ids = [aws_security_group.web.id]
+}</pre>
+<div class="fact fact-note"><span class="tag">This is where dependency order comes from</span><p><code>aws_instance.app</code> references <code>aws_security_group.web.id</code> and <code>data.aws_ami.ubuntu.id</code> — Terraform reads these references to build its dependency graph automatically. It knows to create the security group before the instance without you writing anything that says "do this first." This is exactly why explicit <code>depends_on</code> (see 16.3) is a last resort, not a first instinct — most ordering should come from references like these.</p></div>
+</div>
+</details>
+
+<details class="sub" id="d15-4">
+<summary><span class="sub-num">15.4</span><h3>The Workflow: init, plan, apply, destroy</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<pre data-lang="bash"># 1. Download providers/modules this config needs (run once per checkout, or after adding one)
+terraform init
+
+# 2. Show what WOULD change, without changing anything
+terraform plan
+
+# 3. Actually make the change (re-shows the plan, asks for confirmation)
+terraform apply
+
+# 4. Tear everything this config manages back down
+terraform destroy</pre>
+<dl class="termlist">
+<dt><code>init</code></dt>
+<dd>Downloads the provider plugins declared in <code>versions.tf</code> and any modules referenced by <code>source</code>, and sets up the backend that stores state (Day 17). Safe to re-run any time — it doesn't touch real infrastructure.</dd>
+<dt><code>plan</code></dt>
+<dd>Compares your <code>.tf</code> files against Terraform's record of what it last created (the state file) and against the real infrastructure, and prints exactly what it would add, change, or destroy. Nothing is touched. This is the step you never skip.</dd>
+<dt><code>apply</code></dt>
+<dd>Runs the same comparison as <code>plan</code>, shows it to you, and — after you type <code>yes</code> — makes the real API calls.</dd>
+<dt><code>destroy</code></dt>
+<dd>The inverse of <code>apply</code>: deletes everything this config currently manages. Same confirmation prompt, same real API calls, in reverse.</dd>
+</dl>
+<div class="fact fact-good"><span class="tag">Never apply without reading the plan</span><p>The habit that matters more than any command: read what <code>plan</code> says before typing <code>yes</code> at <code>apply</code>. A one-line variable change can produce a plan that destroys and recreates a database if it touches a value that forces replacement — the diff is the only place that would be visible before it happens.</p></div>
+</div>
+</details>
+
+<details class="sub" id="d15-5">
+<summary><span class="sub-num">15.5</span><h3>Reading a Plan Diff Line by Line</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<pre data-lang="text">Terraform will perform the following actions:
+
+  # aws_instance.app will be updated in-place
+  ~ resource "aws_instance" "app" {
+        id            = "i-0aaa1111aaaa11111"
+      ~ instance_type = "t3.micro" -> "t3.small"
+        # (28 unchanged attributes hidden)
+    }
+
+  # aws_launch_template.app must be replaced
+-/+ resource "aws_launch_template" "app" {
+      ~ id          = "lt-0bbb2222bbbb22222" -> (known after apply)
+      ~ image_id    = "ami-0111111111111111" -> "ami-0222222222222222" # forces replacement
+        name_prefix = "app-"
+    }
+
+Plan: 1 to add, 1 to change, 1 to destroy.</pre>
+<dl class="termlist">
+<dt><code>~</code> update in-place</dt>
+<dd>The resource stays, but an attribute changes on the live object — no downtime for something like an EC2 instance's <code>instance_type</code> (it does still require a stop/start under the hood for that particular attribute, which Terraform will also tell you about).</dd>
+<dt><code>-/+</code> destroy and re-create (replacement)</dt>
+<dd>The changed attribute can't be updated on the existing object at all — AWS's API has no "update" call for it — so Terraform must delete the old one and create a new one. The line <code># forces replacement</code> tells you exactly which attribute triggered this.</dd>
+<dt><code>+</code> / <code>-</code> alone</dt>
+<dd>A resource being newly created, or a resource being removed because its block was deleted from the config.</dd>
+<dt>"Plan: X to add, Y to change, Z to destroy"</dt>
+<dd>The summary line at the bottom. Read the detail above it first — "1 to change" reads harmless right up until you notice it's the production database's launch template being replaced, not updated.</dd>
+</dl>
+<div class="fact fact-fail"><span class="tag">The line to actually watch for</span><p><code># forces replacement</code> is the single most consequential phrase in any plan output. For anything stateful (a database, an EBS volume with data on it), a forced replacement means the resource is destroyed and a brand-new empty one created in its place — Terraform will not warn you beyond this comment, and it will not stop to ask if you're sure that's what you meant.</p></div>
+</div>
+</details>
+
+<details class="sub" id="d15-6">
+<summary><span class="sub-num">15.6</span><h3>Variables, Locals &amp; Outputs</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>Three ways values flow through a config: <code>variable</code> for input the caller supplies, <code>locals</code> for a value computed once and reused, <code>output</code> for a value handed back out.</p>
+<pre data-lang="hcl">variable "environment" {
+  type        = string
+  description = "dev or stg"
+  validation {
+    condition     = contains(["dev", "stg"], var.environment)
+    error_message = "environment must be \"dev\" or \"stg\"."
+  }
+}
+
+locals {
+  name_prefix = "app-${var.environment}"   # computed once, referenced everywhere below
+}
+
+resource "aws_instance" "app" {
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = "t3.micro"
+  tags          = { Name = local.name_prefix }
+}
+
+output "instance_public_ip" {
+  value       = aws_instance.app.public_ip
+  description = "Public IP, for the smoke test after apply."
+}</pre>
+<div class="fact fact-note"><span class="tag">variable vs locals</span><p>A <code>variable</code> is set from outside the config — a <code>.tfvars</code> file, a <code>-var</code> flag, an environment variable. A <code>locals</code> value is computed inside the config from other values and can never be overridden from outside. If you find yourself wanting to override a <code>locals</code> value, it should have been a <code>variable</code> from the start.</p></div>
+<div class="fact fact-good"><span class="tag">Validation catches typos before AWS does</span><p>Without the <code>validation</code> block above, passing <code>environment = "staging"</code> (instead of <code>"stg"</code>) would sail through <code>plan</code> and only fail deep into <code>apply</code> once some downstream resource tries to use it, with a much less obvious error. Same principle as module-level validation (see 16.4), applied to root-level variables too.</p></div>
+</div>
+</details>
+
 </div>
 </details>
 <details class="day" id="d16">
@@ -319,15 +509,176 @@ module "ecs_service" {
 <summary><span class="day-badge">17</span><span class="day-title"><h2>State, Environments and Regions</h2><div class="day-sub">Wed 23 Sep</div></span><span class="chev"></span></summary>
 <div class="day-body">
 <p>What state actually holds, and how one codebase serves multiple environments and regions safely.</p>
-<ul>
-<li>What state holds</li>
-<li>Remote backend with locking</li>
-<li>Environment isolation — directories vs workspaces</li>
-<li>Remote state data sources between layers</li>
-<li>Provider aliases</li>
-<li>Parameterising the stack so a second region is a variable</li>
-<li><code>fmt</code>, <code>validate</code>, a linter and a security scanner in the loop from the first commit</li>
-</ul>
+
+<details class="sub" id="d17-1">
+<summary><span class="sub-num">17.1</span><h3>What State Holds</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>Terraform can't ask AWS "what does my config manage?" — AWS just has resources, with no concept of which ones "belong" to a given <code>.tf</code> file. The state file is Terraform's own record of that mapping: for every resource block, it stores the real resource ID and every attribute AWS returned when it was created.</p>
+<pre data-lang="json">{
+  "resources": [
+    {
+      "type": "aws_instance",
+      "name": "app",
+      "instances": [
+        {
+          "attributes": {
+            "id": "i-0aaa1111aaaa11111",
+            "ami": "ami-0111111111111111",
+            "instance_type": "t3.micro",
+            "public_ip": "203.0.113.10"
+          }
+        }
+      ]
+    }
+  ]
+}</pre>
+<p>Every <code>plan</code> is really a three-way comparison: your <code>.tf</code> files (desired), the state file (what Terraform believes it last created), and a fresh read of the real AWS API (what actually exists). A mismatch between the last two is <strong>drift</strong> — someone changed the security group by hand in the console, and state doesn't know yet.</p>
+<div class="fact fact-fail"><span class="tag">Never hand-edit the state file</span><p>It's JSON, so it's tempting to fix a stuck reference by hand. Don't — a malformed edit corrupts every future plan silently. Use <code>terraform state</code> subcommands (Day 19) for anything that looks like a state surgery.</p></div>
+<div class="fact fact-fail"><span class="tag">State contains secrets in plaintext</span><p>An RDS password passed as a resource argument ends up readable in plaintext inside the state file, even if the variable itself is marked <code>sensitive</code> (that only hides it from CLI output, not from the file). This is the whole reason state must live in a backend with access control, never committed to git.</p></div>
+</div>
+</details>
+
+<details class="sub" id="d17-2">
+<summary><span class="sub-num">17.2</span><h3>Remote Backend with Locking</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>By default, state lives in a local <code>terraform.tfstate</code> file next to your config — fine solo, broken the moment a second engineer runs <code>apply</code> from their own laptop against their own copy of that file. A <strong>remote backend</strong> moves state to shared storage; <strong>locking</strong> stops two applies from racing against it at the same time.</p>
+<pre data-lang="hcl"># backend.tf
+terraform {
+  backend "s3" {
+    bucket         = "fahad-terraform-state"
+    key            = "dev/network/terraform.tfstate"
+    region         = "ap-south-1"
+    dynamodb_table = "terraform-locks"   # locking, pre-2023 syntax
+    encrypt        = true
+  }
+}</pre>
+<div class="fact fact-note"><span class="tag">S3 native locking (Terraform ≥ 1.10 / AWS provider ≥ 5.x)</span><p>Newer Terraform versions can lock directly on the S3 object using conditional writes — no separate DynamoDB table required. Either approach solves the same problem: without locking, two <code>apply</code> runs starting seconds apart both read the same "before" state and can each write back a "after" that discards the other's changes.</p></div>
+<pre data-lang="bash"># What locking looks like when it's doing its job
+$ terraform apply
+Acquiring state lock. This may take a few moments...
+Error: Error acquiring the state lock
+
+Lock Info:
+  ID:        7c2f9e1a-...
+  Path:      dev/network/terraform.tfstate
+  Operation: OperationTypeApply
+  Who:       teammate@laptop</pre>
+<div class="fact fact-good"><span class="tag">This is what makes CI safe</span><p>Remote state with locking is the prerequisite for the whole Week 5 pipeline — a Jenkins job applying on merge and an engineer running <code>plan</code> locally have to share one source of truth, or the pipeline's idea of "current state" silently diverges from reality.</p></div>
+</div>
+</details>
+
+<details class="sub" id="d17-3">
+<summary><span class="sub-num">17.3</span><h3>Environment Isolation — Directories vs Workspaces</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>Two ways to run the same code against <code>dev</code> and <code>stg</code> without duplicating the resource definitions themselves.</p>
+<div class="table-scroll">
+<table>
+<thead><tr><th></th><th>Separate directories</th><th>Terraform workspaces</th></tr></thead>
+<tbody>
+<tr><td>Structure</td><td><code>environments/dev/</code>, <code>environments/stg/</code>, each with their own <code>backend.tf</code> and <code>.tfvars</code></td><td>One directory, <code>terraform workspace new stg</code> creates a separate state within the same backend</td></tr>
+<tr><td>State isolation</td><td>Fully separate state files, separate backend keys — a mistake in one physically cannot touch the other</td><td>Separate state, same backend config — one bad backend change affects every workspace</td></tr>
+<tr><td>Blast radius of a bug</td><td>A typo in <code>environments/dev/main.tf</code> can't reach staging at all</td><td>A bug in the single shared <code>main.tf</code> reaches every workspace next apply</td></tr>
+<tr><td>Good fit</td><td>Environments that should be able to diverge (different instance sizes, different modules even) and where mistakes must stay contained</td><td>Truly identical environments, or short-lived ones (a workspace per PR preview)</td></tr>
+</tbody>
+</table>
+</div>
+<pre data-lang="bash"># Workspaces, for comparison
+terraform workspace new stg
+terraform workspace select stg
+terraform apply -var-file=stg.tfvars
+terraform workspace show   # confirm which one you're about to apply into</pre>
+<div class="fact fact-fail"><span class="tag">The workspace footgun</span><p>Nothing in the terminal loudly reminds you which workspace is selected — running <code>terraform apply</code> after forgetting a <code>workspace select</code> applies into whichever one you left active. This repo uses separate directories (see the layout in 16.6) specifically to make that mistake structurally impossible: the environment is which directory you <code>cd</code>into, not invisible session state.</p></div>
+</div>
+</details>
+
+<details class="sub" id="d17-4">
+<summary><span class="sub-num">17.4</span><h3>Remote State Data Sources Between Layers</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>Splitting a platform into layers (network, then compute, then application) means the compute layer needs values — a VPC ID, a subnet list — that only the network layer's state actually holds. <code>terraform_remote_state</code> reads another layer's state as a data source, read-only.</p>
+<pre data-lang="hcl"># in the compute layer
+data "terraform_remote_state" "network" {
+  backend = "s3"
+  config = {
+    bucket = "fahad-terraform-state"
+    key    = "dev/network/terraform.tfstate"
+    region = "ap-south-1"
+  }
+}
+
+resource "aws_instance" "app" {
+  subnet_id = data.terraform_remote_state.network.outputs.private_subnet_id
+  # ...
+}</pre>
+<div class="fact fact-note"><span class="tag">Only outputs cross the boundary</span><p>A layer can only read another layer's declared <code>output</code> values, not its internal resources — which is exactly the module-interface discipline from 16.4, applied between whole layers instead of between a module and its caller. If compute needs a value the network layer hasn't output yet, the fix is adding that output, not reaching around it.</p></div>
+<div class="fact fact-fail"><span class="tag">A layer boundary is also a blast-radius boundary</span><p>Splitting into layers means a network change requires its own <code>plan</code>/<code>apply</code>, separate from the compute layer's — you can no longer <code>apply</code> the whole platform in one command. That's the tradeoff: smaller, safer applies, at the cost of the multi-layer <code>apply</code> sequencing this buys you.</p></div>
+</div>
+</details>
+
+<details class="sub" id="d17-5">
+<summary><span class="sub-num">17.5</span><h3>Provider Aliases &amp; a Second Region as a Variable</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>A <code>provider</code> block configures one region (or account). <code>alias</code> lets a single config talk to a second one — the mechanism this week's deliverable ("the same code applied to a second region by changing variables only") actually rests on.</p>
+<pre data-lang="hcl"># providers.tf
+provider "aws" {
+  region = var.primary_region     # e.g. "ap-south-1"
+}
+
+provider "aws" {
+  alias  = "secondary"
+  region = var.secondary_region   # e.g. "eu-west-1"
+}
+
+# usage -- everything else about the resource is identical
+resource "aws_s3_bucket" "backup" {
+  provider = aws.secondary
+  bucket   = "${var.name_prefix}-backup-${var.secondary_region}"
+}</pre>
+<p>For a full second-region deployment (not just one bucket), the cleaner pattern is calling the same module twice, once per provider:</p>
+<pre data-lang="hcl">module "platform_primary" {
+  source = "../modules/platform"
+  providers = { aws = aws }
+  region = var.primary_region
+}
+
+module "platform_secondary" {
+  source = "../modules/platform"
+  providers = { aws = aws.secondary }
+  region = var.secondary_region
+}</pre>
+<div class="fact fact-good"><span class="tag">Why this satisfies the deliverable</span><p>Nothing inside <code>modules/platform</code> hardcodes a region anywhere — every AZ, AMI lookup, and CIDR is already parameterised (this is what "the whole platform in code" in Day 18 actually depends on). Standing up <code>eu-west-1</code> becomes calling the module a second time with a different provider alias, not writing new resource blocks.</p></div>
+</div>
+</details>
+
+<details class="sub" id="d17-6">
+<summary><span class="sub-num">17.6</span><h3>fmt, validate, a Linter and a Scanner — From the First Commit</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>Four checks, in order of how cheap they are to run, all before a plan ever touches real AWS:</p>
+<pre data-lang="bash"># 1. Formatting -- purely cosmetic, zero false positives
+terraform fmt -recursive -check
+
+# 2. Syntax and internal consistency -- catches typos, type mismatches, missing required args
+terraform validate
+
+# 3. Linting -- style and correctness rules validate can't see
+tflint
+
+# 4. Security scanning -- known-bad patterns (open SG, unencrypted volume, public S3)
+tfsec .
+# or: checkov -d .</pre>
+<dl class="termlist">
+<dt><code>terraform fmt</code></dt>
+<dd>Rewrites files to canonical indentation and alignment. <code>-check</code> makes it exit non-zero instead of rewriting — the form to run in CI, so a PR fails instead of silently reformatting someone's branch.</dd>
+<dt><code>terraform validate</code></dt>
+<dd>Checks the config is internally consistent — references resolve, types match, required arguments are present. It does <em>not</em> check against real AWS state; a config can <code>validate</code> cleanly and still fail at <code>apply</code> because of an actual AWS-side constraint.</dd>
+<dt><code>tflint</code></dt>
+<dd>Catches things that are syntactically valid but wrong — an invalid instance type for the AWS provider, an unused variable, a deprecated argument.</dd>
+<dt><code>tfsec</code> / <code>checkov</code></dt>
+<dd>Static security scanners: flag a security group open to <code>0.0.0.0/0</code>, an unencrypted EBS volume, a public S3 bucket, before any of it is ever created.</dd>
+</dl>
+<div class="fact fact-good"><span class="tag">This is what "posted as a comment" means in Week 5</span><p>These four checks are exactly the pull-request gate this week's Assignment A4 and next week's Jenkins pipeline both describe — running them locally now is rehearsal for wiring the identical commands into CI, not a separate step.</p></div>
+</div>
+</details>
+
 </div>
 </details>
 <details class="day" id="d18">

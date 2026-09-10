@@ -74,6 +74,7 @@
             <li><a href="#d18-6">Reusable ECS Service Module</a></li>
             <li><a href="#d18-7">EKS Cluster, Node Group &amp; IRSA</a></li>
             <li><a href="#d18-8">Worked Example: VPC + ALB + NLB</a></li>
+            <li><a href="#d18-9">Refactored Into Modules</a></li>
           </ul>
         </li>
         <li>
@@ -1403,6 +1404,51 @@ resource "aws_lb_listener" "fmk_nlb_tcp" {
 }</pre>
 <p><strong>What it did:</strong> opened port 80 on the NLB, forwarding every raw TCP connection into <code>fmk-tg-private</code>. Both paths are now complete: internet → ALB:80 → <code>fmk-tg-public</code> → the instances, and internet → NLB:80 → <code>fmk-tg-private</code> → the same instances.</p>
 <div class="fact fact-good"><span class="tag">Verified, not just written</span><p>This exact config — 28 resources — ran clean through <code>terraform validate</code> and <code>terraform plan</code> against a real AWS account with zero errors. Building it surfaced real mistakes worth recognizing on sight: a <code>security_groups</code> argument pointed at rule resources instead of the group itself, a missing <code>subnets</code> argument on an ALB, an underscore in a load-balancer name (AWS only allows hyphens), a security group rule scoped to 443/VPC-only when the app actually serves 80 to the internet, a <code>target_type</code> of <code>"alb"</code> left over on a target group meant to hold EC2 instances, and two EC2 instances launched with no security group attached at all — each one invisible until either <code>validate</code> caught it structurally, or reasoning through what the diagram actually required caught it semantically.</p></div>
+</div>
+</details>
+
+<details class="sub" id="d18-9">
+<summary><span class="sub-num">18.9</span><h3>The Same 28 Resources, Refactored Into Modules</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>18.8's single <code>main.tf</code> pulled apart into four modules — <code>network</code>, <code>security</code>, <code>compute</code>, <code>loadbalancing</code> — following exactly the module-design principles from 16.4/16.6. Worth being honest about the trade-off up front: 16.6's own "rule of three" says don't extract a module until something's genuinely reused a third time, and this only has one caller. Doing it anyway here is a deliberate learning exercise — practicing the shape of a real module before there's a second environment forcing the issue — not a case where the rule stopped applying.</p>
+<pre data-lang="text">day02-modules/
+├── versions.tf      -- Terraform + provider version constraints
+├── variables.tf     -- root inputs: region, profile, vpc_cidr, name_prefix
+├── main.tf          -- four `module` calls, wiring outputs into inputs. No resource blocks.
+├── outputs.tf       -- vpc_id, alb_dns_name, nlb_dns_name
+└── modules/
+    ├── network/        (VPC, 4 subnets, IGW, both route tables)
+    ├── security/        (the shared security group + its two rules)
+    ├── compute/         (AMI lookup, EC2 instances, userdata.sh)
+    └── loadbalancing/   (both target groups, ALB, NLB, both listeners)
+        each containing: versions.tf, variables.tf, main.tf, outputs.tf</pre>
+<h4 class="mini">What each file type holds, and why it's separate</h4>
+<dl class="termlist">
+<dt><code>versions.tf</code></dt>
+<dd>Terraform and provider version constraints (15.2) — nothing here creates anything, it's checked once at <code>init</code>. Every module carries its own copy: a module should be explicit about what it needs regardless of what the root happens to declare, so it stays correct if it's ever pulled into a different project.</dd>
+<dt><code>variables.tf</code></dt>
+<dd>The module's inputs — its public interface (16.4). Reading this file alone should tell you everything needed to call the module, without opening <code>main.tf</code> at all. <code>modules/security/variables.tf</code>, for example, says "give me a <code>vpc_id</code>; I'll assume port 80 unless you override <code>ingress_port</code>."</dd>
+<dt><code>main.tf</code></dt>
+<dd>The actual <code>resource</code>/<code>data</code> blocks — the implementation. A caller never needs to read this; it's free to change internally as long as <code>variables.tf</code> and <code>outputs.tf</code> stay the same contract.</dd>
+<dt><code>outputs.tf</code></dt>
+<dd>The module's return values — whatever the next module in the chain needs back. <code>modules/network/outputs.tf</code> hands back <code>vpc_id</code> and both subnet maps because <code>security</code>, <code>compute</code>, and <code>loadbalancing</code> all need those downstream.</dd>
+</dl>
+<div class="fact fact-note"><span class="tag">Root main.tf contains zero resource blocks</span><p>Once split, the root <code>main.tf</code> is just four <code>module</code> calls passing outputs forward — <code>module.network.vpc_id</code> into <code>security</code>, both of those into <code>compute</code>, all three into <code>loadbalancing</code>. Every actual <code>resource</code> lives one level down, inside a module. This is what "the root just wires things together" looks like in a real file, not just as a description.</p></div>
+<h4 class="mini">One resource, before and after</h4>
+<p>Splitting into modules was also a chance to apply 16.1's <code>for_each</code> guidance retroactively. 18.8's four separately-named subnet resources became one <code>for_each</code> block over a map:</p>
+<pre data-lang="hcl">## Before (18.8) -- four separate resources
+resource "aws_subnet" "fmk_public_1a" { cidr_block = "11.0.1.0/24" ... }
+resource "aws_subnet" "fmk_public_1b" { cidr_block = "11.0.2.0/24" ... }
+# state addresses: aws_subnet.fmk_public_1a, aws_subnet.fmk_public_1b
+
+## After (day02-modules) -- one resource, driven by the caller's map
+resource "aws_subnet" "public" {
+  for_each          = var.public_subnets
+  cidr_block        = each.value.cidr_block
+  availability_zone = each.value.availability_zone
+}
+# state addresses: module.network.aws_subnet.public["1a"], ["1b"]</pre>
+<p>Same two subnets get created either way — <code>terraform plan</code> on the modularized version still shows <strong>28 to add, 0 to change, 0 to destroy</strong>, identical to 18.8. What changed is that adding a third AZ later means adding one entry to the <code>public_subnets</code> map passed into the module, not writing a fifth resource block by hand.</p>
 </div>
 </details>
 

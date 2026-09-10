@@ -160,6 +160,16 @@ provider "aws" {
   profile = "fahad"
 }</pre>
 <div class="fact fact-fail"><span class="tag">Unpinned = unreproducible</span><p>Skip <code>required_providers</code> and Terraform silently installs whatever the latest provider version is the first time anyone runs <code>init</code>. Two engineers running <code>init</code> a week apart can end up on two different AWS provider versions, applying the exact same <code>.tf</code> files with different results.</p></div>
+<h4 class="mini">A shorter command, if you want one</h4>
+<p><code>terraform</code> gets typed dozens of times an hour — a shell alias shortens it to two letters. This is a shell feature, not a Terraform one, so it goes in your shell's own config file, not anywhere in this project.</p>
+<pre data-lang="bash"># zsh (~/.zshrc) or bash (~/.bashrc) -- same syntax either way
+echo "alias tf='terraform'" >> ~/.zshrc
+source ~/.zshrc   # reload the current shell so the new alias takes effect
+
+tf plan
+tf apply
+tf state list</pre>
+<div class="fact fact-note"><span class="tag">Where it lives matters</span><p>An alias defined only by typing it at the prompt disappears the moment that terminal closes. Appending it to <code>~/.zshrc</code>/<code>~/.bashrc</code> makes it permanent — that file re-runs every time a new interactive shell starts, which is also why a fresh terminal always picks up an edit without needing <code>source</code> at all.</p></div>
 <h4 class="mini">Widening the constraint later needs -upgrade</h4>
 <p>Bump <code>version = "~> 5.0"</code> to <code>"~> 6.0"</code> after <code>init</code> has already run once, and a plain <code>terraform init</code> fails instead of picking up the new version:</p>
 <pre data-lang="text">│ Error: Failed to query available provider packages

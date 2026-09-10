@@ -193,6 +193,25 @@ resource "aws_instance" "app" {
   instance_type = "t3.micro"
   vpc_security_group_ids = [aws_security_group.web.id]
 }</pre>
+<h4 class="mini">The data block, reserved keywords vs names you chose</h4>
+<dl class="termlist">
+<dt><code>data</code></dt>
+<dd>Reserved keyword — "look this up, don't create or manage it." The opposite of <code>resource</code>.</dd>
+<dt><code>"aws_ami"</code></dt>
+<dd>The data source's <strong>type</strong>. Fixed, defined by the AWS provider — this is the provider's built-in "look up an AMI" query, not something you name yourself.</dd>
+<dt><code>"ubuntu"</code></dt>
+<dd>A local name <strong>you invented</strong>. Purely a label so the rest of your config can reference this lookup (<code>data.aws_ami.ubuntu.id</code> above). Rename it to <code>"my_ami"</code> and nothing breaks except that one reference.</dd>
+<dt><code>most_recent</code></dt>
+<dd>A fixed argument from the <code>aws_ami</code> schema, not custom. When the filters below match more than one AMI, take the newest instead of erroring on ambiguity.</dd>
+<dt><code>filter { name = "name" ... }</code></dt>
+<dd><code>filter</code> is a repeatable nested block — stack several and all must match (AND logic). Inside it, <code>name</code> is a fixed key that says <em>which AMI field</em> you're filtering on; confusingly, its value here is also the literal string <code>"name"</code>, meaning "filter on the AMI's own Name field" (as opposed to architecture, owner-alias, etc.) — the key and the value are unrelated, they just happen to use the same word.</dd>
+<dt><code>values</code></dt>
+<dd>Fixed argument, always a list even for one item. Supports <code>*</code> wildcards — the trailing <code>*</code> here exists because the real AMI name ends in a build timestamp that changes with every release.</dd>
+<dt><code>owners</code></dt>
+<dd>Fixed top-level argument, restricts results to AMIs published by this specific AWS account. <code>099720109477</code> is Canonical's real, publicly documented account ID for official Ubuntu AMIs — not a secret, the same ID AWS's own docs use.</dd>
+</dl>
+<div class="fact fact-fail"><span class="tag">Why owners isn't optional</span><p>Without it, the name-pattern filter alone could match an AMI from <em>any</em> account that happens to use a similar name — including a malicious lookalike published to look official. Pinning <code>owners</code> is what makes this query trustworthy, not just convenient.</p></div>
+<div class="fact fact-note"><span class="tag">This runs as a live query</span><p>The whole <code>data</code> block executes against the real AWS API at <code>plan</code>/<code>apply</code> time — it returns whatever AMI currently matches, so <code>aws_instance.app</code> always gets the latest Ubuntu AMI instead of a hardcoded ID that goes stale next month.</p></div>
 <div class="fact fact-note"><span class="tag">This is where dependency order comes from</span><p><code>aws_instance.app</code> references <code>aws_security_group.web.id</code> and <code>data.aws_ami.ubuntu.id</code> — Terraform reads these references to build its dependency graph automatically. It knows to create the security group before the instance without you writing anything that says "do this first." This is exactly why explicit <code>depends_on</code> (see 16.3) is a last resort, not a first instinct — most ordering should come from references like these.</p></div>
 </div>
 </details>

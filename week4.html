@@ -380,6 +380,19 @@ output "instance_public_ip" {
 }</pre>
 <div class="fact fact-note"><span class="tag">variable vs locals</span><p>A <code>variable</code> is set from outside the config — a <code>.tfvars</code> file, a <code>-var</code> flag, an environment variable. A <code>locals</code> value is computed inside the config from other values and can never be overridden from outside. If you find yourself wanting to override a <code>locals</code> value, it should have been a <code>variable</code> from the start.</p></div>
 <div class="fact fact-good"><span class="tag">Validation catches typos before AWS does</span><p>Without the <code>validation</code> block above, passing <code>environment = "staging"</code> (instead of <code>"stg"</code>) would sail through <code>plan</code> and only fail deep into <code>apply</code> once some downstream resource tries to use it, with a much less obvious error. Same principle as module-level validation (see 16.4), applied to root-level variables too.</p></div>
+<h4 class="mini">Outputting a whole count/for_each collection, not just one instance</h4>
+<p>The <code>output</code> above reads one instance's <code>public_ip</code> directly. With <code>count</code> or <code>for_each</code>, there's no single instance to read from — <code>aws_instance.app</code> is a collection, one object per index or key. A <code>for</code> expression inside the output pulls one attribute out of every entry at once:</p>
+<pre data-lang="hcl">resource "aws_instance" "app" {
+  count = 3
+  # ...
+}
+
+output "instance_ids" {
+  value       = { for idx, inst in aws_instance.app : idx => inst.id }
+  description = "Every instance's ID, keyed by its count index."
+}
+# result: { 0 = "i-0aaa...", 1 = "i-0bbb...", 2 = "i-0ccc..." }</pre>
+<div class="fact fact-note"><span class="tag">This is a map comprehension, not a loop</span><p><code>{ for k, v in collection : k => v.attr }</code> reads almost exactly like Python's <code>{k: v.attr for k, v in collection.items()}</code> — both take an iterable of key/value pairs and return a brand-new map with the same keys but transformed values. Unlike a Python <code>for</code> statement, there's no loop body here at all — the whole expression <em>is</em> the result, which is true of every <code>for</code> in HCL, inside an <code>output</code>, a <code>locals</code>, or a <code>for_each</code> argument alike.</p></div>
 </div>
 </details>
 
@@ -444,6 +457,28 @@ resource "aws_subnet" "private" {
 <div class="fact fact-fail"><span class="tag">The gotcha</span><p>Remove the middle element from a <code>count</code>-driven list and every subnet after it shifts down one index. Terraform doesn't see "one subnet removed" — it sees <code>[2]</code> now holding what used to be at <code>[3]</code>, so it destroys and recreates every resource from that index onward, not just the one you actually deleted. On a subnet with an attached NAT gateway or an RDS instance, that's an outage triggered by an unrelated one-line diff.</p></div>
 <div class="fact fact-good"><span class="tag">The fix</span><p><code>for_each</code> keys are strings, not positions, so removing one entry (<code>aws_subnet.private["b"]</code>) only touches that address — everything else in state is untouched. If you're stuck with a list, convert it to a map keyed by something stable first: <code>{ for s in var.list : s.name => s }</code>.</p></div>
 <div class="fact fact-fail"><span class="tag"><code>count.index</code> only exists where <code>count</code> is set</span><p>Trying to reference <code>count.index</code> inside a <code>locals</code> block fails outright: <code>Error: Reference to "count" in non-counted context — The "count" object can only be used in "module", "resource", and "data" blocks, and only when the "count" argument is set.</code> A <code>locals</code> block has no loop of its own to index into. Building a list of per-item values for later use needs a <code>for</code> expression with its own loop variable instead — <code>[for i in range(3) : "name-${i}"]</code> — then index into that list with <code>count.index</code> from inside the resource that actually has <code>count</code>.</p></div>
+<h4 class="mini">merge() — overriding one key of a map without losing the rest</h4>
+<p>A common need with <code>count</code>/<code>for_each</code>: reuse a shared base set of tags on every resource, but give each instance its own <code>Name</code>. Assigning <code>tags</code> directly replaces the whole map — <code>merge()</code> combines two maps instead, with the second map's keys winning on any overlap:</p>
+<pre data-lang="hcl">variable "project_environment" {
+  type = map(string)
+  default = {
+    Name  = "app"
+    Owner = "fahad"
+    Event = "learning-devops-tf"
+  }
+}
+
+resource "aws_instance" "app" {
+  count = 3
+  # ...
+  tags = merge(
+    var.project_environment,
+    { Name = "${var.project_environment["Name"]}-${count.index + 1}" }
+  )
+}
+# result per instance: { Name = "app-1", Owner = "fahad", Event = "learning-devops-tf" }
+#                       { Name = "app-2", Owner = "fahad", Event = "learning-devops-tf" }  ...</pre>
+<div class="fact fact-fail"><span class="tag">Without merge(), the rest of the map silently disappears</span><p><code>tags = { Name = "app-${count.index + 1}" }</code> on its own is valid HCL — it just replaces <code>tags</code> entirely, so <code>Owner</code> and <code>Event</code> quietly vanish from every instance with no warning. <code>merge(mapA, mapB)</code> returns a new map containing every key from both — <code>mapB</code>'s value wins wherever a key exists in both — which is what lets one shared variable stay the single source of truth for the tags every resource has in common.</p></div>
 <table><thead><tr><th></th><th><code>count</code></th><th><code>for_each</code></th></tr></thead>
 <tbody>
 <tr><td>Index type</td><td>Number</td><td>String key (map or set)</td></tr>

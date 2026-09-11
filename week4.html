@@ -697,6 +697,8 @@ module "ecs_service" {
   key_name   = "deployer-key"
   public_key = file("./deployer_key.pub")
 }</pre>
+<div class="fact fact-fail"><span class="tag">A hand-typed key is one truncation away from a real error</span><p>A public key pasted or retyped as an inline string is easy to accidentally clip — a real <code>apply</code> once failed with <code>InvalidKey.Format: Key is not in valid OpenSSH public key format</code> because the leading <code>AAAAB3NzaC1yc2E...</code> chunk (a fixed, required part of every RSA key's encoding) got cut off during a copy-paste. Reading the key with <code>file("./deployer_key.pub")</code>, as above, removes the chance of that entirely — the exact bytes <code>ssh-keygen</code> wrote are what gets sent, nothing retyped in between.</p></div>
+<div class="fact fact-fail"><span class="tag">key_name = "a-string" isn't a reference — it's a coincidence</span><p><code>key_name = "deployer-key"</code> on the instance and <code>key_name = "deployer-key"</code> on the <code>aws_key_pair</code> happening to match is invisible to Terraform's dependency graph (15.3) — a bare string creates no edge between the two resources. A real <code>apply</code> creating both at once launched the EC2 instance and the key pair <em>in parallel</em>, and the instance's <code>RunInstances</code> call reached AWS before the key pair existed, failing with <code>InvalidKeyPair.NotFound</code> even though the key pair resource itself succeeded moments later in the same apply. The fix is the reference already used above — <code>key_name = aws_key_pair.deployer.key_name</code> — which both names the actual key and forces the correct creation order, the same mechanism 15.3 covers for any two resources that need to happen in sequence.</p></div>
 <div class="fact fact-fail"><span class="tag">An empty passphrase is the practical choice for a provisioner</span><p>An SSH key with a passphrase demands it interactively on every connection — but the <code>file</code> provisioner authenticates non-interactively, with no way to type a passphrase in when Terraform asks. A passphrase-protected key here just fails auth silently, the same "looks like a hang, not an error" symptom as the wrong-username case below. For a key that automation (not a human at a terminal) is going to use, leave the passphrase blank.</p></div>
 <pre data-lang="hcl">resource "aws_instance" "app" {
   ami           = var.ami_id
@@ -719,6 +721,35 @@ module "ecs_service" {
 }</pre>
 <div class="fact fact-fail"><span class="tag">Wrong SSH user looks like a hang, not an error</span><p>A real <code>apply</code> using <code>user = "ubuntu"</code> against an Amazon Linux 2023 AMI sat at <code>Still creating...</code> for over 4 minutes with no error message at all — because Amazon Linux's login user is <code>ec2-user</code>, not <code>ubuntu</code> (the same AMI-dependent-username gotcha as week2.html's SSH troubleshooting, showing up again here). Every failed SSH attempt is silently retried until the <code>connection</code> block's own <code>timeout</code> is exhausted, so a wrong username doesn't fail fast — it fails slow, looking exactly like a stuck instance. Match the user to the AMI family: <code>ec2-user</code> for Amazon Linux, <code>ubuntu</code> for Ubuntu, <code>admin</code> for Debian.</p></div>
 <div class="fact fact-fail"><span class="tag">The destination path needs to be writable by that user</span><p>Fixing the username above can surface a second, different failure: <code>scp: /home/provisioned_file.txt: Permission denied</code>. <code>/home/</code> itself is owned by <code>root</code> — no login user can write directly into it, only into their own subdirectory one level down (<code>/home/ec2-user/</code>). <code>/tmp</code> is the simpler default destination when the exact home directory isn't worth hardcoding, since it's world-writable regardless of which user connects.</p></div>
+
+<h4 class="mini">local-exec — runs on your machine, not the resource</h4>
+<p>Easy to misread at first: <code>local-exec</code> runs its command on whatever machine is running <code>terraform apply</code> — never on the resource itself, and it needs no <code>connection</code> block at all, because it never connects to anything.</p>
+<pre data-lang="hcl">resource "aws_instance" "app" {
+  # ...
+  provisioner "local-exec" {
+    command = "touch hello.txt"
+  }
+}</pre>
+<div class="fact fact-fail"><span class="tag">"touch hello.txt" doesn't touch the instance</span><p>A real run of the block above created <code>hello.txt</code> sitting in the same directory <code>terraform apply</code> was run from — not on the EC2 instance, not anywhere in AWS. <code>local-exec</code> is for side effects on the machine running Terraform itself: writing an output value to a local file, triggering a local notification, kicking off a script that talks to some other system entirely. To actually run a command <em>on</em> the resource, the provisioner needed is <code>remote-exec</code>, next.</p></div>
+
+<h4 class="mini">remote-exec — runs commands on the resource, over the same connection</h4>
+<p>Same <code>connection</code> block as <code>file</code> (SSH, same host/user/key) — but instead of uploading a file, it runs shell commands directly on the remote resource:</p>
+<pre data-lang="hcl">resource "aws_instance" "app" {
+  # ...
+  provisioner "remote-exec" {
+    inline = [
+      "sudo yum install -y httpd",
+      "sudo systemctl enable --now httpd"
+    ]
+  }
+  connection {
+    type        = "ssh"
+    host        = self.public_ip
+    user        = "ec2-user"
+    private_key = file("./deployer_key")
+  }
+}</pre>
+<div class="fact fact-note"><span class="tag">inline vs script vs scripts</span><p><code>inline</code> (above) is a list of commands run in order, each over its own SSH exec call — fine for two or three lines. <code>script</code> uploads and runs one local script file; <code>scripts</code> does the same for a list of them. For anything longer than a handful of commands, a script file is easier to read, test locally, and version — the same reasoning that already favors a <code>userdata.sh</code> file (5.2 of week2.html) over an inline heredoc.</p></div>
 <div class="fact fact-note"><span class="tag">Prefer user_data over a provisioner whenever the choice exists</span><p><code>user_data</code> (15.2, 18.8.1 section 9) runs as part of the instance's own boot process — no SSH session, no network round-trip from wherever <code>apply</code> happens to run, no connection timeout to tune. A provisioner needs Terraform itself to hold an SSH connection open during <code>apply</code>, which means it can fail for reasons that have nothing to do with the resource being wrong — a security group change, a flaky network, a key mismatch. HashiCorp's own guidance is to treat provisioners as a last resort, for the narrow cases <code>user_data</code> genuinely can't cover (pulling a file that doesn't exist until another resource in the same <code>apply</code> finishes, for instance) — not as the default way to configure a new instance.</p></div>
 </div>
 </details>

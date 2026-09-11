@@ -3,33 +3,62 @@ provider "aws" {
   profile = "fahad"
 }
 
-locals {
-  usernames = [for i in range(3) : "${var.app_env}-usr-${var.username_prefix}-${i + 1}"]
+resource "aws_instance" "ec2_creation" {
+  ami                    = var.ami_image
+  instance_type          = var.instance_type
+  key_name               = "aws_key"
+  vpc_security_group_ids = [aws_security_group.main.id]
+
+  provisioner "file" {
+    source      = "./provishoned_file.txt"
+    destination = "/tmp/provishoned_file.txt"
+  }
+  connection {
+    type        = "ssh"
+    host        = self.public_ip
+    user        = "ec2-user"
+    private_key = file("/home/bjit/Desktop/devops-syllabus/IaC/basics/pub-ssh.txt")
+    timeout     = "4m"
+  }
+
+  tags = var.project_environment
 }
 
-resource "aws_iam_user" "iam_users" {
-  count = 3
-  name  = local.usernames[count.index]
-  tags  = merge(var.project_environment, { Name = local.usernames[count.index] })
+resource "aws_security_group" "main" {
+  egress = [
+    {
+      cidr_blocks      = ["0.0.0.0/0"]
+      description      = ""
+      from_port        = 0
+      ipv6_cidr_blocks = []
+      prefix_list_ids  = []
+      protocol         = "-1"
+      security_groups  = []
+      self             = false
+      to_port          = 0
+    }
+  ]
+  ingress = [
+    {
+      cidr_blocks      = ["0.0.0.0/0"]
+      description      = ""
+      from_port        = 22
+      ipv6_cidr_blocks = []
+      prefix_list_ids  = []
+      protocol         = "tcp"
+      security_groups  = []
+      self             = false
+      to_port          = 22
+    }
+  ]
+
 }
 
-resource "aws_instance" "ec2_example" {
-  ami                         = var.ami_image
-  instance_type               = var.instance_type
-  count                       = var.instance_count
-  associate_public_ip_address = var.enable_public_ip
+# output "print_all_instances" {
+#   value = { for k, v in aws_instance.ec2_creation : k => v.id }
+# }
 
-  tags = merge(
-    var.project_environment,
-    { Name = "${var.app_env}-${var.project_environment["Name"]}-${count.index + 1}" }
-  )
-}
-
-output "print_all_users" {
-  value = { for k, v in aws_iam_user.iam_users : k => v.arn }
-  sensitive = false
-}
-
-output "print_all_instances" {
-  value = { for k, v in aws_instance.ec2_example : k => v.id }
+resource "aws_key_pair" "deployer" {
+  key_name   = "aws_key"
+  public_key = "ssh-rsa <poblic-key>"
 }

@@ -51,6 +51,7 @@
             <li><a href="#d16-4">Module Interface Design</a></li>
             <li><a href="#d16-5">Versioning &amp; Sourcing</a></li>
             <li><a href="#d16-6">Composition &amp; Repo Layout</a></li>
+            <li><a href="#d16-7">Provisioners</a></li>
           </ul>
         </li>
         <li>
@@ -74,8 +75,13 @@
             <li><a href="#d18-5">Secrets Manager</a></li>
             <li><a href="#d18-6">Reusable ECS Service Module</a></li>
             <li><a href="#d18-7">EKS Cluster, Node Group &amp; IRSA</a></li>
-            <li><a href="#d18-8">Worked Example: VPC + ALB + NLB</a></li>
-            <li><a href="#d18-9">Refactored Into Modules</a></li>
+            <li>
+              <a href="#d18-8">Worked Examples</a>
+              <ul class="sub-list">
+                <li><a href="#d18-8-1">Building It: VPC + ALB + NLB</a></li>
+                <li><a href="#d18-8-2">Refactored Into Modules</a></li>
+              </ul>
+            </li>
           </ul>
         </li>
         <li>
@@ -677,6 +683,46 @@ module "ecs_service" {
 </div>
 </details>
 
+<details class="sub" id="d16-7">
+<summary><span class="sub-num">16.7</span><h3>Provisioners — file, connection, and Why They're a Last Resort</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>Everything so far declares <em>desired state</em> — Terraform figures out the API calls. A <code>provisioner</code> is the one place that breaks that model: it runs an imperative action (upload a file, run a script) against a resource right after it's created, over SSH or WinRM. It needs a <code>connection</code> block to say how to actually log in — which needs a real key pair to exist first.</p>
+<h4 class="mini">Generating a key pair to a custom path</h4>
+<p><code>ssh-keygen</code> prompts for a save location; pointing it somewhere other than the default <code>~/.ssh/id_rsa</code> keeps a project-specific key out of your global SSH config:</p>
+<pre data-lang="bash">ssh-keygen -t rsa -b 2048
+# Enter file in which to save the key (~/.ssh/id_rsa): ./deployer_key
+# Enter passphrase (empty for no passphrase): [leave blank for a provisioner -- see note below]</pre>
+<p>This writes two files: <code>deployer_key</code> (the <strong>private</strong> key — never committed, never shared) and <code>deployer_key.pub</code> (the <strong>public</strong> key — safe to share, this is what AWS actually stores). Terraform reads the public half into <code>aws_key_pair</code>, and the private half into the <code>connection</code> block below to actually authenticate:</p>
+<pre data-lang="hcl">resource "aws_key_pair" "deployer" {
+  key_name   = "deployer-key"
+  public_key = file("./deployer_key.pub")
+}</pre>
+<div class="fact fact-fail"><span class="tag">An empty passphrase is the practical choice for a provisioner</span><p>An SSH key with a passphrase demands it interactively on every connection — but the <code>file</code> provisioner authenticates non-interactively, with no way to type a passphrase in when Terraform asks. A passphrase-protected key here just fails auth silently, the same "looks like a hang, not an error" symptom as the wrong-username case below. For a key that automation (not a human at a terminal) is going to use, leave the passphrase blank.</p></div>
+<pre data-lang="hcl">resource "aws_instance" "app" {
+  ami           = var.ami_id
+  instance_type = "t3.micro"
+  key_name      = aws_key_pair.deployer.key_name
+  vpc_security_group_ids = [aws_security_group.main.id]
+
+  provisioner "file" {
+    source      = "./provisioned_file.txt"
+    destination = "/home/ec2-user/provisioned_file.txt"
+  }
+
+  connection {
+    type        = "ssh"
+    host        = self.public_ip
+    user        = "ec2-user"
+    private_key = file("./deployer_key")
+    timeout     = "4m"
+  }
+}</pre>
+<div class="fact fact-fail"><span class="tag">Wrong SSH user looks like a hang, not an error</span><p>A real <code>apply</code> using <code>user = "ubuntu"</code> against an Amazon Linux 2023 AMI sat at <code>Still creating...</code> for over 4 minutes with no error message at all — because Amazon Linux's login user is <code>ec2-user</code>, not <code>ubuntu</code> (the same AMI-dependent-username gotcha as week2.html's SSH troubleshooting, showing up again here). Every failed SSH attempt is silently retried until the <code>connection</code> block's own <code>timeout</code> is exhausted, so a wrong username doesn't fail fast — it fails slow, looking exactly like a stuck instance. Match the user to the AMI family: <code>ec2-user</code> for Amazon Linux, <code>ubuntu</code> for Ubuntu, <code>admin</code> for Debian.</p></div>
+<div class="fact fact-fail"><span class="tag">The destination path needs to be writable by that user</span><p>Fixing the username above can surface a second, different failure: <code>scp: /home/provisioned_file.txt: Permission denied</code>. <code>/home/</code> itself is owned by <code>root</code> — no login user can write directly into it, only into their own subdirectory one level down (<code>/home/ec2-user/</code>). <code>/tmp</code> is the simpler default destination when the exact home directory isn't worth hardcoding, since it's world-writable regardless of which user connects.</p></div>
+<div class="fact fact-note"><span class="tag">Prefer user_data over a provisioner whenever the choice exists</span><p><code>user_data</code> (15.2, 18.8.1 section 9) runs as part of the instance's own boot process — no SSH session, no network round-trip from wherever <code>apply</code> happens to run, no connection timeout to tune. A provisioner needs Terraform itself to hold an SSH connection open during <code>apply</code>, which means it can fail for reasons that have nothing to do with the resource being wrong — a security group change, a flaky network, a key mismatch. HashiCorp's own guidance is to treat provisioners as a last resort, for the narrow cases <code>user_data</code> genuinely can't cover (pulling a file that doesn't exist until another resource in the same <code>apply</code> finishes, for instance) — not as the default way to configure a new instance.</p></div>
+</div>
+</details>
+
 </div>
 </details>
 <details class="day" id="d17">
@@ -1148,9 +1194,14 @@ resource "aws_iam_role" "order_service_pod" {
 </details>
 
 <details class="sub" id="d18-8">
-<summary><span class="sub-num">18.8</span><h3>Worked Example: A VPC With Both an ALB and an NLB, Story-Book Style</h3><span class="chev-sm"></span></summary>
+<summary><span class="sub-num">18.8</span><h3>Worked Examples</h3><span class="chev-sm"></span></summary>
 <div class="sub-content">
-<p>Everything from Days 15–18 assembled into one real, applied config — a VPC with public and private subnets, an EC2 pair reachable through <em>both</em> an ALB and an NLB, built up in the order each piece actually depends on the one before it. Every block below is validated and planned against a real AWS account. Read it top to bottom the way it's written: why the piece exists, the code, then what it accomplished and what it unlocks next.</p>
+<p>Two full case studies, distinct in kind from 18.1–18.7's single-topic explainers: a complete config built and verified end to end, then that same config refactored into modules. Everything from Days 15–18 assembled into one real, applied setup — a VPC with public and private subnets, an EC2 pair reachable through <em>both</em> an ALB and an NLB. Every block in both is validated and planned against a real AWS account.</p>
+
+<details class="sub" id="d18-8-1">
+<summary><span class="sub-num">18.8.1</span><h3>Building It: A VPC With Both an ALB and an NLB, Story-Book Style</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>Built up in the order each piece actually depends on the one before it. Read it top to bottom the way it's written: why the piece exists, the code, then what it accomplished and what it unlocks next.</p>
 
 <h4 class="mini">Why each piece exists, before any code</h4>
 <p>Each component below solves exactly one problem the one before it doesn't — this is the dependency chain, not the network layout (that's the next diagram).</p>
@@ -1475,10 +1526,10 @@ resource "aws_lb_listener" "fmk_nlb_tcp" {
 </div>
 </details>
 
-<details class="sub" id="d18-9">
-<summary><span class="sub-num">18.9</span><h3>The Same 28 Resources, Refactored Into Modules</h3><span class="chev-sm"></span></summary>
+<details class="sub" id="d18-8-2">
+<summary><span class="sub-num">18.8.2</span><h3>The Same 28 Resources, Refactored Into Modules</h3><span class="chev-sm"></span></summary>
 <div class="sub-content">
-<p>18.8's single <code>main.tf</code> pulled apart into four modules — <code>network</code>, <code>security</code>, <code>compute</code>, <code>loadbalancing</code> — following exactly the module-design principles from 16.4/16.6. Worth being honest about the trade-off up front: 16.6's own "rule of three" says don't extract a module until something's genuinely reused a third time, and this only has one caller. Doing it anyway here is a deliberate learning exercise — practicing the shape of a real module before there's a second environment forcing the issue — not a case where the rule stopped applying.</p>
+<p>18.8.1's single <code>main.tf</code> pulled apart into four modules — <code>network</code>, <code>security</code>, <code>compute</code>, <code>loadbalancing</code> — following exactly the module-design principles from 16.4/16.6. Worth being honest about the trade-off up front: 16.6's own "rule of three" says don't extract a module until something's genuinely reused a third time, and this only has one caller. Doing it anyway here is a deliberate learning exercise — practicing the shape of a real module before there's a second environment forcing the issue — not a case where the rule stopped applying.</p>
 <pre data-lang="text">day02-modules/
 ├── versions.tf      -- Terraform + provider version constraints
 ├── variables.tf     -- root inputs: region, profile, vpc_cidr, name_prefix
@@ -1503,8 +1554,8 @@ resource "aws_lb_listener" "fmk_nlb_tcp" {
 </dl>
 <div class="fact fact-note"><span class="tag">Root main.tf contains zero resource blocks</span><p>Once split, the root <code>main.tf</code> is just four <code>module</code> calls passing outputs forward — <code>module.network.vpc_id</code> into <code>security</code>, both of those into <code>compute</code>, all three into <code>loadbalancing</code>. Every actual <code>resource</code> lives one level down, inside a module. This is what "the root just wires things together" looks like in a real file, not just as a description.</p></div>
 <h4 class="mini">One resource, before and after</h4>
-<p>Splitting into modules was also a chance to apply 16.1's <code>for_each</code> guidance retroactively. 18.8's four separately-named subnet resources became one <code>for_each</code> block over a map:</p>
-<pre data-lang="hcl">## Before (18.8) -- four separate resources
+<p>Splitting into modules was also a chance to apply 16.1's <code>for_each</code> guidance retroactively. 18.8.1's four separately-named subnet resources became one <code>for_each</code> block over a map:</p>
+<pre data-lang="hcl">## Before (18.8.1) -- four separate resources
 resource "aws_subnet" "fmk_public_1a" { cidr_block = "11.0.1.0/24" ... }
 resource "aws_subnet" "fmk_public_1b" { cidr_block = "11.0.2.0/24" ... }
 # state addresses: aws_subnet.fmk_public_1a, aws_subnet.fmk_public_1b
@@ -1516,7 +1567,10 @@ resource "aws_subnet" "public" {
   availability_zone = each.value.availability_zone
 }
 # state addresses: module.network.aws_subnet.public["1a"], ["1b"]</pre>
-<p>Same two subnets get created either way — <code>terraform plan</code> on the modularized version still shows <strong>28 to add, 0 to change, 0 to destroy</strong>, identical to 18.8. What changed is that adding a third AZ later means adding one entry to the <code>public_subnets</code> map passed into the module, not writing a fifth resource block by hand.</p>
+<p>Same two subnets get created either way — <code>terraform plan</code> on the modularized version still shows <strong>28 to add, 0 to change, 0 to destroy</strong>, identical to 18.8.1. What changed is that adding a third AZ later means adding one entry to the <code>public_subnets</code> map passed into the module, not writing a fifth resource block by hand.</p>
+</div>
+</details>
+
 </div>
 </details>
 

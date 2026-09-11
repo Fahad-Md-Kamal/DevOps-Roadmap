@@ -21,6 +21,6 @@ resource "aws_instance" "this" {
   tags = {
     Name  = "${var.name_prefix}-ec2-${each.key}"
     Owner = "fahad"
-    Event = "IoC-learning"
+    Event = "IaC-learning"
   }
 }

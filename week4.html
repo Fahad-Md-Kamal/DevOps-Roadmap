@@ -39,6 +39,7 @@
             <li><a href="#d15-4">The Workflow</a></li>
             <li><a href="#d15-5">Reading a Plan Diff</a></li>
             <li><a href="#d15-6">Variables, Locals &amp; Outputs</a></li>
+            <li><a href="#d15-7">.tfvars &amp; Loading Order</a></li>
           </ul>
         </li>
         <li>
@@ -86,6 +87,7 @@
             <li><a href="#d19-4">state mv &amp; rm</a></li>
             <li><a href="#d19-5">Recovering Half-Applied State</a></li>
             <li><a href="#d19-6">Machine-Readable Plans</a></li>
+            <li><a href="#d19-7">Importing Existing Resources</a></li>
           </ul>
         </li>
       </ul>
@@ -182,6 +184,7 @@ tf state list</pre>
 │ allow selection of new versions</pre>
 <pre data-lang="bash">terraform init -upgrade</pre>
 <div class="fact fact-note"><span class="tag">Why plain init can't fix this on its own</span><p><code>.terraform.lock.hcl</code> records the exact provider version everyone on the project is currently using — that's the whole point of a lock file (same reason a <code>package-lock.json</code> exists). A bare <code>init</code> only <em>installs</em> whatever the lock file already says; it deliberately never widens a lock to satisfy a new constraint on its own, since silently upgrading everyone's provider version on a routine <code>init</code> is exactly the unreproducible behavior the lock file exists to prevent. <code>-upgrade</code> is the explicit, opt-in step that re-resolves the constraint and rewrites the lock file — commit that rewritten lock file so the rest of the team gets the same resolved version.</p></div>
+<div class="fact fact-fail"><span class="tag">A stray env var beats the profile every time</span><p>A real <code>plan</code> once failed with <code>InvalidClientTokenId: The security token included in the request is invalid</code> — even though <code>aws sts get-caller-identity --profile fahad</code> worked fine from a different terminal, same machine, same credentials file. Cause: an <code>AWS_ACCESS_KEY_ID</code>/<code>AWS_SECRET_ACCESS_KEY</code> left exported earlier in that specific shell session, from something typed by hand. Both the AWS CLI and the Terraform AWS provider check environment variables <em>before</em> the profile in <code>~/.aws/credentials</code> — a stale exported key silently overrides <code>profile = "fahad"</code> in every command run in that terminal, with no warning that it's happening. <code>env | grep AWS</code> is the first thing to check when a credential error doesn't match what <code>~/.aws/credentials</code> actually contains.</p></div>
 </div>
 </details>
 
@@ -380,6 +383,35 @@ output "instance_public_ip" {
 </div>
 </details>
 
+<details class="sub" id="d15-7">
+<summary><span class="sub-num">15.7</span><h3>Supplying Variable Values — .tfvars Files and Loading Order</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>A <code>variable</code> block (15.6) declares that an input exists. It doesn't supply a value — that's a separate question, and a <code>.tfvars</code> file is the most common answer. It's just a list of assignments, one per variable, no <code>variable</code> keyword involved:</p>
+<pre data-lang="hcl"># stage.tfvars
+instance_type    = "t3.micro"
+region           = "ap-south-1"
+ami_id           = "ami-0333333333333333"
+username_prefix  = "fmk-tf"
+app_env          = "staged"</pre>
+<p>A second file, <code>production.tfvars</code>, declares the exact same variable names with different values — that's the entire mechanism behind "the same code, different environment." Nothing in <code>main.tf</code> changes; only which file gets loaded does.</p>
+<h4 class="mini">Two ways a .tfvars file actually gets loaded</h4>
+<dl class="termlist">
+<dt><code>terraform.tfvars</code> (or anything named <code>*.auto.tfvars</code>)</dt>
+<dd>Loaded automatically, every time — no flag needed. Convenient for a single-environment project, but it means there's nothing in the command line that says which values got used; you'd have to go look at the file.</dd>
+<dt>Any other filename — <code>stage.tfvars</code>, <code>production.tfvars</code></dt>
+<dd>Never loaded automatically. Requires an explicit <code>-var-file</code> flag, every time:
+<pre data-lang="bash">terraform plan  -var-file="stage.tfvars"
+terraform plan  -var-file="production.tfvars"</pre>
+This is the better default for anything with more than one environment — the environment being targeted is now visible in the command itself, not hidden inside a filename someone has to already know to look for.</dd>
+</dl>
+<div class="fact fact-note"><span class="tag">Precedence, when more than one source sets the same variable</span><p>Lowest to highest: an <code>TF_VAR_name</code> environment variable, then <code>terraform.tfvars</code>, then any <code>*.auto.tfvars</code> files (alphabetical), then every <code>-var-file</code> in the order given on the command line, then a bare <code>-var</code> flag — highest priority, wins over everything. In practice this rarely needs memorizing in full; the one rule worth keeping is that whatever's passed explicitly on the command line always beats whatever's sitting in a file.</p></div>
+<h4 class="mini">A variable with no type accepts anything</h4>
+<pre data-lang="hcl"># valid HCL -- no type, no default, no description
+variable "app_env" {}</pre>
+<div class="fact fact-fail"><span class="tag">No type means no validation at all</span><p>This isn't a shortcut, it's an opt-out. Terraform infers the type from whatever's actually passed at runtime and checks nothing — a <code>.tfvars</code> file typo that supplies a list where a string was expected won't be caught here; it'll propagate until something downstream breaks, with an error far away from the actual mistake. It also means the variable is <strong>required</strong> with no visible signal of what shape a caller should supply — compare that to <code>variable "instance_count"</code> with <code>type = number</code> and <code>default = 2</code> (15.6/16.4), which documents both the shape and a safe fallback in three lines. Always give a variable a <code>type</code>, even one as loose as <code>any</code> — that's still a deliberate choice, not an accident of leaving the argument out.</p></div>
+</div>
+</details>
+
 </div>
 </details>
 <details class="day" id="d16">
@@ -411,6 +443,7 @@ resource "aws_subnet" "private" {
 # state addresses: aws_subnet.private["a"], aws_subnet.private["b"], aws_subnet.private["c"]</pre>
 <div class="fact fact-fail"><span class="tag">The gotcha</span><p>Remove the middle element from a <code>count</code>-driven list and every subnet after it shifts down one index. Terraform doesn't see "one subnet removed" — it sees <code>[2]</code> now holding what used to be at <code>[3]</code>, so it destroys and recreates every resource from that index onward, not just the one you actually deleted. On a subnet with an attached NAT gateway or an RDS instance, that's an outage triggered by an unrelated one-line diff.</p></div>
 <div class="fact fact-good"><span class="tag">The fix</span><p><code>for_each</code> keys are strings, not positions, so removing one entry (<code>aws_subnet.private["b"]</code>) only touches that address — everything else in state is untouched. If you're stuck with a list, convert it to a map keyed by something stable first: <code>{ for s in var.list : s.name => s }</code>.</p></div>
+<div class="fact fact-fail"><span class="tag"><code>count.index</code> only exists where <code>count</code> is set</span><p>Trying to reference <code>count.index</code> inside a <code>locals</code> block fails outright: <code>Error: Reference to "count" in non-counted context — The "count" object can only be used in "module", "resource", and "data" blocks, and only when the "count" argument is set.</code> A <code>locals</code> block has no loop of its own to index into. Building a list of per-item values for later use needs a <code>for</code> expression with its own loop variable instead — <code>[for i in range(3) : "name-${i}"]</code> — then index into that list with <code>count.index</code> from inside the resource that actually has <code>count</code>.</p></div>
 <table><thead><tr><th></th><th><code>count</code></th><th><code>for_each</code></th></tr></thead>
 <tbody>
 <tr><td>Index type</td><td>Number</td><td>String key (map or set)</td></tr>
@@ -1515,6 +1548,7 @@ Note: Objects have changed outside of Terraform
 
 No changes. Your infrastructure matches the configuration.</pre>
 <div class="fact fact-good"><span class="tag">This is exactly what 16.6's repo layout refactor needs</span><p>Extracting an inline resource into a module — the "third time" moment from 16.6's rule of three — is precisely when a <code>moved</code> block matters: it lets the refactor be a no-op against real infrastructure, instead of an accidental destroy-and-recreate of something already running in production.</p></div>
+<div class="fact fact-fail"><span class="tag">This happened for real, on this exact mistake</span><p>Switching an <code>aws_iam_user</code> resource from <code>count</code> to <code>for_each</code> — without a <code>moved</code> block — produced a plan reading <code>Plan: 4 to add, 0 to change, 3 to destroy</code>. Typing <code>yes</code> anyway destroyed three real IAM users, then failed to recreate two of them (a race between the parallel destroy and create for the same username). The fix was mechanical, not scary: since the destroyed users genuinely no longer existed, a follow-up <code>apply</code> recreated them cleanly with no conflict. The lesson is the plan line itself — <code>count</code> → <code>for_each</code> always shows as unrelated destroy+create unless a <code>moved</code> block (or <code>state mv</code>, 19.4) tells Terraform the two addresses are the same object — and "3 to destroy" in a plan is worth stopping on every single time, not just reading past.</p></div>
 </div>
 </details>
 
@@ -1567,6 +1601,22 @@ terraform show -json tfplan.binary > tfplan.json
 jq '.resource_changes[] | select(.change.actions | index("delete"))' tfplan.json</pre>
 <div class="fact fact-note"><span class="tag">Why -out matters here</span><p><code>terraform show -json</code> without a saved plan file re-runs <code>plan</code> against current state — which can differ from the plan a human or a pipeline already reviewed, if anything changed in between. Saving with <code>-out</code> and applying that exact file (<code>terraform apply tfplan.binary</code>) guarantees the plan that was reviewed is the plan that gets applied, with nothing able to slip in between the two.</p></div>
 <div class="fact fact-good"><span class="tag">This is the actual mechanism behind Week 5's PR gate</span><p>"terraform plan posted as a comment" and "the approval gate" (week5.html Day 21) are both built on exactly this JSON output — a script reads <code>tfplan.json</code>, formats a summary, and posts it; the approval step re-checks it for anything destructive before allowing <code>apply</code> to run the saved <code>tfplan.binary</code>.</p></div>
+</div>
+</details>
+
+<details class="sub" id="d19-7">
+<summary><span class="sub-num">19.7</span><h3>Importing Existing Resources</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>Something created by hand in the console — or by anyone else, outside Terraform entirely — has no entry in state. Terraform doesn't know it exists, so <code>plan</code>/<code>apply</code> assumes it needs to be created, and AWS rejects the create because the real thing is already there:</p>
+<pre data-lang="text">│ Error: creating IAM User (nsl-media-vault-app-s3-access): operation error IAM: CreateUser,
+│ https response error StatusCode: 409, EntityAlreadyExists: User with name
+│ nsl-media-vault-app-s3-access already exists.</pre>
+<p><code>terraform import</code> fixes this — and only this. It does not create, modify, or delete anything in AWS; it just writes an entry into the state file saying "this resource address already corresponds to this real object."</p>
+<pre data-lang="bash"># Syntax: terraform import &lt;resource address&gt; &lt;the resource's real ID&gt;
+terraform import 'aws_iam_user.example["nsl-media-vault-app-s3-access"]' nsl-media-vault-app-s3-access</pre>
+<div class="fact fact-note"><span class="tag">The ID on the right isn't universal</span><p>What counts as "the ID" is resource-type-specific — for <code>aws_iam_user</code> it's the username, for <code>aws_instance</code> it's the instance ID (<code>i-0aaa1111aaaa11111</code>), for <code>aws_s3_bucket</code> it's the bucket name. Always check the specific resource's page on the <a href="https://registry.terraform.io/providers/hashicorp/aws/latest/docs">Terraform Registry</a> — it documents the exact import ID format, usually right at the bottom of the page.</p></div>
+<p>After importing, run <code>plan</code> — it should show <strong>0 to change</strong> if your config's arguments already match the real object's actual settings. If they don't match, <code>plan</code> shows exactly what it would change to bring the real object in line with your code — read that like any other plan before applying.</p>
+<div class="fact fact-fail"><span class="tag">Importing into a count index is fragile</span><p>Importing into <code>aws_iam_user.example[3]</code> ties the import to a <em>position</em> in a list (16.1's gotcha, again). If that list ever reorders, index <code>3</code> can silently point at a different resource next <code>apply</code>. Importing into a <code>for_each</code>-keyed address instead — <code>aws_iam_user.example["nsl-media-vault-app-s3-access"]</code>, as above — ties the import to a stable name that can't shift underneath it.</p></div>
 </div>
 </details>
 

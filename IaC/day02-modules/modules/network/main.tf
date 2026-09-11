@@ -4,7 +4,7 @@ resource "aws_vpc" "this" {
   tags = {
     Name  = "${var.name_prefix}-vpc"
     Owner = "fahad"
-    Event = "IoC-learning"
+    Event = "IaC-learning"
   }
 }
 
@@ -17,7 +17,7 @@ resource "aws_subnet" "public" {
   tags = {
     Name  = "${var.name_prefix}-public-${each.key}"
     Owner = "fahad"
-    Event = "IoC-learning"
+    Event = "IaC-learning"
   }
 }
 
@@ -30,7 +30,7 @@ resource "aws_subnet" "private" {
   tags = {
     Name  = "${var.name_prefix}-private-${each.key}"
     Owner = "fahad"
-    Event = "IoC-learning"
+    Event = "IaC-learning"
   }
 }
 
@@ -40,7 +40,7 @@ resource "aws_internet_gateway" "this" {
   tags = {
     Name  = "${var.name_prefix}-igw"
     Owner = "fahad"
-    Event = "IoC-learning"
+    Event = "IaC-learning"
   }
 }
 
@@ -50,7 +50,7 @@ resource "aws_route_table" "public" {
   tags = {
     Name  = "${var.name_prefix}-public-rt"
     Owner = "fahad"
-    Event = "IoC-learning"
+    Event = "IaC-learning"
   }
 }
 
@@ -74,7 +74,7 @@ resource "aws_route_table" "private" {
   tags = {
     Name  = "${var.name_prefix}-private-rt"
     Owner = "fahad"
-    Event = "IoC-learning"
+    Event = "IaC-learning"
   }
 }
 

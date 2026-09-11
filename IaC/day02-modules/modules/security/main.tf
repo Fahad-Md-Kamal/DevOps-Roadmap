@@ -9,7 +9,7 @@ resource "aws_security_group" "this" {
   tags = {
     Name  = "${var.name_prefix}-tls-sg"
     Owner = "fahad"
-    Event = "IoC-learning"
+    Event = "IaC-learning"
   }
 }
 

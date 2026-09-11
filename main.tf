@@ -14,7 +14,7 @@ resource "aws_subnet" "fmk_public_1a" {
   tags = {
     Name  = "fmk-public-1a"
     Owner = "fahad"
-    Event = "IoC-learning"
+    Event = "IaC-learning"
   }
 }
 
@@ -25,7 +25,7 @@ resource "aws_subnet" "fmk_public_1b" {
   tags = {
     Name  = "fmk-public-1b"
     Owner = "fahad"
-    Event = "IoC-learning"
+    Event = "IaC-learning"
   }
 }
 
@@ -36,7 +36,7 @@ resource "aws_subnet" "fmk_private_1a" {
   tags = {
     Name  = "fmk-private-1a"
     Owner = "fahad"
-    Event = "IoC-learning"
+    Event = "IaC-learning"
   }
 }
 
@@ -47,7 +47,7 @@ resource "aws_subnet" "fmk_private_1b" {
   tags = {
     Name  = "fmk-private-1b"
     Owner = "fahad"
-    Event = "IoC-learning"
+    Event = "IaC-learning"
   }
 }
 
@@ -57,7 +57,7 @@ resource "aws_internet_gateway" "fmk_igw" {
   tags = {
     Name  = "fmk-igw"
     Owner = "fahad"
-    Event = "IoC-learning"
+    Event = "IaC-learning"
   }
 }
 
@@ -67,7 +67,7 @@ resource "aws_route_table" "fmk_public_rt" {
   tags = {
     Name  = "fmk-public-rt"
     Owner = "fahad"
-    Event = "IoC-learning"
+    Event = "IaC-learning"
   }
 }
 
@@ -77,7 +77,7 @@ resource "aws_route_table" "fmk_private_rt" {
   tags = {
     Name  = "fmk-private-rt"
     Owner = "fahad"
-    Event = "IoC-learning"
+    Event = "IaC-learning"
   }
 }
 
@@ -142,7 +142,7 @@ resource "aws_security_group" "fmk_tls_sg" {
   tags = {
     Name  = "fmk-tls-sg"
     Owner = "fahad"
-    Event = "IoC-learning"
+    Event = "IaC-learning"
   }
 }
 
@@ -178,7 +178,7 @@ resource "aws_instance" "ec2-A" {
   tags = {
     Name  = "fmk-ec2-A"
     Owner = "fahad"
-    Event = "IoC-learning"
+    Event = "IaC-learning"
   }
 
 
@@ -194,7 +194,7 @@ resource "aws_instance" "ec2-B" {
   tags = {
     Name  = "fmk-ec2-B"
     Owner = "fahad"
-    Event = "IoC-learning"
+    Event = "IaC-learning"
   }
 }
 

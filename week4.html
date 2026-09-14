@@ -1797,6 +1797,35 @@ terraform import 'aws_iam_user.example["nsl-media-vault-app-s3-access"]' nsl-med
 <div class="fact fact-note"><span class="tag">The ID on the right isn't universal</span><p>What counts as "the ID" is resource-type-specific — for <code>aws_iam_user</code> it's the username, for <code>aws_instance</code> it's the instance ID (<code>i-0aaa1111aaaa11111</code>), for <code>aws_s3_bucket</code> it's the bucket name. Always check the specific resource's page on the <a href="https://registry.terraform.io/providers/hashicorp/aws/latest/docs">Terraform Registry</a> — it documents the exact import ID format, usually right at the bottom of the page.</p></div>
 <p>After importing, run <code>plan</code> — it should show <strong>0 to change</strong> if your config's arguments already match the real object's actual settings. If they don't match, <code>plan</code> shows exactly what it would change to bring the real object in line with your code — read that like any other plan before applying.</p>
 <div class="fact fact-fail"><span class="tag">Importing into a count index is fragile</span><p>Importing into <code>aws_iam_user.example[3]</code> ties the import to a <em>position</em> in a list (16.1's gotcha, again). If that list ever reorders, index <code>3</code> can silently point at a different resource next <code>apply</code>. Importing into a <code>for_each</code>-keyed address instead — <code>aws_iam_user.example["nsl-media-vault-app-s3-access"]</code>, as above — ties the import to a stable name that can't shift underneath it.</p></div>
+
+<h4 class="mini">Worked example: importing a resource that must never be destroyed</h4>
+<p>Bringing a genuinely important resource under Terraform's control — a long-running production instance, not a throwaway learning one — deserves an extra step before anything else touches it.</p>
+<pre data-lang="hcl">resource "aws_instance" "critical_app" {
+  ami           = "ami-0333333333333333"
+  instance_type = "t3.micro"
+
+  tags = {
+    Name = "critical-app"
+  }
+
+  lifecycle {
+    prevent_destroy = true   # add this in the same edit as the import, not after
+  }
+}</pre>
+<pre data-lang="bash">terraform import aws_instance.critical_app i-0aaa1111aaaa11111
+terraform plan   # confirm 0 to change, or read exactly what doesn't match yet</pre>
+<p>With <code>prevent_destroy</code> already in place, a routine, safe change — updating tags, say — applies normally:</p>
+<pre data-lang="text">  # aws_instance.critical_app will be updated in-place
+  ~ resource "aws_instance" "critical_app" {
+        id   = "i-0aaa1111aaaa11111"
+      ~ tags = {
+            "Name"  = "critical-app"
+          + "Owner" = "fahad"
+        }
+    }
+
+Plan: 0 to add, 1 to change, 0 to destroy.</pre>
+<div class="fact fact-good"><span class="tag">prevent_destroy is the actual safety net here</span><p>Before this instance was imported, nothing about it could be "destroyed by Terraform" — Terraform didn't know it existed. The moment it's imported, that protection disappears unless something replaces it — which is exactly <code>prevent_destroy</code>'s job. Add it in the <em>same</em> edit as the import itself, not as a follow-up step: any change that would force replacement (18.8.1's <code>-/+</code> from 15.5) now fails outright with an error instead of silently destroying and recreating a resource that was never meant to be disposable.</p></div>
 </div>
 </details>
 

@@ -1,0 +1,10 @@
+variable "ami_id" {
+  default = "ami-08188a5a4dfdbd573"
+}
+
+variable "web_instance_type" {
+}
+
+variable "pub_key_value" {
+  default = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC4Gu2P4XO9ON6WpQ21TznSh31ip1hw4y462eTXhklZzHvJWeKlKVu76aaxngFlAMkVkDmNBbYeA1OZFB8UksQlX4l+O1oZtZl140T8OtF3KSumcbBBLGY7ik9qbKQC9muF2nbtL5QTPAK2tb7/HfwlMm37hO2FMTBNFA49HxKVDuWXhxBRBktcHw5Q2Petvtu6D4g8wGPcq8Nx8MVlJ/NL4c5/Z+ecoMdMEnQ5gXluanoek5dPIxLZCicZjkp6wOoZa8Ma9tg3DCIyBqsKm2u8UphTOrtlS6WeouxTJFEuJstFMdEzELXFzBKARtCDo70pM8NclIevyLX/B52aP9sJ bjit@11713-fahad.kamal"
+}

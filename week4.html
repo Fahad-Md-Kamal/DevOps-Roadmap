@@ -292,6 +292,18 @@ resource "aws_instance" "app" {
 <div class="fact fact-fail"><span class="tag">Why owners isn't optional</span><p>Without it, the name-pattern filter alone could match an AMI from <em>any</em> account that happens to use a similar name — including a malicious lookalike published to look official. Pinning <code>owners</code> is what makes this query trustworthy, not just convenient.</p></div>
 <div class="fact fact-note"><span class="tag">This runs as a live query</span><p>The whole <code>data</code> block executes against the real AWS API at <code>plan</code>/<code>apply</code> time — it returns whatever AMI currently matches, so <code>aws_instance.app</code> always gets the latest Ubuntu AMI instead of a hardcoded ID that goes stale next month.</p></div>
 <div class="fact fact-note"><span class="tag">This is where dependency order comes from</span><p><code>aws_instance.app</code> references <code>aws_security_group.web.id</code> and <code>data.aws_ami.ubuntu.id</code> — Terraform reads these references to build its dependency graph automatically. It knows to create the security group before the instance without you writing anything that says "do this first." This is exactly why explicit <code>depends_on</code> (see 16.3) is a last resort, not a first instinct — most ordering should come from references like these.</p></div>
+<h4 class="mini">Heredoc strings — for a multi-line value like user_data</h4>
+<p>Writing a multi-line script inline as a normal quoted string means escaping every newline. A heredoc avoids that — everything between the opening marker and its matching closing line is taken literally, newlines included:</p>
+<pre data-lang="hcl">resource "aws_instance" "app" {
+  # ...
+  user_data = <<-EOF
+    #!/bin/bash
+    sudo apt-get update
+    sudo apt-get install -y apache2
+  EOF
+}</pre>
+<div class="fact fact-fail"><span class="tag">No space between &lt;&lt;- and the marker</span><p><code>&lt;&lt;- EOF</code> (with a space) fails to parse at all — <code>Invalid expression: Expected the start of an expression, but found an invalid expression token</code> — because <code>&lt;&lt;-</code> and the marker name have to be written as one unbroken token, <code>&lt;&lt;-EOF</code>. With the space, Terraform doesn't recognize it as a heredoc opener, and everything that follows (including the actual script content) gets misparsed as HCL rather than treated as string content.</p></div>
+<div class="fact fact-note"><span class="tag">Why the hyphen</span><p><code>&lt;&lt;-EOF</code> (with the hyphen) strips the leading whitespace common to every line, which is what lets the closing <code>EOF</code> sit indented to match the surrounding code instead of needing to start at column 0, the way a plain <code>&lt;&lt;EOF</code> would require.</p></div>
 </div>
 </details>
 
@@ -526,6 +538,8 @@ resource "aws_security_group" "app" {
 }</pre>
 <div class="fact fact-note"><span class="tag">Only for nested blocks</span><p><code>dynamic</code> exists because <code>ingress { ... }</code> is a nested block, not an argument — you can't just pass it a list the way you'd pass a list to <code>cidr_blocks</code>. If the thing you're repeating is a plain argument, you don't need <code>dynamic</code> at all; a <code>for</code> expression inside the argument is enough.</p></div>
 <div class="fact fact-fail"><span class="tag">Readable but easy to overuse</span><p>A security group with one <code>dynamic "ingress"</code> block driven by a well-named variable is clear. Three or four nested <code>dynamic</code> blocks inside one resource, each driven by a different variable, is usually a sign the resource wants to be a module instead — dynamic blocks trade explicitness for flexibility, and that trade stops paying off past one level of nesting.</p></div>
+<div class="fact fact-fail"><span class="tag">A dynamic block only means anything inside a resource</span><p>Writing <code>dynamic "ingress" { ... }</code> at the top level of a file — not nested inside any <code>resource</code> block — fails with <code>Unexpected block: Blocks of type "dynamic" are not expected here</code>. A <code>dynamic</code> block generates a nested block <em>for whichever resource it lives inside</em>; on its own, with no resource around it, Terraform doesn't recognize <code>dynamic</code> as a valid block type at all. It has to sit exactly where a literal <code>ingress { }</code> block would otherwise go, inside <code>resource "aws_security_group" "main" { ... }</code>.</p></div>
+<div class="fact fact-note"><span class="tag">ingress.value isn't self-reference — it's a name collision</span><p>The label on <code>dynamic "ingress"</code> does two jobs at once: it says which nested block type to generate, <em>and</em> it becomes the default name of the loop variable inside <code>content { }</code> — which is why <code>ingress.value</code> can look like the block referencing itself. It isn't; it's the same role as <code>each.value</code> on a resource-level <code>for_each</code>, just defaulting to a name that happens to match the block label. An explicit <code>iterator</code> argument removes the ambiguity — add <code>iterator = rule</code> alongside <code>for_each</code> in the block above, then use <code>rule.value.port</code> in place of every <code>ingress.value.port</code> inside <code>content { }</code>. Same result, but <code>rule.value</code> reads unambiguously as "the current item," never as the block calling itself.</p></div>
 </div>
 </details>
 
@@ -620,6 +634,22 @@ terraform {
     }
   }
 }</pre>
+<h4 class="mini">Shaping data at the boundary between two modules</h4>
+<p>A module's output doesn't have to hand back exactly what it holds internally — narrowing it to just what the next module needs is itself part of interface design. <code>day02-modules/main.tf</code> does exactly this when wiring <code>network</code>'s output into <code>compute</code>'s input:</p>
+<pre data-lang="hcl">module "compute" {
+  source = "./modules/compute"
+  subnet_ids = { for az, subnet in module.network.public_subnets : az => subnet.id }
+  # ...
+}</pre>
+<p><code>module.network.public_subnets</code> is a map of <em>whole subnet objects</em> (id, cidr_block, arn, tags — everything). <code>compute</code>'s <code>subnet_ids</code> variable only wants plain ID strings. The for-expression bridges that gap:</p>
+<pre data-lang="text">module.network.public_subnets                    the for-expression's result
+{                                                  {
+  "1a" = { id = "subnet-0aaa...",                    "1a" = "subnet-0aaa..."
+            cidr_block = "11.0.1.0/24",     -->       "1b" = "subnet-0bbb..."
+            arn = "...", tags = {...} }              }
+  "1b" = { id = "subnet-0bbb...", ... }
+}</pre>
+<div class="fact fact-good"><span class="tag">Same keys in, same keys out</span><p><code>for az, subnet in ... : az => subnet.id</code> keeps every key exactly as it was (<code>"1a"</code>, <code>"1b"</code>) and replaces only the value — the whole subnet object collapses down to just its <code>.id</code>. This is the same map-to-map for-expression as 15.6's collection output, just used at a module boundary instead of in an <code>output</code> block — narrowing a rich internal object down to the one field a caller actually needs, rather than making every downstream module reach into fields it has no business touching.</p></div>
 </div>
 </details>
 

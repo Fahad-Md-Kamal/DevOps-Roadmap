@@ -875,7 +875,30 @@ terraform workspace new stg
 terraform workspace select stg
 terraform apply -var-file=stg.tfvars
 terraform workspace show   # confirm which one you're about to apply into</pre>
+<h4 class="mini">The full terraform workspace command set</h4>
+<dl class="termlist">
+<dt><code>terraform workspace new &lt;name&gt;</code></dt>
+<dd>Creates a new workspace with its own empty state, and switches to it immediately. Every project starts with one workspace already, called <code>default</code> — it's there even if you never run this command.</dd>
+<dt><code>terraform workspace select &lt;name&gt;</code></dt>
+<dd>Switches to an existing workspace. This is the step it's easy to forget before an <code>apply</code> — there's no prompt or warning, it just silently applies into whichever workspace was already selected.</dd>
+<dt><code>terraform workspace list</code></dt>
+<dd>Lists every workspace that exists for this configuration, with an asterisk marking the one currently active.</dd>
+<dt><code>terraform workspace show</code></dt>
+<dd>Prints just the name of the currently active workspace — the fast way to confirm what <code>apply</code> is actually about to touch, worth running as a habit right before it.</dd>
+<dt><code>terraform workspace delete &lt;name&gt;</code></dt>
+<dd>Removes a workspace and its state file. Terraform refuses if that workspace's state still has resources in it — run <code>destroy</code> inside that workspace first, or the delete fails rather than silently orphaning real infrastructure.</dd>
+</dl>
 <div class="fact fact-fail"><span class="tag">The workspace footgun</span><p>Nothing in the terminal loudly reminds you which workspace is selected — running <code>terraform apply</code> after forgetting a <code>workspace select</code> applies into whichever one you left active. This repo uses separate directories (see the layout in 16.6) specifically to make that mistake structurally impossible: the environment is which directory you <code>cd</code>into, not invisible session state.</p></div>
+<h4 class="mini">Pros and cons, specifically for separating credentials</h4>
+<p>One question workspaces can't answer: do they separate <em>which AWS account or credentials</em> an environment uses? No — the <code>provider "aws" { ... }</code> block is one static config for the entire run, untouched by which workspace is active.</p>
+<ul>
+<li><strong>Pro:</strong> fast to spin up — <code>terraform workspace new</code> is one command, no new directory or backend config to write.</li>
+<li><strong>Pro:</strong> state stays genuinely isolated per workspace, even though the config is shared.</li>
+<li><strong>Pro:</strong> a good fit for short-lived, truly identical environments — a workspace per PR preview, disposable by design.</li>
+<li><strong>Con:</strong> no credential or account separation at all — every workspace shares the exact same <code>provider</code> block, so it can't be the mechanism that keeps <code>dev</code> and <code>prod</code> on separate AWS accounts.</li>
+<li><strong>Con:</strong> nothing in the terminal shows which workspace is active — a forgotten <code>workspace select</code> applies into whichever one was last left selected.</li>
+<li><strong>Con:</strong> one shared <code>main.tf</code> means one bug reaches every workspace on the next <code>apply</code> — no structural containment the way separate directories give you.</li>
+</ul>
 </div>
 </details>
 

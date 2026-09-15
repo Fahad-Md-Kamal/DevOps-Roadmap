@@ -60,6 +60,7 @@
             <li><a href="#d16-5"><span class="sub-num">5</span>Versioning &amp; Sourcing</a></li>
             <li><a href="#d16-6"><span class="sub-num">6</span>Composition &amp; Repo Layout</a></li>
             <li><a href="#d16-7"><span class="sub-num">7</span>Provisioners</a></li>
+            <li><a href="#d16-8"><span class="sub-num">8</span>Templating: templatefile()</a></li>
           </ul>
         </li>
         <li>
@@ -798,6 +799,121 @@ module "ecs_service" {
 ssh -i "./deployer_key" ec2-user@&lt;instance-public-dns-or-ip&gt;</pre>
 <div class="fact fact-fail"><span class="tag">The ingress CIDR means "from," never "to"</span><p>A real security group ended up with its port-22 rule allowing the EC2 instance's own public IP — which looked plausible, since that's literally the address baked into the instance's own hostname (<code>ec2-203-0-113-10...</code>). But an ingress <code>cidr_blocks</code> always means "traffic is allowed to arrive <em>from</em> this address" — never "this is the address being connected to." The instance's own IP is irrelevant to its own ingress rules; what belongs there is the <strong>client's</strong> IP — the machine running <code>ssh</code>, found with <code>curl ifconfig.me</code>, not the server being connected to. Getting this backwards produces the same silent, response-less hang as any other SG mismatch — nothing distinguishes "wrong direction" from "wrong IP entirely" at the network level.</p></div>
 <div class="fact fact-fail"><span class="tag">A hardcoded personal IP goes stale</span><p>Locking SSH to "just my IP" via a <code>/32</code> CIDR is good practice over <code>0.0.0.0/0</code>, but most home and mobile ISPs assign dynamic addresses — the correct CIDR today can silently stop working after a router reboot or a network change, with the exact same symptom as every other SG mismatch: <code>ssh</code> just hangs, no error to point at the real cause. Re-running <code>curl ifconfig.me</code> and comparing it against the security group's current rule is the fastest way to rule this in or out before suspecting the key, the instance, or anything else.</p></div>
+</div>
+</details>
+
+<details class="sub" id="d16-8">
+<summary><span class="sub-num">16.8</span><h3>Templating: templatefile() and .tftpl Files</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>18.9 built a Lambda IAM policy with <code>jsonencode({...})</code> — real HCL values, mechanically serialized into JSON. <code>templatefile()</code> is the other approach: write the JSON (or a script, or any text) as its own file, with <code>${...}</code> placeholders, and have Terraform render it with real values substituted in.</p>
+<pre data-lang="hcl"># main.tf
+resource "aws_iam_user_policy" "instance_manager" {
+  name = "InstanceManagePolicy"
+  user = aws_iam_user.created_user.name
+  policy = templatefile("${path.module}/user-policy.tftpl", {
+    ec2_policies = [
+      "ec2:RunInstances",
+      "ec2:StopInstances",
+      "ec2:TerminateInstances",
+      "ec2:RequestSpotInstances",
+    ]
+  })
+}</pre>
+<pre data-lang="text"># user-policy.tftpl
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": ${jsonencode(ec2_policies)},
+            "Resource": "*"
+        }
+    ]
+}</pre>
+<p><code>templatefile(path, vars)</code> takes two arguments: the file to render, and a map of variables the template can reference. Inside the <code>.tftpl</code> file, <code>${ec2_policies}</code> would insert a raw HCL representation of the list — wrapping it in <code>jsonencode(...)</code>, as above, is what turns it into valid JSON array syntax instead.</p>
+<h4 class="mini">Why reach for a separate file at all</h4>
+<p>Nothing here is impossible with <code>jsonencode()</code> alone — the difference is where the content lives. A large JSON policy, a multi-line bootstrap script, or an nginx config reads far more naturally as its own properly-formatted file (real syntax highlighting, no HCL string-escaping) than as a nested HCL data structure. <code>templatefile()</code> also supports its own mini control-flow syntax inside the template file itself — a <code>for</code> directive and an <code>if</code> directive, the template-text equivalents of a <code>for</code> expression (15.6) and a conditional.</p>
+
+<h4 class="mini">%{ for } — repeating a line once per item</h4>
+<pre data-lang="hcl"># allowed_ips.tftpl
+%{ for ip in allowed_ips ~}
+allow ${ip};
+%{ endfor ~}
+deny all;</pre>
+<pre data-lang="hcl">templatefile("${path.module}/allowed_ips.tftpl", {
+  allowed_ips = ["203.0.113.10", "203.0.113.20"]
+})</pre>
+<pre data-lang="text"># rendered output
+allow 203.0.113.10;
+allow 203.0.113.20;
+deny all;</pre>
+<div class="fact fact-note"><span class="tag">The ~ is a whitespace-strip marker, not part of the loop</span><p>Without <code>~</code>, every <code>%{ for ... }</code> and <code>%{ endfor }</code> line still emits its own trailing newline into the output — a template written across multiple lines would render with extra blank lines where the directive lines themselves used to be. <code>%{ for ip in allowed_ips ~}</code> strips the newline immediately after the directive; <code>%{ endfor ~}</code> does the same before it. The result is clean output with no artifacts from the directive syntax itself — always worth adding on multi-line <code>for</code>/<code>if</code> directives unless you've checked the output without it and it already looks right.</p></div>
+<p>A key-value version works the same way as a two-variable <code>for</code> expression (16.1's <code>each.key</code>/<code>each.value</code> pattern, here as template text instead):</p>
+<pre data-lang="hcl">%{ for name, port in services ~}
+${name}: ${port}
+%{ endfor ~}</pre>
+
+<h4 class="mini">%{ if } / %{ else } — conditional content</h4>
+<pre data-lang="hcl"># userdata.tftpl
+#!/bin/bash
+yum install -y httpd
+%{ if enable_monitoring ~}
+yum install -y amazon-cloudwatch-agent
+systemctl enable --now amazon-cloudwatch-agent
+%{ else ~}
+echo "monitoring agent skipped"
+%{ endif ~}
+systemctl start httpd</pre>
+<pre data-lang="hcl">user_data = templatefile("${path.module}/userdata.tftpl", {
+  enable_monitoring = var.enable_monitoring   # a plain bool
+})</pre>
+<p><code>%{ else }</code> is optional — a bare <code>%{ if ... }</code>/<code>%{ endif }</code> with nothing in between the false branch and <code>endif</code> simply renders nothing when the condition is false, the same as an <code>if</code> with no <code>else</code> in most languages.</p>
+
+<h4 class="mini">Indenting a directive line leaks whitespace into the output</h4>
+<p>Indenting <code>%{ if }</code>/<code>%{ for }</code> to match the surrounding code is natural — but <code>~</code> only strips whitespace on the side of the directive it's placed on. A trailing-only <code>~}</code> does nothing about the spaces typed <em>before</em> <code>%{</code> on that same line:</p>
+<pre data-lang="text">#!/bin/bash
+    %{ if enable ~}
+    yum install -y agent
+    %{ endif ~}
+systemctl start httpd</pre>
+<pre data-lang="text"># actual rendered output -- verified directly
+#!/bin/bash
+        yum install -y agent
+    systemctl start httpd</pre>
+<div class="fact fact-fail"><span class="tag">The indentation doesn't just appear, it accumulates</span><p><code>yum install -y agent</code> rendered with <strong>8</strong> leading spaces, not 4 — its own indentation plus the 4 unstripped spaces sitting before <code>%{ if enable ~}</code> on the line above, since only that directive's trailing newline was stripped, not its leading whitespace. <code>systemctl start httpd</code> — which had no indentation in the source at all — picked up 4 leading spaces leaked from the <code>%{ endif ~}</code> line the same way. The whitespace doesn't just leak, it silently shifts onto lines that were never indented in the source.</p></div>
+<p>The fix is <code>~</code> on <em>both</em> sides of a directive-only line — <code>%{~ if enable ~}</code> — which strips the leading whitespace/newline too:</p>
+<pre data-lang="text">#!/bin/bash
+    %{~ if enable ~}
+    yum install -y agent
+    %{~ endif ~}
+systemctl start httpd</pre>
+<pre data-lang="text"># rendered output -- clean
+#!/bin/bash
+    yum install -y agent
+systemctl start httpd</pre>
+<div class="fact fact-good"><span class="tag">Default to both-sided ~ on directive-only lines</span><p>A line that contains nothing but a <code>%{ if }</code>/<code>%{ for }</code>/<code>%{ endif }</code>/<code>%{ endfor }</code> directive is never meant to produce output itself — it exists purely for control flow. <code>%{~ ... ~}</code> on every such line is the safe default; reach for one-sided <code>~</code> only when a directive shares a line with real content you specifically want to keep.</p></div>
+
+<p><code>%{ for }</code>/<code>%{ if }</code> aren't a <code>templatefile()</code>-only feature — they're part of HCL's general template syntax, usable inside <em>any</em> string expression, including a heredoc written directly in a resource block, with no separate file at all:</p>
+<pre data-lang="hcl">user_data = <<-EOF
+  #!/bin/bash
+  %{ if enable_monitoring ~}
+  yum install -y amazon-cloudwatch-agent
+  %{ endif ~}
+EOF</pre>
+<div class="fact fact-good"><span class="tag">templatefile() only changes where the text lives</span><p>The directive syntax above is identical whether it's inline in a heredoc or inside a file read by <code>templatefile()</code> — the only thing <code>templatefile()</code> adds is reading that text from a separate file instead of writing it directly in the resource block.</p></div>
+<div class="table-scroll">
+<table>
+<thead><tr><th></th><th><code>jsonencode({...})</code></th><th><code>templatefile("...tftpl", {...})</code></th></tr></thead>
+<tbody>
+<tr><td>Where the content lives</td><td>Inline, inside the <code>.tf</code> file, as real HCL values</td><td>A separate file, with <code>${...}</code> placeholders</td></tr>
+<tr><td>Syntax correctness</td><td>Guaranteed valid JSON — it's built mechanically, never hand-typed</td><td>Only as correct as whatever's typed in the template file — a missing comma is a real, hand-made mistake</td></tr>
+<tr><td>Good for</td><td>Policies and structures that are naturally HCL-shaped already (lists, maps you're already building)</td><td>Long or reused text — multi-line scripts, large policies, anything an editor should syntax-highlight properly</td></tr>
+<tr><td>Failure mode</td><td>A typo is a normal HCL error, caught early and clearly</td><td>A typo can be a raw JSON parse error with a byte offset (15.5-style plan-time failure, but far less readable)</td></tr>
+</tbody>
+</table>
+</div>
+<div class="fact fact-fail"><span class="tag">This is the exact error a missing comma produces</span><p>A real <code>plan</code> against the template above (before its comma was added) failed with <code>"policy" contains an invalid JSON policy: invalid character '"' after object key:value pair, at byte offset 35</code>. That's what <code>templatefile()</code>'s tradeoff looks like in practice: the file is plain text as far as Terraform's HCL parser is concerned, so a hand-typed JSON mistake surfaces as a raw JSON parser complaint, not a clean, typed HCL error the way a mistake inside <code>jsonencode({...})</code> would.</p></div>
+<div class="fact fact-fail"><span class="tag">Neither approach checks that the action names are real</span><p>Fixing the JSON syntax doesn't mean the policy is correct — <code>"ec2:RequestSpotInstance"</code> (singular) parsed as perfectly valid JSON and passed <code>templatefile()</code> without complaint, but AWS itself rejected it: the real action is <code>RequestSpotInstances</code> (plural). Neither <code>jsonencode()</code> nor <code>templatefile()</code> validates that an IAM action actually exists — that check only happens once AWS evaluates the policy, at <code>apply</code> time, regardless of which method built the JSON.</p></div>
 </div>
 </details>
 

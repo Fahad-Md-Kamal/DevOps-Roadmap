@@ -840,6 +840,20 @@ terraform {
     encrypt        = true
   }
 }</pre>
+<div class="fact fact-fail"><span class="tag">The backend block doesn't inherit the provider's profile</span><p>A real <code>terraform init -migrate-state</code> failed with <code>403 Forbidden</code> on the S3 bucket, even though the exact same bucket worked fine for every other command. Cause: the <code>backend "s3" { }</code> block above has no <code>profile</code> argument, so it never inherits <code>profile = "fahad"</code> from the <code>provider "aws" { }</code> block below it — backend initialization happens before providers are even loaded, so nothing carries over automatically. With no explicit profile, it silently fell back to this machine's <em>default</em> AWS credential chain, which resolved to a completely different AWS account that had no access to the bucket at all. The fix is adding <code>profile = "fahad"</code> directly inside the <code>backend</code> block — it needs its own credentials, stated explicitly, every time.</p></div>
+<div class="table-scroll">
+<table>
+<thead><tr><th></th><th>Local state</th><th>S3 remote state</th></tr></thead>
+<tbody>
+<tr><td>Collaboration</td><td>Breaks the moment a second person runs <code>apply</code> from their own copy</td><td>One shared source of truth for the whole team</td></tr>
+<tr><td>Locking</td><td>None — two concurrent applies can corrupt it</td><td>DynamoDB or S3-native locking (above) prevents the race</td></tr>
+<tr><td>Durability</td><td>One laptop's disk — no backup, one <code>rm</code> away from gone</td><td>S3's own durability, plus optional bucket versioning for point-in-time recovery</td></tr>
+<tr><td>Setup complexity</td><td>Zero — works with no configuration</td><td>Needs a bucket, IAM permissions, and its own credential config (see the fact box above)</td></tr>
+<tr><td>Credential scope</td><td>Same identity as everything else automatically</td><td>Resolved independently of the provider block — easy to misconfigure, as above</td></tr>
+<tr><td>Cost</td><td>Free</td><td>Small S3 storage/request cost, plus DynamoDB cost only if not using native locking</td></tr>
+</tbody>
+</table>
+</div>
 <div class="fact fact-note"><span class="tag">S3 native locking (Terraform ≥ 1.10 / AWS provider ≥ 5.x)</span><p>Newer Terraform versions can lock directly on the S3 object using conditional writes — no separate DynamoDB table required. Either approach solves the same problem: without locking, two <code>apply</code> runs starting seconds apart both read the same "before" state and can each write back a "after" that discards the other's changes.</p></div>
 <pre data-lang="bash"># What locking looks like when it's doing its job
 $ terraform apply
@@ -852,6 +866,28 @@ Lock Info:
   Operation: OperationTypeApply
   Who:       teammate@laptop</pre>
 <div class="fact fact-good"><span class="tag">This is what makes CI safe</span><p>Remote state with locking is the prerequisite for the whole Week 5 pipeline — a Jenkins job applying on merge and an engineer running <code>plan</code> locally have to share one source of truth, or the pipeline's idea of "current state" silently diverges from reality.</p></div>
+
+<h4 class="mini">Reading and overwriting remote state directly: pull and push</h4>
+<pre data-lang="bash"># Read-only -- download the current remote state, print it to stdout
+terraform state pull > state-snapshot.json
+
+# Inspect it without needing raw S3/console access
+terraform state pull | jq '.resources[].name'
+
+# Dangerous -- unconditionally overwrite the remote state with a local file
+terraform state push state-snapshot.json</pre>
+<div class="table-scroll">
+<table>
+<thead><tr><th></th><th><code>state pull</code></th><th><code>state push</code></th></tr></thead>
+<tbody>
+<tr><td>Direction</td><td>Remote → local (a copy)</td><td>Local → remote (overwrites it)</td></tr>
+<tr><td>Touches real state?</td><td>No — read-only, always safe to run</td><td>Yes — replaces whatever the remote currently holds</td></tr>
+<tr><td>Good for</td><td>Inspecting or scripting against state (piping into <code>jq</code>) without console/S3 access</td><td>Recovering from a known-good backup, or a manual fix nothing else can do</td></tr>
+<tr><td>The catch</td><td>A point-in-time snapshot — stale the moment anyone else applies after you pulled it</td><td>No diff, no plan, no confirmation prompt shown first — a stale or wrong local file silently erases what Terraform knows about real infrastructure</td></tr>
+</tbody>
+</table>
+</div>
+<div class="fact fact-fail"><span class="tag">push is a last resort, not a routine command</span><p><code>state push</code> normally refuses to run if the remote state has moved on since your local copy was pulled (compared by an internal serial number) — that check exists specifically to stop exactly the accident this command makes possible. Overriding it with <code>-force</code> removes that last safety check entirely. Reach for <code>terraform state mv</code>/<code>rm</code> (19.4) for routine state surgery; <code>push</code> is for genuine disaster recovery, not day-to-day use.</p></div>
 </div>
 </details>
 

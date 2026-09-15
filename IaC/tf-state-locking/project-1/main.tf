@@ -17,9 +17,9 @@ resource "aws_instance" "ec2_example" {
 
 terraform {
   backend "s3" {
-    bucket = "fmk-terraform-backup"
-    key    = "tf-state/locking/terraform.tfstate"
-    region = "ap-south-1"
+    bucket       = "fmk-terraform-backup"
+    key          = "tf-state/locking/terraform.tfstate"
+    region       = "ap-south-1"
     use_lockfile = true
     profile      = "fahad"
   }

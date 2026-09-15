@@ -96,6 +96,10 @@ nav.nav .sub-list a{
 }
 nav.nav .sub-list a:hover{color:var(--accent-strong)}
 nav.nav .sub-list a.active{color:var(--accent-strong); border-left-color:var(--accent); font-weight:500}
+nav.nav .sub-list .sub-num{
+  display:inline-block; width:auto; min-width:2.4em; margin-right:2px;
+  font-family:'IBM Plex Mono',monospace; color:var(--accent); font-variant-numeric:tabular-nums;
+}
 nav.nav .checklist-link{font-weight:700; color:var(--warn)}
 
 /* ---------- Main content ---------- */

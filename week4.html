@@ -855,6 +855,24 @@ terraform {
 </table>
 </div>
 <div class="fact fact-note"><span class="tag">S3 native locking (Terraform ≥ 1.10 / AWS provider ≥ 5.x)</span><p>Newer Terraform versions can lock directly on the S3 object using conditional writes — no separate DynamoDB table required. Either approach solves the same problem: without locking, two <code>apply</code> runs starting seconds apart both read the same "before" state and can each write back a "after" that discards the other's changes.</p></div>
+<h4 class="mini">Migrating dynamodb_table to use_lockfile</h4>
+<p>A real <code>apply</code> on Terraform 1.16 produced a live deprecation warning:</p>
+<pre data-lang="text">│ Warning: Deprecated Parameter
+│
+│ The parameter "dynamodb_table" is deprecated.
+│ Use parameter "use_lockfile" instead.</pre>
+<p>The fix is a one-line swap in the backend block:</p>
+<pre data-lang="hcl">backend "s3" {
+  bucket       = "fmk-terraform-backup"
+  key          = "tf-state/locking/terraform.tfstate"
+  region       = "ap-south-1"
+  use_lockfile = true          # was: dynamodb_table = "dynamodb-state-locking"
+  profile      = "fahad"
+}</pre>
+<pre data-lang="bash">terraform init -reconfigure   # not -migrate-state -- the bucket/key didn't move,
+                              # only the locking mechanism did</pre>
+<div class="fact fact-note"><span class="tag">-reconfigure vs -migrate-state</span><p>Changing any backend argument makes Terraform refuse to proceed until you tell it what to do with existing state — but which flag depends on <em>what</em> changed. <code>-migrate-state</code> is for when the state's actual location changed (a different bucket or key) and the old state needs copying into the new location. <code>-reconfigure</code> is for when the location is identical and only settings like this one changed — it just re-applies the new config against the state that's already sitting right there, no copying needed. Using <code>-migrate-state</code> when nothing moved, or vice versa, is a common way to get a confusing error instead of the migration you meant.</p></div>
+<div class="fact fact-good"><span class="tag">The old DynamoDB table isn't automatically cleaned up</span><p>Switching to <code>use_lockfile</code> just stops <em>this config</em> from using the table — it doesn't delete it, and doesn't check whether anything else still depends on it. Safe to delete only after confirming no other project's backend still points at the same <code>dynamodb_table</code>.</p></div>
 <pre data-lang="bash"># What locking looks like when it's doing its job
 $ terraform apply
 Acquiring state lock. This may take a few moments...

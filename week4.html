@@ -103,6 +103,7 @@
             <li><a href="#d19-5"><span class="sub-num">5</span>Recovering Half-Applied State</a></li>
             <li><a href="#d19-6"><span class="sub-num">6</span>Machine-Readable Plans</a></li>
             <li><a href="#d19-7"><span class="sub-num">7</span>Importing Existing Resources</a></li>
+            <li><a href="#d19-8"><span class="sub-num">8</span>Debug Logging: TF_LOG</a></li>
           </ul>
         </li>
       </ul>
@@ -1969,6 +1970,26 @@ terraform plan   # confirm 0 to change, or read exactly what doesn't match yet</
 
 Plan: 0 to add, 1 to change, 0 to destroy.</pre>
 <div class="fact fact-good"><span class="tag">prevent_destroy is the actual safety net here</span><p>Before this instance was imported, nothing about it could be "destroyed by Terraform" — Terraform didn't know it existed. The moment it's imported, that protection disappears unless something replaces it — which is exactly <code>prevent_destroy</code>'s job. Add it in the <em>same</em> edit as the import itself, not as a follow-up step: any change that would force replacement (18.8.1's <code>-/+</code> from 15.5) now fails outright with an error instead of silently destroying and recreating a resource that was never meant to be disposable.</p></div>
+</div>
+</details>
+
+<details class="sub" id="d19-8">
+<summary><span class="sub-num">19.8</span><h3>Debug Logging: TF_LOG and TF_LOG_PATH</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>When a plan or apply fails with an error too vague to act on, Terraform's own internal logging — normally silent — can be turned on to see exactly what it's doing: every provider RPC call, every HTTP request to AWS, every internal decision.</p>
+<pre data-lang="bash">export TF_LOG=DEBUG          # TRACE, DEBUG, INFO, WARN, or ERROR -- TRACE is the noisiest
+terraform plan
+
+# unset when done -- it stays exported for every future command in this shell otherwise
+unset TF_LOG</pre>
+<div class="fact fact-note"><span class="tag">TRACE vs DEBUG</span><p><code>TRACE</code> is the most verbose level — it includes the exact HTTP requests and responses between the provider and AWS's API, useful for tracking down a provider bug or an unexpected API response. <code>DEBUG</code> is one level down: Terraform's own internal decisions and provider RPC calls, usually enough for "why did it plan to do that" without the sheer volume of raw HTTP traffic.</p></div>
+<p>Left on, <code>TF_LOG</code> prints directly to the terminal, mixed in with normal plan/apply output — usable for a quick look, unmanageable for anything longer. <code>TF_LOG_PATH</code> redirects it to a file instead:</p>
+<pre data-lang="bash">export TF_LOG=DEBUG
+export TF_LOG_PATH="/home/fahad/logs/debug.log"
+terraform apply</pre>
+<div class="fact fact-fail"><span class="tag">The directory has to already exist</span><p>Terraform does not create missing directories in <code>TF_LOG_PATH</code> — pointing it at <code>/home/fahad/logs/debug.log</code> when <code>/home/fahad/logs/</code> doesn't exist yet fails to write the log at all (checked directly: a fresh <code>logs/</code> directory genuinely doesn't exist until something creates it). <code>mkdir -p</code> the directory first, the same requirement as any other tool writing to a path you haven't set up yet.</p></div>
+<div class="fact fact-note"><span class="tag">The log file is appended to, not overwritten</span><p>Every subsequent command with the same <code>TF_LOG_PATH</code> set keeps adding to the same file rather than starting fresh — a log from an hour ago and one from just now sit in the same file, back to back. Delete or rotate it manually between debugging sessions, or it grows indefinitely and makes finding the relevant run harder each time.</p></div>
+<div class="fact fact-good"><span class="tag">Unset both when done</span><p>Both variables persist for every Terraform command run in that shell session afterward, not just the one that needed debugging — exactly the same "stray environment variable" class of surprise as 15.2's credential-precedence gotcha. A stray <code>TF_LOG=TRACE</code> left set makes every future <code>plan</code> print pages of noise nobody asked for; <code>unset TF_LOG TF_LOG_PATH</code> (or just open a fresh terminal) once the debugging is done avoids that.</p></div>
 </div>
 </details>
 

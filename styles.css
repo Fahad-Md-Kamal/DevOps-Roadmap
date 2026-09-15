@@ -1,22 +1,25 @@
 :root{
-  --bg:#eef1ef; --surface:#ffffff; --surface-2:#f3f6f4; --ink:#182225; --ink-muted:#4c5e60;
-  --line:#ccd6d3; --line-strong:#aebab7; --accent:#1b6e73; --accent-strong:#12494d;
-  --accent-tint:#e6f1f0; --warn:#a8531f; --warn-tint:#fbeee4; --code-fg:#1c2b2d;
-  --shadow: 0 1px 2px rgba(15,30,30,.06), 0 8px 24px rgba(15,30,30,.05);
+  --bg:#f3f1ee; --surface:#ffffff; --surface-2:#f6f3ef; --ink:#211a2b; --ink-muted:#5c5468;
+  --line:#e0d9d0; --line-strong:#c9beb0; --accent:#4f46e5; --accent-strong:#3730a3;
+  --accent-tint:#eef0fe; --warn:#dc4c2f; --warn-tint:#fdeee8; --code-fg:#241d30;
+  --good:#15803d; --good-tint:#eafbf0; --note:#2563eb; --note-tint:#eaf1fe;
+  --shadow: 0 1px 2px rgba(40,20,10,.07), 0 8px 24px rgba(40,20,10,.06);
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --bg:#0e1416; --surface:#151d20; --surface-2:#111a1c; --ink:#dfe9e7; --ink-muted:#93a6a5;
-    --line:#2b3a3d; --line-strong:#3a4d50; --accent:#5fc2bb; --accent-strong:#9adcd5;
-    --accent-tint:#122624; --warn:#e2925a; --warn-tint:#2a1c14; --code-fg:#cfe3e0;
-    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 28px rgba(0,0,0,.35);
+    --bg:#141019; --surface:#1c1626; --surface-2:#181220; --ink:#ece7f5; --ink-muted:#a99fc2;
+    --line:#332a45; --line-strong:#453a5c; --accent:#a5b4fc; --accent-strong:#c7d2fe;
+    --accent-tint:#201f3d; --warn:#ff9466; --warn-tint:#33170d; --code-fg:#e3dcf2;
+    --good:#86efac; --good-tint:#0f2417; --note:#93c5fd; --note-tint:#101d33;
+    --shadow: 0 1px 2px rgba(0,0,0,.35), 0 8px 28px rgba(0,0,0,.4);
   }
 }
 :root[data-theme="dark"]{
-  --bg:#0e1416; --surface:#151d20; --surface-2:#111a1c; --ink:#dfe9e7; --ink-muted:#93a6a5;
-  --line:#2b3a3d; --line-strong:#3a4d50; --accent:#5fc2bb; --accent-strong:#9adcd5;
-  --accent-tint:#122624; --warn:#e2925a; --warn-tint:#2a1c14; --code-fg:#cfe3e0;
-  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 28px rgba(0,0,0,.35);
+  --bg:#141019; --surface:#1c1626; --surface-2:#181220; --ink:#ece7f5; --ink-muted:#a99fc2;
+  --line:#332a45; --line-strong:#453a5c; --accent:#a5b4fc; --accent-strong:#c7d2fe;
+  --accent-tint:#201f3d; --warn:#ff9466; --warn-tint:#33170d; --code-fg:#e3dcf2;
+  --good:#86efac; --good-tint:#0f2417; --note:#93c5fd; --note-tint:#101d33;
+  --shadow: 0 1px 2px rgba(0,0,0,.35), 0 8px 28px rgba(0,0,0,.4);
 }
 *{box-sizing:border-box}
 body{
@@ -191,18 +194,30 @@ pre[data-lang]::before{
 }
 code:not(pre code){background:var(--surface-2); border:1px solid var(--line); padding:.1em .4em; font-size:.86em}
 
+pre .copy-btn{
+  position:absolute; right:6px; top:6px; z-index:1;
+  font-family:'IBM Plex Sans Condensed',sans-serif; font-size:.62rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+  border:1px solid var(--line-strong); background:var(--surface); color:var(--ink-muted);
+  padding:3px 9px; cursor:pointer; opacity:0; transition:opacity .15s, border-color .15s, color .15s;
+}
+pre[data-lang] .copy-btn{ top:23px }
+pre:hover .copy-btn, pre .copy-btn:focus-visible{ opacity:1 }
+pre .copy-btn:hover{ border-color:var(--accent); color:var(--accent-strong) }
+pre .copy-btn.copied{ opacity:1; border-color:var(--good); color:var(--good) }
+@media (hover:none){ pre .copy-btn{ opacity:1 } }
+
 .fact{display:flex; gap:12px; border:1px solid var(--line); background:var(--surface); padding:10px 14px; margin:0 0 14px}
 .fact p, .fact pre{margin:0}
 .fact .tag{
   flex:none; width:9.5em; font-family:'IBM Plex Sans Condensed',sans-serif; font-weight:700; font-size:.72rem;
   letter-spacing:.05em; text-transform:uppercase; padding-top:2px;
 }
-.fact-fail{border-left:3px solid var(--warn)}
+.fact-fail{border-left:3px solid var(--warn); background:var(--warn-tint)}
 .fact-fail .tag{color:var(--warn)}
-.fact-good{border-left:3px solid var(--accent)}
-.fact-good .tag{color:var(--accent-strong)}
-.fact-note{border-left:3px solid var(--line-strong)}
-.fact-note .tag{color:var(--ink-muted)}
+.fact-good{border-left:3px solid var(--good); background:var(--good-tint)}
+.fact-good .tag{color:var(--good)}
+.fact-note{border-left:3px solid var(--note); background:var(--note-tint)}
+.fact-note .tag{color:var(--note)}
 @media (max-width:560px){ .fact{flex-direction:column; gap:4px} .fact .tag{width:auto} }
 
 .eff-allow{color:var(--accent-strong); font-weight:600}

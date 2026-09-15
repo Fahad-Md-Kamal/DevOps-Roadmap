@@ -6,6 +6,14 @@
 <title>DevOps Ramp Plan — Week 2</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="styles.css">
+<style>
+  /* Week 2 accent -- sky blue */
+  :root{ --accent:#0284c7; --accent-strong:#075985; --accent-tint:#e6f4fb; }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){ --accent:#7dd3fc; --accent-strong:#bae6fd; --accent-tint:#0c2530; }
+  }
+  :root[data-theme="dark"]{ --accent:#7dd3fc; --accent-strong:#bae6fd; --accent-tint:#0c2530; }
+</style>
 </head>
 <body>
 
@@ -2793,39 +2801,10 @@ CloudWatch: dashboard + alarms + log groups for every component
   </main>
 </div>
 
+<script src="script.js"></script>
 <script>
 (function(){
-  var expandAll = document.getElementById('expand-all');
-  var collapseAll = document.getElementById('collapse-all');
-  function allDetails(){ return document.querySelectorAll('main details'); }
-  expandAll.addEventListener('click', function(){ allDetails().forEach(function(d){ d.open = true; }); });
-  collapseAll.addEventListener('click', function(){ allDetails().forEach(function(d){ d.open = false; }); });
-
-  document.querySelectorAll('.nav a[href^="#"]').forEach(function(a){
-    a.addEventListener('click', function(e){
-      var id = a.getAttribute('href').slice(1);
-      var target = document.getElementById(id);
-      if(!target) return;
-      var details = target.closest('details');
-      while(details){ details.open = true; details = details.parentElement.closest('details'); }
-      if(target.tagName === 'DETAILS') target.open = true;
-    });
-  });
-
-  if('IntersectionObserver' in window){
-    var observed = document.querySelectorAll('details.day, details.sub');
-    var io = new IntersectionObserver(function(entries){
-      entries.forEach(function(entry){
-        var id = entry.target.id;
-        var link = document.querySelector('.nav a[href="#'+id+'"]');
-        if(!link) return;
-        if(entry.isIntersecting) link.classList.add('active');
-        else link.classList.remove('active');
-      });
-    }, {rootMargin:'-10% 0px -70% 0px'});
-    observed.forEach(function(el){ io.observe(el); });
-  }
-  var STORAGE_KEY = 'devops-ramp-a2-checklist';
+var STORAGE_KEY = 'devops-ramp-a2-checklist';
   var checkboxes = Array.prototype.slice.call(document.querySelectorAll('.checklist input[type="checkbox"]'));
   var countEl = document.getElementById('progress-count');
   var fillEl = document.getElementById('progress-fill');
@@ -2856,7 +2835,8 @@ CloudWatch: dashboard + alarms + log groups for every component
     });
   });
   updateProgress();
-})();
+
+  })();
 </script>
 
 </body>

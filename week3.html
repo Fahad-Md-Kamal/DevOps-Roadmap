@@ -6,6 +6,14 @@
 <title>DevOps Ramp Plan — Week 3</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="styles.css">
+<style>
+  /* Week 3 accent -- emerald */
+  :root{ --accent:#059669; --accent-strong:#065f46; --accent-tint:#e7f7f1; }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){ --accent:#6ee7b7; --accent-strong:#a7f3d0; --accent-tint:#0e2620; }
+  }
+  :root[data-theme="dark"]{ --accent:#6ee7b7; --accent-strong:#a7f3d0; --accent-tint:#0e2620; }
+</style>
 </head>
 <body>
 
@@ -152,40 +160,7 @@
   </main>
 </div>
 
-<script>
-(function(){
-  var expandAll = document.getElementById('expand-all');
-  var collapseAll = document.getElementById('collapse-all');
-  function allDetails(){ return document.querySelectorAll('main details'); }
-  expandAll.addEventListener('click', function(){ allDetails().forEach(function(d){ d.open = true; }); });
-  collapseAll.addEventListener('click', function(){ allDetails().forEach(function(d){ d.open = false; }); });
-
-  document.querySelectorAll('.nav a[href^="#"]').forEach(function(a){
-    a.addEventListener('click', function(e){
-      var id = a.getAttribute('href').slice(1);
-      var target = document.getElementById(id);
-      if(!target) return;
-      var details = target.closest('details');
-      while(details){ details.open = true; details = details.parentElement.closest('details'); }
-      if(target.tagName === 'DETAILS') target.open = true;
-    });
-  });
-
-  if('IntersectionObserver' in window){
-    var observed = document.querySelectorAll('details.day, details.sub');
-    var io = new IntersectionObserver(function(entries){
-      entries.forEach(function(entry){
-        var id = entry.target.id;
-        var link = document.querySelector('.nav a[href="#'+id+'"]');
-        if(!link) return;
-        if(entry.isIntersecting) link.classList.add('active');
-        else link.classList.remove('active');
-      });
-    }, {rootMargin:'-10% 0px -70% 0px'});
-    observed.forEach(function(el){ io.observe(el); });
-  }
-})();
-</script>
+<script src="script.js"></script>
 
 </body>
 </html>

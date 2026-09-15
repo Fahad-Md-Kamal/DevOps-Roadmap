@@ -61,6 +61,7 @@
             <li><a href="#d16-6"><span class="sub-num">6</span>Composition &amp; Repo Layout</a></li>
             <li><a href="#d16-7"><span class="sub-num">7</span>Provisioners</a></li>
             <li><a href="#d16-8"><span class="sub-num">8</span>Templating: templatefile()</a></li>
+            <li><a href="#d16-9"><span class="sub-num">9</span>null_resource</a></li>
           </ul>
         </li>
         <li>
@@ -914,6 +915,39 @@ EOF</pre>
 </div>
 <div class="fact fact-fail"><span class="tag">This is the exact error a missing comma produces</span><p>A real <code>plan</code> against the template above (before its comma was added) failed with <code>"policy" contains an invalid JSON policy: invalid character '"' after object key:value pair, at byte offset 35</code>. That's what <code>templatefile()</code>'s tradeoff looks like in practice: the file is plain text as far as Terraform's HCL parser is concerned, so a hand-typed JSON mistake surfaces as a raw JSON parser complaint, not a clean, typed HCL error the way a mistake inside <code>jsonencode({...})</code> would.</p></div>
 <div class="fact fact-fail"><span class="tag">Neither approach checks that the action names are real</span><p>Fixing the JSON syntax doesn't mean the policy is correct — <code>"ec2:RequestSpotInstance"</code> (singular) parsed as perfectly valid JSON and passed <code>templatefile()</code> without complaint, but AWS itself rejected it: the real action is <code>RequestSpotInstances</code> (plural). Neither <code>jsonencode()</code> nor <code>templatefile()</code> validates that an IAM action actually exists — that check only happens once AWS evaluates the policy, at <code>apply</code> time, regardless of which method built the JSON.</p></div>
+</div>
+</details>
+
+<details class="sub" id="d16-9">
+<summary><span class="sub-num">16.9</span><h3>null_resource — Provisioners With No Real Infrastructure Attached</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>Every provisioner (16.7) has to live inside some <code>resource</code> block — but sometimes the action you want (run a script, hit a webhook, invalidate a cache) doesn't correspond to creating any real cloud resource at all. <code>null_resource</code> is a resource that creates nothing in AWS — it exists purely to give a provisioner (or a dependency edge) somewhere to attach.</p>
+<pre data-lang="hcl">resource "aws_instance" "app_server" {
+  ami           = "ami-08188a5a4dfdbd573"
+  instance_type = "t3.micro"
+  tags          = { Name = "app-server" }
+}
+
+resource "null_resource" "notify_on_change" {
+  triggers = {
+    instance_id = aws_instance.app_server.id
+  }
+
+  provisioner "local-exec" {
+    command = "echo Hello World"
+  }
+}</pre>
+<div class="fact fact-note"><span class="tag">Why triggers exists</span><p>A <code>null_resource</code> has no real attributes of its own, so on a normal <code>apply</code> nothing about it ever looks "changed" — Terraform would never know to re-run its provisioner again. <code>triggers</code> is the workaround: any change to a value inside that map (here, <code>aws_instance.app_server.id</code>, which changes whenever that instance is replaced) marks the <code>null_resource</code> itself as needing replacement, which re-runs its provisioner. Without a matching entry in <code>triggers</code>, the provisioner would only ever run once, on the very first <code>apply</code>, no matter what changed afterward.</p></div>
+<h4 class="mini">When to reach for it</h4>
+<ul>
+<li>Running a script that depends on more than one resource finishing, with no single natural resource to attach the provisioner to</li>
+<li>Invalidating a CDN cache (CloudFront) right after a new S3 deployment</li>
+<li>Running a one-off database migration or seed script once the app server and database both exist</li>
+<li>Sending a deploy notification (Slack, a webhook) after other resources finish applying</li>
+<li>Re-running a local script whenever an unrelated value changes — e.g. <code>triggers = { script_hash = filemd5("deploy.sh") }</code>, re-running only when that specific file's contents change</li>
+</ul>
+<div class="fact fact-fail"><span class="tag">Still bound by 16.7's caution about provisioners generally</span><p><code>null_resource</code> doesn't make provisioners any less of a last resort — it just removes the "which resource do I attach this to" obstacle. Everything from 16.7 still applies: it needs Terraform to hold a connection/process open during <code>apply</code>, and it can fail for reasons that have nothing to do with real infrastructure being wrong.</p></div>
+<div class="fact fact-good"><span class="tag">terraform_data is the newer, provider-free equivalent</span><p>Terraform 1.4+ ships <code>terraform_data</code> as a built-in resource (no separate <code>null</code> provider required) covering the same role — a resource with no real infrastructure, driven by a <code>triggers_replace</code> argument instead of <code>triggers</code>. <code>null_resource</code> still works and remains extremely common in existing code, but new code on a recent Terraform version has one fewer provider to declare by reaching for <code>terraform_data</code> instead.</p></div>
 </div>
 </details>
 

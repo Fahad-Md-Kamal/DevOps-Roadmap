@@ -40,6 +40,15 @@
       <ul>
         <li>
           <a class="day-link" href="#d20"><span class="day-num">20</span> Jenkins Provisioned, Pipeline as Code</a>
+          <ul class="sub-list">
+            <li><a href="#d20-1"><span class="sub-num">1</span>Controller &amp; Agent Model</a></li>
+            <li><a href="#d20-2"><span class="sub-num">2</span>Installing Jenkins &amp; First-Time Setup</a></li>
+            <li><a href="#d20-3"><span class="sub-num">3</span>Plugins, Credentials &amp; Folder Security</a></li>
+            <li><a href="#d20-4"><span class="sub-num">4</span>Backing Up JENKINS_HOME</a></li>
+            <li><a href="#d20-5"><span class="sub-num">5</span>The Declarative Jenkinsfile</a></li>
+            <li><a href="#d20-6"><span class="sub-num">6</span>Multibranch, Webhooks &amp; Shared Libraries</a></li>
+            <li><a href="#d20-7"><span class="sub-num">7</span>Certified Jenkins Engineer (CJE)</a></li>
+          </ul>
         </li>
         <li>
           <a class="day-link" href="#d21"><span class="day-num">21</span> CI and CD, End to End</a>
@@ -71,14 +80,218 @@
 <summary><span class="day-badge">20</span><span class="day-title"><h2>Jenkins Provisioned, Pipeline as Code</h2><div class="day-sub">Mon 28 Sep</div></span><span class="chev"></span></summary>
 <div class="day-body">
 <p>Standing up Jenkins itself, then writing pipelines as code from day one.</p>
-<ul>
-<li>Controller and agent model</li>
-<li>The controller itself provisioned with Terraform</li>
-<li>Plugin hygiene, the credentials store, folder-level security</li>
-<li>Backing up <code>JENKINS_HOME</code></li>
-<li>The declarative <code>Jenkinsfile</code>: agents, stages, environment, parameters, <code>when</code> and <code>post</code></li>
-<li>Multibranch pipelines, webhooks, a first shared-library step</li>
-</ul>
+
+<details class="sub" id="d20-1">
+<summary><span class="sub-num">20.1</span><h3>Controller &amp; Agent Model</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>Jenkins splits into two roles. The <strong>controller</strong> (formerly "master") serves the web UI, stores every job's configuration, schedules builds, and holds the plugin/credential state — it orchestrates, it doesn't build. An <strong>agent</strong> (formerly "slave"/"node") is a separate machine or container that connects to the controller and actually runs the pipeline's steps.</p>
+<div class="fact fact-fail"><span class="tag">Never build directly on the controller</span><p>The controller has no isolation from what runs on it — a build that exhausts memory, hangs, or gets compromised takes down the one thing coordinating every other job too. Agents exist specifically to keep build workloads (arbitrary code, effectively) away from the process that everything else depends on staying up.</p></div>
+<p>An agent advertises <strong>labels</strong> — arbitrary tags like <code>linux</code>, <code>docker</code>, or <code>gpu</code> — and a pipeline's <code>agent</code> directive picks one by label, the same way a Kubernetes pod picks a node by <code>nodeSelector</code>:</p>
+<pre data-lang="groovy">pipeline {
+  agent { label 'linux &amp;&amp; docker' }
+  stages { stage('Build') { steps { sh 'make build' } } }
+}</pre>
+<div class="fact fact-good"><span class="tag">Why not just one big controller</span><p>Separate agents mean a Windows build and a Linux build can run on the same Jenkins instance without one machine needing both toolchains installed, and adding build capacity is "add another agent," not "resize the box everything else depends on." The controller stays a stable, mostly-idle coordination point regardless of how much build traffic the team generates.</p></div>
+</div>
+</details>
+
+<details class="sub" id="d20-2">
+<summary><span class="sub-num">20.2</span><h3>Installing Jenkins &amp; First-Time Setup</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>Before anything gets provisioned as code (20.3), it's worth knowing what "installing Jenkins" actually involves by hand — the same principle as week4.html starting from <code>ssh-keygen</code> and a plain resource block before ever reaching a module. Jenkins is a Java application; everything below assumes Java is present first.</p>
+<div class="table-scroll">
+<table>
+<thead><tr><th>Method</th><th>Command</th><th>Good for</th></tr></thead>
+<tbody>
+<tr><td>Native package (Amazon Linux/RHEL)</td><td><code>dnf install jenkins</code>, after adding the Jenkins repo</td><td>A long-lived controller on a real instance — this project's approach (20.3)</td></tr>
+<tr><td>Native package (Debian/Ubuntu)</td><td><code>apt-get install jenkins</code>, after adding the Jenkins <code>apt</code> repo and signing key</td><td>Same idea, different AMI family — the exact <code>dnf</code>/<code>apt-get</code> distinction from 18.8.1, applied to Jenkins itself now</td></tr>
+<tr><td>Docker</td><td><code>docker run -p 8080:8080 -v jenkins_home:/var/jenkins_home jenkins/jenkins:lts</code></td><td>Trying Jenkins locally, or running it as a container on ECS/EKS instead of a bare EC2 instance</td></tr>
+<tr><td>WAR file</td><td><code>java -jar jenkins.war</code></td><td>Quick, throwaway testing — nothing installed system-wide, nothing left behind but the process</td></tr>
+</tbody>
+</table>
+</div>
+<pre data-lang="bash">#!/bin/bash
+# Amazon Linux / RHEL family
+dnf install -y java-17-amazon-corretto
+wget -O /etc/yum.repos.d/jenkins.repo https://pkg.jenkins.io/redhat-stable/jenkins.repo
+rpm --import https://pkg.jenkins.io/redhat-stable/jenkins.io-2023.key
+dnf install -y jenkins
+systemctl enable --now jenkins</pre>
+<pre data-lang="bash">#!/bin/bash
+# Debian / Ubuntu family
+apt-get update
+apt-get install -y fontconfig openjdk-17-jre
+wget -O /usr/share/keyrings/jenkins-keyring.asc https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
+echo "deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/" \
+  | tee /etc/apt/sources.list.d/jenkins.list
+apt-get update
+apt-get install -y jenkins</pre>
+<div class="fact fact-note"><span class="tag">Java version is a real compatibility constraint</span><p>Recent Jenkins releases require Java 17 or 21 — an older Java 11 install fails to even start the service, with the actual reason buried in <code>systemctl status jenkins</code> or <code>/var/log/jenkins/jenkins.log</code> rather than shown anywhere obvious. Check the specific Jenkins version's requirements before assuming whatever Java happens to already be on an AMI is new enough.</p></div>
+<h4 class="mini">First-time setup wizard</h4>
+<p>Jenkins starts on port 8080 by default and, on first boot, is locked behind a one-time password only readable from the server itself:</p>
+<pre data-lang="bash">cat /var/lib/jenkins/secrets/initialAdminPassword</pre>
+<dl class="termlist">
+<dt>Unlock Jenkins</dt>
+<dd>Paste that password into the setup wizard at <code>http://&lt;controller-ip&gt;:8080</code> — proves whoever's completing setup actually has access to the server itself, not just the network port.</dd>
+<dt>Install plugins</dt>
+<dd>"Install suggested plugins" is the reasonable default for a first controller — a curated set covering Git, pipelines, and the essentials. "Select plugins to install" is the deliberate route once 20.4's plugin-hygiene principle actually matters — smaller footprint, chosen instead of inherited.</dd>
+<dt>Create the first admin user</dt>
+<dd>Skipping this and continuing as the default <code>admin</code> account is explicitly offered but shouldn't be taken for anything beyond a five-minute local test — the same reasoning as never leaving a database on its default credentials.</dd>
+<dt>Instance configuration</dt>
+<dd>Confirms the URL Jenkins believes it's reachable at — matters later for webhook payload URLs (20.7) and any notification that links back to a build, since a wrong URL here means links that go nowhere.</dd>
+</dl>
+<h4 class="mini">Operating Jenkins as a systemd service</h4>
+<p>The native package installs Jenkins as a real systemd unit, not just a process someone starts by hand — the same start/stop/status vocabulary as any other Linux service applies directly:</p>
+<pre data-lang="bash">systemctl start jenkins      # start it now
+systemctl stop jenkins       # stop it now
+systemctl restart jenkins    # e.g. after a config or plugin change that needs a restart
+systemctl status jenkins     # is it actually running, and since when
+systemctl enable jenkins     # survive a reboot -- already done by --now during install
+journalctl -u jenkins -f     # follow the service's own logs live</pre>
+<p>Two files control how the service actually behaves, separate from anything configured in the Jenkins UI itself:</p>
+<dl class="termlist">
+<dt><code>/etc/sysconfig/jenkins</code> (RHEL family) / <code>/etc/default/jenkins</code> (Debian family)</dt>
+<dd>Environment variables read by the systemd unit before Jenkins even starts — <code>JENKINS_PORT</code> (default 8080), <code>JENKINS_HOME</code> (where job data actually lives), <code>JENKINS_USER</code> (which OS user the process runs as). Changing the port here, not in the Jenkins UI, is what actually takes effect — the UI has no setting for its own listen port.</dd>
+<dt><code>JAVA_OPTS</code> / <code>JENKINS_JAVA_OPTIONS</code></dt>
+<dd>JVM flags passed to the underlying Java process — heap size (<code>-Xmx2g</code>), most commonly, since Jenkins is a long-running JVM and the default heap can be too small for a controller running many jobs.</dd>
+</dl>
+<div class="fact fact-fail"><span class="tag">A config file change needs a restart, not a reload</span><p>Neither of the files above is watched live — editing <code>JENKINS_PORT</code> or <code>JAVA_OPTS</code> and expecting it to take effect immediately is the same mistake as expecting a changed environment variable to reach an already-running process anywhere else. <code>systemctl restart jenkins</code> is what actually applies it.</p></div>
+<div class="fact fact-good"><span class="tag">Verifying it actually worked</span><p><code>systemctl status jenkins</code> showing <code>active (running)</code>, plus the setup wizard actually loading in a browser on port 8080, is the full confirmation — no separate health check exists beyond "does the service report running and does the UI respond."</p></div>
+<div class="fact fact-note"><span class="tag">Provisioning this with Terraform lives in the Terraform week</span><p>Wrapping this exact install script into an <code>aws_instance</code>'s <code>user_data</code>, with <code>JENKINS_HOME</code> on its own EBS volume for durability, is covered in week4.html 18.10 — that's fundamentally a Terraform/infrastructure topic (provisioning compute), not a Jenkins-specific one, so it lives with the rest of Week 4's real resource patterns rather than here.</p></div>
+</div>
+</details>
+
+<details class="sub" id="d20-3">
+<summary><span class="sub-num">20.3</span><h3>Plugin Hygiene, the Credentials Store &amp; Folder-Level Security</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>Three separate concerns that all show up under "Manage Jenkins," easy to conflate.</p>
+<h4 class="mini">Plugin hygiene</h4>
+<p>Every installed plugin is both an attack surface and a maintenance burden — each one can introduce its own vulnerabilities, and each one needs updating independently. Install only what a pipeline actually needs, keep an inventory of what's installed and why, and pin versions rather than auto-updating blindly (the same reasoning as 15.2's provider version pinning, applied to Jenkins' own plugin ecosystem).</p>
+<h4 class="mini">The credentials store</h4>
+<p>Jenkins has a built-in, encrypted credential store (<em>Manage Jenkins → Credentials</em>) — AWS keys, SSH keys, tokens are added there once and referenced by ID from a <code>Jenkinsfile</code>, never hardcoded into pipeline code:</p>
+<pre data-lang="groovy">withCredentials([usernamePassword(credentialsId: 'ecr-creds', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
+  sh 'docker login -u $USER -p $PASS ...'
+}</pre>
+<div class="fact fact-fail"><span class="tag">A credential ID in a Jenkinsfile is not the credential</span><p><code>credentialsId: 'ecr-creds'</code> is just a lookup key — the actual secret value never appears in the pipeline source, never gets committed to the repo, and Jenkins actively masks it out of build console logs. Anyone who can edit the Jenkinsfile can use the credential, but they can't read its value from the code itself.</p></div>
+<h4 class="mini">Folder-level security</h4>
+<p>Folders aren't just organization — they're a permission and credential-scoping boundary. A credential added inside a folder is only visible to jobs inside that same folder, and role-based/matrix security can grant a team full control over their own folder's jobs without touching anyone else's. This is what makes multi-team Jenkins viable on one shared controller instead of needing a separate instance per team.</p>
+</div>
+</details>
+
+<details class="sub" id="d20-4">
+<summary><span class="sub-num">20.4</span><h3>Backing Up JENKINS_HOME</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p><code>JENKINS_HOME</code> holds everything: every job's configuration, full build history, encrypted credentials, and every installed plugin's binary. Losing it is losing the entire Jenkins instance's identity, not just the compute it happened to run on.</p>
+<div class="table-scroll">
+<table>
+<thead><tr><th></th><th>EBS snapshot</th><th>ThinBackup (plugin)</th></tr></thead>
+<tbody>
+<tr><td>What it captures</td><td>The entire volume, byte for byte</td><td>Job configs, build records, and credentials specifically — Jenkins-aware</td></tr>
+<tr><td>Restore unit</td><td>The whole volume, as one point in time</td><td>Selectable — restore just job configs without touching build history, or vice versa</td></tr>
+<tr><td>Where it lives</td><td>Infra-level (week4.html 18.10's EBS volume) — same mechanism as any other point-in-time recovery (week2.html 7.2's RDS backups)</td><td>Jenkins-level, scheduled from inside the Jenkins UI itself</td></tr>
+</tbody>
+</table>
+</div>
+<div class="fact fact-fail"><span class="tag">An untested backup is a hope, not a backup</span><p>The same principle from every other backup strategy in this project applies here without modification: a snapshot that's never been restored is unverified. Actually restoring a <code>JENKINS_HOME</code> snapshot onto a fresh controller at least once, before it's needed for real, is what turns "we take backups" into "we know recovery actually works."</p></div>
+</div>
+</details>
+
+<details class="sub" id="d20-5">
+<summary><span class="sub-num">20.5</span><h3>The Declarative Jenkinsfile</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>A <code>Jenkinsfile</code> is Jenkins' equivalent of a Terraform config — a checked-in file describing a pipeline as code, instead of clicking through the UI to define a job.</p>
+<pre data-lang="groovy">pipeline {
+  agent { label 'linux' }
+
+  parameters {
+    choice(name: 'ENVIRONMENT', choices: ['dev', 'stg'], description: 'Target environment')
+  }
+
+  environment {
+    AWS_REGION = 'ap-south-1'
+  }
+
+  stages {
+    stage('Test') {
+      steps { sh 'npm test' }
+    }
+    stage('Deploy') {
+      when { branch 'main' }
+      steps { sh "./deploy.sh ${params.ENVIRONMENT}" }
+    }
+  }
+
+  post {
+    failure { echo 'Notify the team -- build failed' }
+    always  { cleanWs() }
+  }
+}</pre>
+<dl class="termlist">
+<dt><code>agent</code></dt>
+<dd>Where this pipeline runs — a label (20.1), a specific Docker image, or <code>none</code> if each stage declares its own.</dd>
+<dt><code>parameters</code></dt>
+<dd>Build-time user input — a dropdown, a string field, a checkbox — collected before the pipeline starts, referenced as <code>params.NAME</code>.</dd>
+<dt><code>environment</code></dt>
+<dd>Environment variables available to every step in the pipeline (or scoped to just one <code>stage</code> if declared inside it instead).</dd>
+<dt><code>when</code></dt>
+<dd>Guards a <code>stage</code> — here, the <code>Deploy</code> stage only actually runs on the <code>main</code> branch, though it's still evaluated (and skipped) on every other branch's run.</dd>
+<dt><code>post</code></dt>
+<dd>Runs after the pipeline finishes, regardless of outcome — <code>always</code>, <code>success</code>, <code>failure</code>, and others let cleanup or notification logic depend on how the run ended, the closest Jenkins equivalent to a <code>try</code>/<code>finally</code>.</dd>
+</dl>
+</div>
+</details>
+
+<details class="sub" id="d20-6">
+<summary><span class="sub-num">20.6</span><h3>Multibranch Pipelines, Webhooks &amp; Shared Libraries</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>Three pieces that turn "one Jenkinsfile" into "a real CI setup serving a whole repository."</p>
+<h4 class="mini">Multibranch pipeline</h4>
+<p>Instead of one job per branch created by hand, a multibranch pipeline job scans a repository and automatically creates (and destroys) a pipeline run per branch and per pull request — each one running the <em>same</em> <code>Jenkinsfile</code>, checked into that specific branch, so a feature branch can even modify its own pipeline before merging.</p>
+<h4 class="mini">Webhooks</h4>
+<p>Without a webhook, Jenkins has to poll the repository on a timer to notice new commits — slow, and wasteful when nothing's changed. A webhook has GitHub/GitLab push an event to Jenkins the moment a commit or PR happens, triggering the build immediately instead of waiting for the next poll.</p>
+<h4 class="mini">Shared libraries</h4>
+<p>A shared library is a separate git repository of reusable Groovy pipeline code (conventionally under <code>vars/</code> and <code>src/</code>), loaded into any Jenkinsfile that needs it:</p>
+<pre data-lang="groovy">@Library('platform-shared-lib') _
+
+pipeline {
+  agent { label 'linux' }
+  stages {
+    stage('Deploy') {
+      steps { deployToEcs(service: 'order-service', environment: 'dev') }
+    }
+  }
+}</pre>
+<div class="fact fact-good"><span class="tag">The same reasoning as a Terraform module</span><p><code>deployToEcs(...)</code> above is a function defined once in the shared library and called from every pipeline that needs to deploy to ECS — the exact same motivation as extracting a Terraform module (16.6): once the same handful of steps shows up in a third Jenkinsfile, that's the signal to stop copy-pasting Groovy and put it in one place every pipeline calls instead.</p></div>
+</div>
+</details>
+
+<details class="sub" id="d20-7">
+<summary><span class="sub-num">20.7</span><h3>Certified Jenkins Engineer (CJE)</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>The external validation for Jenkins specifically, the way week4.html 19.9 covers Terraform's — CloudBees' <a href="https://university.cloudbees.com/certification-guide-and-information">Certified Jenkins Engineer (CJE)</a> exam, last updated September 2023. Worth knowing before searching further: CloudBees retired a similarly-named <em>CCJE</em> (Certified CloudBees Jenkins Engineer) credential back in 2022 — CJE, without the extra "C," is the one still active.</p>
+<div class="table-scroll">
+<table>
+<thead><tr><th></th><th></th></tr></thead>
+<tbody>
+<tr><td>Format</td><td>60 multiple-choice questions, 90 minutes</td></tr>
+<tr><td>Passing score</td><td>66%</td></tr>
+<tr><td>Prerequisites</td><td>None formally, though CloudBees recommends real hands-on Jenkins experience first</td></tr>
+<tr><td>Tests against</td><td>Open-source Jenkins core (not CloudBees CI/Operations Center specifically)</td></tr>
+</tbody>
+</table>
+</div>
+<h4 class="mini">The four exam domains</h4>
+<ol>
+<li><strong>Jenkins Fundamentals</strong> — core CI/CD concepts, jobs and builds, source code management integration, plugins, security (authentication/authorization), the REST API</li>
+<li><strong>Jenkins Administration</strong> — installation, distributed builds, controller/agent configuration, credentials, artifact and fingerprint management, notifications</li>
+<li><strong>Pipeline (Build Technologies)</strong> — declarative pipeline syntax, stages and steps, multibranch pipelines, shared libraries, promotion strategies, upstream/downstream triggering</li>
+<li><strong>Freestyle (Build Technologies)</strong> — the older, UI-configured job type predating Pipeline-as-code — still a real exam section even though this project skips straight to declarative pipelines</li>
+</ol>
+<div class="fact fact-fail"><span class="tag">Public breakdowns of the exact weighting disagree</span><p>Unlike week4.html 19.9's HashiCorp source (a single official, current objectives page), CloudBees doesn't publish one canonical up-to-date percentage breakdown the way HashiCorp does — third-party prep sites list different weightings and even different section names for the same four domains. Treat the domain list above as directionally reliable, but verify specifics against CloudBees' own current study guide before relying on any one source's exact percentages.</p></div>
+<div class="fact fact-good"><span class="tag">Where 20.1–20.6 already land</span><p>Controller/agent architecture (20.1), installation itself (20.2 — literally named in the Administration domain's topic list), plugin/credential/folder security (20.3), the declarative Jenkinsfile (20.5), and multibranch/shared libraries (20.6) map directly onto the Administration and Pipeline domains — the two domains carrying the most exam weight in every breakdown found. Freestyle jobs are the one domain this project doesn't touch at all, by design (declarative pipelines are what real teams write today) — worth a dedicated look at Freestyle specifically if sitting this exam, purely because the exam still covers it.</p></div>
+</div>
+</details>
+
 </div>
 </details>
 <details class="day" id="d21">

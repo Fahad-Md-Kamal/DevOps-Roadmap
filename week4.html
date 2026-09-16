@@ -94,6 +94,7 @@
               </ul>
             </li>
             <li><a href="#d18-9"><span class="sub-num">9</span>AWS Lambda: IAM &amp; Packaging</a></li>
+            <li><a href="#d18-10"><span class="sub-num">10</span>Provisioning a Jenkins Controller</a></li>
           </ul>
         </li>
         <li>
@@ -2001,6 +2002,33 @@ resource "aws_lambda_function" "tf_lambda_func" {
 }</pre>
 <div class="fact fact-good"><span class="tag">Why real pipelines use this even under 50 MB</span><p>Beyond the size ceiling, S3-based deployment means the artifact exists as a named, addressable object — a CI pipeline can build the zip once, upload it, and reference the exact same S3 object from multiple environments (dev/stg/prod) without re-zipping or re-uploading. <code>etag = data.archive_file...output_md5</code> is what makes Terraform notice the code actually changed: without it, updating the local zip wouldn't trigger a new <code>aws_s3_object</code> upload at all, and the function would silently keep running the old code.</p></div>
 <div class="fact fact-fail"><span class="tag">250 MB unzipped is still a hard ceiling either way</span><p>S3-based deployment raises the limit, it doesn't remove it — AWS caps the <em>unzipped</em> deployment package (code plus every dependency) at 250 MB regardless of upload method. A function approaching that size is usually a sign it's bundling more than it needs (16.6's over-abstraction warning, applied to a dependency tree instead of a module) — worth checking whether a Lambda Layer, or splitting into more than one function, fits better than pushing the ceiling.</p></div>
+</div>
+</details>
+
+<details class="sub" id="d18-10">
+<summary><span class="sub-num">18.10</span><h3>Provisioning a Jenkins Controller</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>A Jenkins controller (week5.html Day 20) is itself just a resource — an EC2 instance, a security group, and a <code>user_data</code> script that installs and starts it, the same shape as every other compute resource in this file.</p>
+<pre data-lang="bash">#!/bin/bash
+dnf update -y
+dnf install -y java-17-amazon-corretto
+wget -O /etc/yum.repos.d/jenkins.repo https://pkg.jenkins.io/redhat-stable/jenkins.repo
+rpm --import https://pkg.jenkins.io/redhat-stable/jenkins.io-2023.key
+dnf install -y jenkins
+systemctl enable --now jenkins</pre>
+<div class="fact fact-note"><span class="tag">dnf, not apt-get — same lesson as 18.8.1</span><p>This script assumes an Amazon Linux AMI, matching the exact AMI-family reasoning already covered for <code>user_data</code> scripts in general: the package manager and package names have to match the actual OS the instance boots from, not whatever was copied from a different example.</p></div>
+<pre data-lang="hcl">resource "aws_ebs_volume" "jenkins_home" {
+  availability_zone = aws_instance.jenkins_controller.availability_zone
+  size              = 50
+  tags              = { Name = "jenkins-home" }
+}
+
+resource "aws_volume_attachment" "jenkins_home" {
+  device_name = "/dev/xvdf"
+  volume_id   = aws_ebs_volume.jenkins_home.id
+  instance_id = aws_instance.jenkins_controller.id
+}</pre>
+<div class="fact fact-fail"><span class="tag">JENKINS_HOME does not belong on the root volume</span><p>Every job config, build history, and credential Jenkins holds lives under <code>JENKINS_HOME</code> (<code>/var/lib/jenkins</code> by default). Mounting it on a separate EBS volume, not the instance's root volume, means replacing the controller instance itself — a new AMI, a resize, a region move — doesn't threaten that data at all: detach the volume, attach it to the new instance, done. Same principle as 19.7's <code>prevent_destroy</code> on a critical resource — the data that actually matters shouldn't share a lifecycle with the compute that happens to be running it this week.</p></div>
 </div>
 </details>
 

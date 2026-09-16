@@ -107,6 +107,7 @@
             <li><a href="#d19-6"><span class="sub-num">6</span>Machine-Readable Plans</a></li>
             <li><a href="#d19-7"><span class="sub-num">7</span>Importing Existing Resources</a></li>
             <li><a href="#d19-8"><span class="sub-num">8</span>Debug Logging: TF_LOG</a></li>
+            <li><a href="#d19-9"><span class="sub-num">9</span>Terraform Associate Certification</a></li>
           </ul>
         </li>
       </ul>
@@ -2184,6 +2185,38 @@ terraform apply</pre>
 <div class="fact fact-fail"><span class="tag">The directory has to already exist</span><p>Terraform does not create missing directories in <code>TF_LOG_PATH</code> — pointing it at <code>/home/fahad/logs/debug.log</code> when <code>/home/fahad/logs/</code> doesn't exist yet fails to write the log at all (checked directly: a fresh <code>logs/</code> directory genuinely doesn't exist until something creates it). <code>mkdir -p</code> the directory first, the same requirement as any other tool writing to a path you haven't set up yet.</p></div>
 <div class="fact fact-note"><span class="tag">The log file is appended to, not overwritten</span><p>Every subsequent command with the same <code>TF_LOG_PATH</code> set keeps adding to the same file rather than starting fresh — a log from an hour ago and one from just now sit in the same file, back to back. Delete or rotate it manually between debugging sessions, or it grows indefinitely and makes finding the relevant run harder each time.</p></div>
 <div class="fact fact-good"><span class="tag">Unset both when done</span><p>Both variables persist for every Terraform command run in that shell session afterward, not just the one that needed debugging — exactly the same "stray environment variable" class of surprise as 15.2's credential-precedence gotcha. A stray <code>TF_LOG=TRACE</code> left set makes every future <code>plan</code> print pages of noise nobody asked for; <code>unset TF_LOG TF_LOG_PATH</code> (or just open a fresh terminal) once the debugging is done avoids that.</p></div>
+</div>
+</details>
+
+<details class="sub" id="d19-9">
+<summary><span class="sub-num">19.9</span><h3>Beyond the Checkpoint: Terraform Associate Certification</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>An external, formal validation of everything Week 4 covers — HashiCorp's own <a target="_blank" href="https://developer.hashicorp.com/terraform/tutorials/certification-004/associate-review-004">Terraform Associate (004)</a> exam, current as of late 2026 (the prior 003 version retired January 2026).</p>
+<div class="table-scroll">
+<table>
+<thead><tr><th></th><th></th></tr></thead>
+<tbody>
+<tr><td>Format</td><td>1 hour, online proctored, ~57 questions (multiple choice / multiple answer / true-false)</td></tr>
+<tr><td>Cost</td><td>~$70.50 USD + local taxes</td></tr>
+<tr><td>Validity</td><td>2 years</td></tr>
+<tr><td>Prerequisites</td><td>None</td></tr>
+<tr><td>Tests against</td><td>Terraform 1.12</td></tr>
+</tbody>
+</table>
+</div>
+<h4 class="mini">The 8 official objectives</h4>
+<ol>
+<li><strong>Infrastructure as Code with Terraform</strong> — what IaC is, its advantages, multi-cloud/hybrid/service-agnostic workflows</li>
+<li><strong>Terraform Fundamentals</strong> — installing/versioning providers, multi-provider configs, how state is used (15.2, 17.1)</li>
+<li><strong>Core Terraform Workflow</strong> — <code>init</code>, <code>validate</code>, <code>plan</code>, <code>apply</code>, <code>destroy</code>, <code>fmt</code> (15.4, 15.5)</li>
+<li><strong>Terraform Configuration</strong> — <code>resource</code> vs <code>data</code>, cross-resource references, variables/outputs, complex types, expressions/functions, resource dependencies, custom validation conditions, sensitive data handling including Vault (15.3, 15.6, 16.1, 16.4, 16.10)</li>
+<li><strong>Terraform Modules</strong> — sourcing, variable scope, using, versioning (16.4, 16.5, 16.6, 18.8.2)</li>
+<li><strong>Terraform State Management</strong> — local backend, state locking, remote state via <code>backend</code>, drift (17.1, 17.2, 19.1)</li>
+<li><strong>Maintain Infrastructure with Terraform</strong> — <code>import</code>, inspecting state via the CLI, verbose logging (19.4, 19.7, 19.8)</li>
+<li><strong>HCP Terraform</strong> — creating infrastructure via HCP Terraform, collaboration/governance features, workspaces/projects, integrations</li>
+</ol>
+<div class="fact fact-good"><span class="tag">Objectives 1–7: already in strong shape</span><p>Every objective above except the last has a real, hands-on match somewhere in this week — not just reading about the concept, but having hit its actual failure modes against a real account (drift, a corrupted lock, a botched import, a missing <code>depends_on</code>). That's a meaningfully stronger position than most exam preparation, which is usually reading-only.</p></div>
+<div class="fact fact-fail"><span class="tag">Objective 8 (HCP Terraform) is the one clean gap</span><p>Nothing in this project has touched HCP Terraform specifically — its workspaces/projects, collaboration and governance features, or run-integration model. That's roughly one-eighth of the exam, covering a genuinely different product surface (a hosted service, not the CLI/provider mechanics everything else here is built on) — worth deliberate, separate study before sitting the exam, rather than assuming it's covered by the remote-backend/state concepts already learned.</p></div>
 </div>
 </details>
 

@@ -43,11 +43,14 @@
           <ul class="sub-list">
             <li><a href="#d20-1"><span class="sub-num">1</span>Controller &amp; Agent Model</a></li>
             <li><a href="#d20-2"><span class="sub-num">2</span>Installing Jenkins &amp; First-Time Setup</a></li>
-            <li><a href="#d20-3"><span class="sub-num">3</span>Plugins, Credentials &amp; Folder Security</a></li>
-            <li><a href="#d20-4"><span class="sub-num">4</span>Backing Up JENKINS_HOME</a></li>
-            <li><a href="#d20-5"><span class="sub-num">5</span>The Declarative Jenkinsfile</a></li>
-            <li><a href="#d20-6"><span class="sub-num">6</span>Multibranch, Webhooks &amp; Shared Libraries</a></li>
-            <li><a href="#d20-7"><span class="sub-num">7</span>Certified Jenkins Engineer (CJE)</a></li>
+            <li><a href="#d20-3"><span class="sub-num">3</span>Connecting an Agent Node via SSH</a></li>
+            <li><a href="#d20-4"><span class="sub-num">4</span>Job Types: What New Item Offers</a></li>
+            <li><a href="#d20-5"><span class="sub-num">5</span>Pipeline Job Config &amp; Script Definition</a></li>
+            <li><a href="#d20-6"><span class="sub-num">6</span>Plugins, Credentials &amp; Folder Security</a></li>
+            <li><a href="#d20-7"><span class="sub-num">7</span>Backing Up JENKINS_HOME</a></li>
+            <li><a href="#d20-8"><span class="sub-num">8</span>The Declarative Jenkinsfile</a></li>
+            <li><a href="#d20-9"><span class="sub-num">9</span>Multibranch, Webhooks &amp; Shared Libraries</a></li>
+            <li><a href="#d20-10"><span class="sub-num">10</span>Certified Jenkins Engineer (CJE)</a></li>
           </ul>
         </li>
         <li>
@@ -92,18 +95,46 @@
   stages { stage('Build') { steps { sh 'make build' } } }
 }</pre>
 <div class="fact fact-good"><span class="tag">Why not just one big controller</span><p>Separate agents mean a Windows build and a Linux build can run on the same Jenkins instance without one machine needing both toolchains installed, and adding build capacity is "add another agent," not "resize the box everything else depends on." The controller stays a stable, mostly-idle coordination point regardless of how much build traffic the team generates.</p></div>
+<h4 class="mini">Why agents exist, beyond just isolation</h4>
+<div class="table-scroll">
+<table>
+<thead><tr><th>Reason</th><th>What it actually buys</th></tr></thead>
+<tbody>
+<tr><td>Isolation</td><td>Arbitrary, untrusted build code never runs on the one process everything else depends on (the fact-fail above).</td></tr>
+<tr><td>Horizontal scaling</td><td>More build capacity is "provision another agent," not "give the controller a bigger instance" — capacity and coordination scale independently.</td></tr>
+<tr><td>Environment matching</td><td>A label picks the toolchain a build actually needs — a specific OS, a GPU, a licensed tool only installed on one machine — instead of forcing every build to fit whatever the controller happens to have.</td></tr>
+<tr><td>Parallelism</td><td>Multiple agents mean multiple builds genuinely running at once, not queued behind each other on a single executor.</td></tr>
+<tr><td>Network/resource proximity</td><td>An agent can live inside the same VPC, region, or on-prem network as whatever it needs to reach fast — an internal artifact repo, a private database, a specific compliance boundary — without routing the controller itself into that network.</td></tr>
+<tr><td>Team/security segregation</td><td>Folder-scoped agents (20.6) let one team's builds run on infrastructure another team can't touch, without needing a separate Jenkins instance per team.</td></tr>
+</tbody>
+</table>
+</div>
+<h4 class="mini">Types of agents</h4>
+<div class="table-scroll">
+<table>
+<thead><tr><th>Type</th><th>How it connects / how long it lives</th></tr></thead>
+<tbody>
+<tr><td>Static (permanent) agent</td><td>Added once by hand via <strong>Manage Jenkins → Nodes</strong> and left running indefinitely — one real, named machine (20.3's EC2 example). Simple, but it's idle capacity paid for even when no build is using it.</td></tr>
+<tr><td>SSH (outbound) agent</td><td>The controller initiates the connection, over SSH, to a host it already knows the address of (20.3). Needs the agent host reachable from the controller, not the other way around.</td></tr>
+<tr><td>Inbound (JNLP/WebSocket) agent</td><td>The agent initiates the connection <em>to</em> the controller instead — the fix when the agent sits behind NAT or a firewall the controller can't reach inbound, e.g. a build machine on a laptop or in a restricted network.</td></tr>
+<tr><td>Cloud / ephemeral agent</td><td>Provisioned on demand by a plugin (EC2 Fleet, Docker, Kubernetes) when a build needs one, then torn down afterward. No idle cost, and every build starts from a known-clean environment instead of accumulating drift on a long-lived machine.</td></tr>
+<tr><td>Docker agent</td><td>Declared directly in a Jenkinsfile — <code>agent { docker { image 'node:20' } }</code> — a fresh, disposable container per build or per stage, with the exact toolchain version pinned in code instead of installed once on a static machine.</td></tr>
+<tr><td>Built-in node</td><td>The controller's own, hidden executor pool — technically able to run builds itself, which is exactly what the fact-fail above says not to rely on. Usually set to 0 executors deliberately on any real controller.</td></tr>
+</tbody>
+</table>
+</div>
 </div>
 </details>
 
 <details class="sub" id="d20-2">
 <summary><span class="sub-num">20.2</span><h3>Installing Jenkins &amp; First-Time Setup</h3><span class="chev-sm"></span></summary>
 <div class="sub-content">
-<p>Before anything gets provisioned as code (20.3), it's worth knowing what "installing Jenkins" actually involves by hand — the same principle as week4.html starting from <code>ssh-keygen</code> and a plain resource block before ever reaching a module. Jenkins is a Java application; everything below assumes Java is present first.</p>
+<p>Before anything gets provisioned as code (20.4), it's worth knowing what "installing Jenkins" actually involves by hand — the same principle as week4.html starting from <code>ssh-keygen</code> and a plain resource block before ever reaching a module. Jenkins is a Java application; everything below assumes Java is present first.</p>
 <div class="table-scroll">
 <table>
 <thead><tr><th>Method</th><th>Command</th><th>Good for</th></tr></thead>
 <tbody>
-<tr><td>Native package (Amazon Linux/RHEL)</td><td><code>dnf install jenkins</code>, after adding the Jenkins repo</td><td>A long-lived controller on a real instance — this project's approach (20.3)</td></tr>
+<tr><td>Native package (Amazon Linux/RHEL)</td><td><code>dnf install jenkins</code>, after adding the Jenkins repo</td><td>A long-lived controller on a real instance — this project's approach (20.4)</td></tr>
 <tr><td>Native package (Debian/Ubuntu)</td><td><code>apt-get install jenkins</code>, after adding the Jenkins <code>apt</code> repo and signing key</td><td>Same idea, different AMI family — the exact <code>dnf</code>/<code>apt-get</code> distinction from 18.8.1, applied to Jenkins itself now</td></tr>
 <tr><td>Docker</td><td><code>docker run -p 8080:8080 -v jenkins_home:/var/jenkins_home jenkins/jenkins:lts</code></td><td>Trying Jenkins locally, or running it as a container on ECS/EKS instead of a bare EC2 instance</td></tr>
 <tr><td>WAR file</td><td><code>java -jar jenkins.war</code></td><td>Quick, throwaway testing — nothing installed system-wide, nothing left behind but the process</td></tr>
@@ -134,11 +165,11 @@ apt-get install -y jenkins</pre>
 <dt>Unlock Jenkins</dt>
 <dd>Paste that password into the setup wizard at <code>http://&lt;controller-ip&gt;:8080</code> — proves whoever's completing setup actually has access to the server itself, not just the network port.</dd>
 <dt>Install plugins</dt>
-<dd>"Install suggested plugins" is the reasonable default for a first controller — a curated set covering Git, pipelines, and the essentials. "Select plugins to install" is the deliberate route once 20.4's plugin-hygiene principle actually matters — smaller footprint, chosen instead of inherited.</dd>
+<dd>"Install suggested plugins" is the reasonable default for a first controller — a curated set covering Git, pipelines, and the essentials. "Select plugins to install" is the deliberate route once 20.5's plugin-hygiene principle actually matters — smaller footprint, chosen instead of inherited.</dd>
 <dt>Create the first admin user</dt>
 <dd>Skipping this and continuing as the default <code>admin</code> account is explicitly offered but shouldn't be taken for anything beyond a five-minute local test — the same reasoning as never leaving a database on its default credentials.</dd>
 <dt>Instance configuration</dt>
-<dd>Confirms the URL Jenkins believes it's reachable at — matters later for webhook payload URLs (20.7) and any notification that links back to a build, since a wrong URL here means links that go nowhere.</dd>
+<dd>Confirms the URL Jenkins believes it's reachable at — matters later for webhook payload URLs (20.8) and any notification that links back to a build, since a wrong URL here means links that go nowhere.</dd>
 </dl>
 <h4 class="mini">Operating Jenkins as a systemd service</h4>
 <p>The native package installs Jenkins as a real systemd unit, not just a process someone starts by hand — the same start/stop/status vocabulary as any other Linux service applies directly:</p>
@@ -162,7 +193,136 @@ journalctl -u jenkins -f     # follow the service's own logs live</pre>
 </details>
 
 <details class="sub" id="d20-3">
-<summary><span class="sub-num">20.3</span><h3>Plugin Hygiene, the Credentials Store &amp; Folder-Level Security</h3><span class="chev-sm"></span></summary>
+<summary><span class="sub-num">20.3</span><h3>Connecting an Agent Node via SSH</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>A controller with no agents attached still has nowhere to actually run a build (20.1). <strong>Manage Jenkins → Nodes → New Node</strong> creates one — "Permanent Agent" for a real, long-lived machine like an EC2 instance, as opposed to a cloud-provisioned, one-build-and-gone agent. The SSH launch method needs nothing pre-installed on the target beyond SSH access and a working Java — the controller pushes its own agent jar over the connection itself.</p>
+<figure class="diagram-fig">
+<img src="jenkins/images/agent-connecting-configs.png" alt="Jenkins node Configure screen: Name agent-one, Remote root directory /home/ec2-user, Labels agent-one, Launch method Launch agents via SSH, with Host and Credentials fields">
+<figcaption>A permanent agent node's Configure screen — SSH launch method, pointed at one EC2 instance</figcaption>
+</figure>
+<dl class="termlist">
+<dt>Name</dt>
+<dd>The node's identity inside Jenkins — shown in build history and node listings, independent of the label used to target it.</dd>
+<dt>Remote root directory</dt>
+<dd>Where the agent jar and every job's workspace get written on the remote machine — <code>/home/ec2-user</code> above, which is also why the earlier pipeline output showed <code>Running on agent-one in /home/ec2-user/workspace/CICD</code>.</dd>
+<dt>Labels</dt>
+<dd>What a pipeline's <code>agent</code> directive (20.1) actually matches against — set to <code>agent-one</code> here, matching the node's own name, but the two are independent; a label can be shared across several nodes, or differ from the node's name entirely.</dd>
+<dt>Usage</dt>
+<dd>"Use this node as much as possible" lets the controller schedule any matching job here; the alternative, "Only build jobs with label expressions matching this node," reserves it for jobs that explicitly ask for it and nothing else.</dd>
+<dt>Launch method: Launch agents via SSH</dt>
+<dd>Host and Credentials (an SSH keypair, added to Jenkins' credentials store — 20.6) are all this method needs. Jenkins opens the connection itself on save, or whenever the node is manually relaunched.</dd>
+</dl>
+<h4 class="mini">What actually happens when it connects</h4>
+<pre data-lang="text">[SSH] Opening SSH connection to &lt;agent-host&gt;:22.
+[SSH] Authentication successful.
+[SSH] Starting sftp client.
+[SSH] Copying latest remoting.jar...
+[SSH] Starting agent process: cd "/home/ec2-user" &amp;&amp; java -jar remoting.jar -workDir /home/ec2-user
+Agent successfully connected and online</pre>
+<p>Underneath the UI, this is exactly the SSH-file-transfer-plus-remote-command pattern from week4.html's own <code>ssh-keygen</code>/<code>scp</code> fundamentals — Jenkins just automates it: connect, copy its agent jar over SFTP, then run it with <code>java -jar</code> on the other end.</p>
+<div class="fact fact-fail"><span class="tag">"java: command not found" here means Java is missing, not Jenkins misconfigured</span><p>The SSH connection and the SFTP copy can both succeed — the log shows authentication working and <code>remoting.jar</code> transferring cleanly — and the launch can still fail at the very last step, <code>bash: line 1: java: command not found</code> / <code>Agent JVM has terminated. Exit code=127</code>, because there's simply no <code>java</code> on the agent host's <code>PATH</code>. A common real cause: a boot-time install script (this project's own 20.2/week4.html 18.10 pattern) that ran <code>dnf install</code>/<code>yum install</code> without <code>-y</code> — harmless interactively, but silently skipped during a non-interactive <code>user_data</code> boot with no terminal to answer its confirmation prompt. Fix on the agent host directly (install Java, or relaunch the instance with the corrected script) — nothing about this is a Jenkins-side problem.</p></div>
+<h4 class="mini">Referencing the node from a pipeline</h4>
+<pre data-lang="groovy">pipeline {
+    agent { label 'agent-one' }
+    stages {
+        stage('Hello') { steps { echo 'Hello World' } }
+    }
+}</pre>
+<div class="fact fact-fail"><span class="tag">An unquoted label is Groovy math, not a string</span><p><code>agent { label agent-one }</code> — no quotes — doesn't fail because of anything wrong with the label. Groovy parses the bareword <code>agent-one</code> as the expression <code>agent - one</code>, subtracting two undefined variables, which throws <code>groovy.lang.MissingPropertyException: No such property: agent</code> from inside Jenkins' own <code>ModelInterpreter.inDeclarativeAgent</code> — a genuinely confusing error for what's really just a missing pair of quotes. <code>label 'agent-one'</code> is the fix, same as quoting any other Groovy string.</p></div>
+<div class="fact fact-note"><span class="tag">"Still waiting to schedule task ‘agent-one’ is offline"</span><p>A pipeline whose <code>agent</code> label matches only a currently-disconnected node queues indefinitely — there's no default timeout. <strong>Manage Jenkins → Nodes →</strong> that node shows its live status and log; clicking <strong>Launch agent</strong> retries the SSH connection without touching the pipeline itself, and an already-queued build picks up automatically the moment the node comes back online. On a memory-constrained instance (a <code>t3.micro</code>'s 1GB strained by a JVM plus the remoting process), a node can connect successfully and then drop again shortly after — <code>dmesg | grep -i kill</code> on the agent host is worth checking for an OOM kill if that keeps happening.</p></div>
+</div>
+</details>
+
+<details class="sub" id="d20-4">
+<summary><span class="sub-num">20.4</span><h3>Job Types: What "New Item" Actually Offers</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>Clicking <strong>New Item</strong> in Jenkins shows every kind of thing it can create, in one screen — worth knowing the full list before defaulting to whichever one a tutorial happened to use. An overview for now; each gets its own use-cases/pros-cons/step-by-step treatment later.</p>
+<div class="table-scroll">
+<table>
+<thead><tr><th>Item type</th><th>What it's for</th></tr></thead>
+<tbody>
+<tr><td>Pipeline</td><td>Build, test, and deploy using a <code>Jenkinsfile</code> (20.7). Supports stages, parallel work, and running steps across multiple agents.</td></tr>
+<tr><td>Freestyle project</td><td>The classic, UI-configured job type — checks out from up to one SCM, runs build steps serially, then post-build actions like archiving artifacts or sending email. Predates Pipeline-as-code, and still its own CJE exam section (20.8).</td></tr>
+<tr><td>Multi-configuration project</td><td>One job definition run across many combinations automatically — multiple OSes, multiple environments, multiple platform targets — without hand-creating a separate job per combination.</td></tr>
+<tr><td>Folder</td><td>A real namespace, not just a filter — two items can share a name if they live in different folders. The same folder that scopes credentials and permissions in 20.5.</td></tr>
+<tr><td>Multibranch Pipeline</td><td>Scans one repository and creates a Pipeline job per detected branch and pull request automatically (20.7) — no manually creating a job per branch.</td></tr>
+<tr><td>Organization Folder</td><td>One level up from Multibranch Pipeline — scans an entire GitHub org/Bitbucket project for repositories, and creates a Multibranch Pipeline for each one it finds.</td></tr>
+</tbody>
+</table>
+</div>
+<div class="fact fact-note"><span class="tag">"Duplicate an existing item" isn't a type</span><p>It's the seventh option on the same screen, but it's a shortcut action, not a job type of its own — it just copies an existing item's configuration into a new one, for any type above, as a starting point instead of configuring from scratch.</p></div>
+</div>
+</details>
+
+<details class="sub" id="d20-5">
+<summary><span class="sub-num">20.5</span><h3>Pipeline Job Configuration: General, Triggers &amp; the Script Definition</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>Choosing "Pipeline" as the item type (20.4) opens this configuration screen — the same shape every Pipeline job shares, regardless of what its stages actually do.</p>
+<h4 class="mini">General</h4>
+<div class="table-scroll">
+<table>
+<thead><tr><th>Option</th><th>What it actually does</th></tr></thead>
+<tbody>
+<tr><td>Discard old builds</td><td>A retention policy — keep only the last N builds or the last N days. Without it, build history (20.6) grows forever.</td></tr>
+<tr><td>Do not allow concurrent builds</td><td>Serializes runs of <em>this same job</em> — a second trigger waits instead of running in parallel. For a job that touches shared state it can't safely share with itself.</td></tr>
+<tr><td>Do not allow the pipeline to resume if the controller restarts</td><td>Jenkins normally tries to resume an in-progress pipeline after a controller restart. Disabling this makes a restart abort the run instead — the right choice when a resumed run risks replaying a non-idempotent step (5.6/week2.html territory: retries are only safe when the operation tolerates repetition).</td></tr>
+<tr><td>GitHub project</td><td>Just a display link back to the repo's GitHub page — cosmetic, not functional.</td></tr>
+<tr><td>Pipeline speed/durability override</td><td>Trades how often Jenkins persists pipeline state to disk against I/O overhead — safer and slower, or faster and more state lost if the controller crashes mid-run.</td></tr>
+<tr><td>Preserve stashes from completed builds</td><td>A <code>stash</code> (files passed between stages/agents) is normally discarded once the build finishes — this keeps it around afterward for inspection.</td></tr>
+<tr><td>This project is parameterized</td><td>The UI equivalent of a Jenkinsfile's <code>parameters {}</code> block (20.8) — configured by clicking instead of by code.</td></tr>
+<tr><td>Throttle builds</td><td>Rate-limits how often, or how many concurrently, this job (or a named category of jobs) can run — for protecting a shared resource several different jobs compete for.</td></tr>
+</tbody>
+</table>
+</div>
+<div class="fact fact-fail"><span class="tag">Concurrent-build prevention and throttling solve different problems</span><p>"Do not allow concurrent builds" only stops <em>this one job</em> from overlapping with itself. "Throttle builds" limits a whole category of jobs against each other — useful when five unrelated jobs all hit the same rate-limited API and none of them individually looks like the problem.</p></div>
+<h4 class="mini">Triggers</h4>
+<div class="table-scroll">
+<table>
+<thead><tr><th>Trigger</th><th>What starts the build</th></tr></thead>
+<tbody>
+<tr><td>Build after other projects are built</td><td>Upstream/downstream chaining — this job runs automatically once a named other job finishes.</td></tr>
+<tr><td>Build periodically</td><td>A cron-syntax schedule — the same five-field format as week2.html 5.6's scheduled scaling policies, evaluated in the controller's own timezone.</td></tr>
+<tr><td>GitHub hook trigger for GITScm polling</td><td>The real webhook (20.9) — GitHub pushes an event to Jenkins the moment something happens, no delay.</td></tr>
+<tr><td>Poll SCM</td><td>The older mechanism 20.9 contrasts against webhooks directly — also cron-syntax, but Jenkins checks the repo on a timer instead of being told immediately.</td></tr>
+<tr><td>Trigger builds remotely</td><td>An authenticated URL with a token, callable by an external script or system to start a build without needing full Jenkins API credentials.</td></tr>
+</tbody>
+</table>
+</div>
+<h4 class="mini">The script definition itself</h4>
+<p>Further down the same screen, "Pipeline script" is one of two ways to tell Jenkins what to actually run:</p>
+<pre data-lang="groovy">pipeline {
+    agent any
+
+    stages {
+        stage('Hello') {
+            steps {
+                echo 'Hello World'
+            }
+        }
+        stage('Create Folder') {
+            steps {
+                sh "mkdir -p devops"
+            }
+        }
+        stage('Bye') {
+            steps {
+                echo 'Bye'
+            }
+        }
+    }
+}</pre>
+<div class="fact fact-fail"><span class="tag">This is the opposite of what 20.7/20.8 recommend</span><p>"Pipeline script" types the Groovy directly into this one field, saved only in Jenkins' own job configuration — invisible to git history, code review, or branch-per-Jenkinsfile discovery (20.9's Multibranch Pipeline). "Pipeline script from SCM" is the other option on the same dropdown — pointing at a <code>Jenkinsfile</code> checked into the repository, which is what every example in 20.7 onward assumes. Fine for a five-minute "does Jenkins work at all" test; the wrong choice for anything meant to last.</p></div>
+<dl class="termlist">
+<dt>Use Groovy Sandbox</dt>
+<dd>Checked by default — restricts which Java/Groovy APIs a script can call, since arbitrary unrestricted Groovy can do real damage running on the controller. Unchecking it requires an administrator to manually approve the script before it can run.</dd>
+<dt>Pipeline Syntax (link)</dt>
+<dd>A built-in generator that produces correct step syntax by filling out a form, instead of memorizing every step's exact arguments from documentation.</dd>
+</dl>
+</div>
+</details>
+
+<details class="sub" id="d20-6">
+<summary><span class="sub-num">20.6</span><h3>Plugin Hygiene, the Credentials Store &amp; Folder-Level Security</h3><span class="chev-sm"></span></summary>
 <div class="sub-content">
 <p>Three separate concerns that all show up under "Manage Jenkins," easy to conflate.</p>
 <h4 class="mini">Plugin hygiene</h4>
@@ -178,8 +338,8 @@ journalctl -u jenkins -f     # follow the service's own logs live</pre>
 </div>
 </details>
 
-<details class="sub" id="d20-4">
-<summary><span class="sub-num">20.4</span><h3>Backing Up JENKINS_HOME</h3><span class="chev-sm"></span></summary>
+<details class="sub" id="d20-7">
+<summary><span class="sub-num">20.7</span><h3>Backing Up JENKINS_HOME</h3><span class="chev-sm"></span></summary>
 <div class="sub-content">
 <p><code>JENKINS_HOME</code> holds everything: every job's configuration, full build history, encrypted credentials, and every installed plugin's binary. Losing it is losing the entire Jenkins instance's identity, not just the compute it happened to run on.</p>
 <div class="table-scroll">
@@ -196,8 +356,8 @@ journalctl -u jenkins -f     # follow the service's own logs live</pre>
 </div>
 </details>
 
-<details class="sub" id="d20-5">
-<summary><span class="sub-num">20.5</span><h3>The Declarative Jenkinsfile</h3><span class="chev-sm"></span></summary>
+<details class="sub" id="d20-8">
+<summary><span class="sub-num">20.8</span><h3>The Declarative Jenkinsfile</h3><span class="chev-sm"></span></summary>
 <div class="sub-content">
 <p>A <code>Jenkinsfile</code> is Jenkins' equivalent of a Terraform config — a checked-in file describing a pipeline as code, instead of clicking through the UI to define a job.</p>
 <pre data-lang="groovy">pipeline {
@@ -241,8 +401,8 @@ journalctl -u jenkins -f     # follow the service's own logs live</pre>
 </div>
 </details>
 
-<details class="sub" id="d20-6">
-<summary><span class="sub-num">20.6</span><h3>Multibranch Pipelines, Webhooks &amp; Shared Libraries</h3><span class="chev-sm"></span></summary>
+<details class="sub" id="d20-9">
+<summary><span class="sub-num">20.9</span><h3>Multibranch Pipelines, Webhooks &amp; Shared Libraries</h3><span class="chev-sm"></span></summary>
 <div class="sub-content">
 <p>Three pieces that turn "one Jenkinsfile" into "a real CI setup serving a whole repository."</p>
 <h4 class="mini">Multibranch pipeline</h4>
@@ -265,8 +425,8 @@ pipeline {
 </div>
 </details>
 
-<details class="sub" id="d20-7">
-<summary><span class="sub-num">20.7</span><h3>Certified Jenkins Engineer (CJE)</h3><span class="chev-sm"></span></summary>
+<details class="sub" id="d20-10">
+<summary><span class="sub-num">20.10</span><h3>Certified Jenkins Engineer (CJE)</h3><span class="chev-sm"></span></summary>
 <div class="sub-content">
 <p>The external validation for Jenkins specifically, the way week4.html 19.9 covers Terraform's — CloudBees' <a href="https://university.cloudbees.com/certification-guide-and-information">Certified Jenkins Engineer (CJE)</a> exam, last updated September 2023. Worth knowing before searching further: CloudBees retired a similarly-named <em>CCJE</em> (Certified CloudBees Jenkins Engineer) credential back in 2022 — CJE, without the extra "C," is the one still active.</p>
 <div class="table-scroll">
@@ -288,7 +448,7 @@ pipeline {
 <li><strong>Freestyle (Build Technologies)</strong> — the older, UI-configured job type predating Pipeline-as-code — still a real exam section even though this project skips straight to declarative pipelines</li>
 </ol>
 <div class="fact fact-fail"><span class="tag">Public breakdowns of the exact weighting disagree</span><p>Unlike week4.html 19.9's HashiCorp source (a single official, current objectives page), CloudBees doesn't publish one canonical up-to-date percentage breakdown the way HashiCorp does — third-party prep sites list different weightings and even different section names for the same four domains. Treat the domain list above as directionally reliable, but verify specifics against CloudBees' own current study guide before relying on any one source's exact percentages.</p></div>
-<div class="fact fact-good"><span class="tag">Where 20.1–20.6 already land</span><p>Controller/agent architecture (20.1), installation itself (20.2 — literally named in the Administration domain's topic list), plugin/credential/folder security (20.3), the declarative Jenkinsfile (20.5), and multibranch/shared libraries (20.6) map directly onto the Administration and Pipeline domains — the two domains carrying the most exam weight in every breakdown found. Freestyle jobs are the one domain this project doesn't touch at all, by design (declarative pipelines are what real teams write today) — worth a dedicated look at Freestyle specifically if sitting this exam, purely because the exam still covers it.</p></div>
+<div class="fact fact-good"><span class="tag">Where 20.1–20.9 already land</span><p>Controller/agent architecture (20.1), installation itself (20.2 — literally named in the Administration domain's topic list), connecting a distributed agent (20.3 — "distributed builds, controller/agent configuration" in the Administration domain, almost word for word), job types and Pipeline job configuration (20.4, 20.5), plugin/credential/folder security (20.6), the declarative Jenkinsfile (20.8), and multibranch/shared libraries (20.9) map directly onto the Administration and Pipeline domains — the two domains carrying the most exam weight in every breakdown found. Freestyle jobs get a mention in 20.4 but no deep-dive yet — worth a dedicated look before sitting this exam, since it's still a full CJE section.</p></div>
 </div>
 </details>
 

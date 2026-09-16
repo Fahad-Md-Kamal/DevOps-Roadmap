@@ -62,6 +62,7 @@
             <li><a href="#d16-7"><span class="sub-num">7</span>Provisioners</a></li>
             <li><a href="#d16-8"><span class="sub-num">8</span>Templating: templatefile()</a></li>
             <li><a href="#d16-9"><span class="sub-num">9</span>null_resource</a></li>
+            <li><a href="#d16-10"><span class="sub-num">10</span>depends_on In Depth</a></li>
           </ul>
         </li>
         <li>
@@ -951,6 +952,47 @@ resource "null_resource" "notify_on_change" {
 </div>
 </details>
 
+<details class="sub" id="d16-10">
+<summary><span class="sub-num">16.10</span><h3>depends_on — Use Cases, Pros and Cons</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>16.3 introduced <code>depends_on</code> for the case a reference can't express — an IAM policy attachment finishing before something that needs it starts. That's the only reason it exists at all: everywhere Terraform <em>can</em> see a dependency (one resource's argument reading another resource's attribute, 15.3), it already orders things correctly on its own. <code>depends_on</code> only matters for the remaining cases where the real-world ordering requirement leaves no trace in any argument.</p>
+<h4 class="mini">Real use cases</h4>
+<ul>
+<li>A provisioner or <code>user_data</code> script that needs another resource to exist first, but only refers to it by a hardcoded name or convention — never a real attribute reference (an S3 bucket a startup script downloads from, named as a plain string rather than <code>aws_s3_bucket.x.id</code>)</li>
+<li>IAM permissions that must be attached before a dependent resource starts using them (16.3's example)</li>
+<li>An AWS-side ordering requirement that isn't visible through any argument at all — something that only shows up as a real API error when created in the wrong order</li>
+<li>Forcing a <code>data</code> source to read <em>after</em> a resource is created, when the data source's own arguments don't reference that resource directly</li>
+<li>Ordering an entire <code>module</code> block relative to another resource or module — <code>depends_on</code> works on modules too, waiting for every resource inside the whole module to finish</li>
+</ul>
+<h4 class="mini">A real file with both a correct use and a redundant one</h4>
+<pre data-lang="hcl">resource "aws_instance" "app" {
+  # ...
+  vpc_security_group_ids = [aws_security_group.main.id]
+  key_name                = aws_key_pair.deployer.key_name
+
+  depends_on = [
+    aws_s3_bucket.bucket,        # correct -- nothing above references this bucket at all
+    aws_security_group.main,    # redundant -- already inferred from vpc_security_group_ids
+    aws_key_pair.deployer,      # redundant -- already inferred from key_name
+  ]
+}</pre>
+<div class="fact fact-fail"><span class="tag">Spot the redundant entries</span><p>Only <code>aws_s3_bucket.bucket</code> belongs in this <code>depends_on</code> — nothing in the resource block references any attribute of that bucket, so Terraform has no other way to know it should exist first. <code>aws_security_group.main</code> and <code>aws_key_pair.deployer</code> are already ordered correctly by <code>vpc_security_group_ids</code> and <code>key_name</code> — listing them again in <code>depends_on</code> changes nothing about how <code>apply</code> behaves, it's just dead weight that makes a reader wonder if there's a hidden reason for the dependency beyond what's already visible in the arguments above it.</p></div>
+<h4 class="mini">Pros</h4>
+<ul>
+<li>Makes a real ordering requirement explicit and visible in code, for the cases where no argument reference could express it</li>
+<li>One <code>depends_on</code> can list several resources at once for a single combined ordering constraint</li>
+<li>Works on <code>data</code> sources and whole <code>module</code> blocks, not just resources</li>
+</ul>
+<h4 class="mini">Cons</h4>
+<ul>
+<li>Operates on the <em>whole</em> resource, not a specific attribute — Terraform waits for everything about the other resource to finish, even if only one small part of it actually matters, which can serialize applies more than necessary</li>
+<li>Explains <em>that</em> two resources are related, never <em>why</em> — a reference shows the actual attribute being used; a bare <code>depends_on</code> entry needs a comment to mean anything to the next reader</li>
+<li>Easy to add "just in case" without confirming it's actually needed — as the redundant entries above show, once one is added nothing forces anyone to remove it later, even after it stops meaning anything</li>
+<li>Silently masks a design that could be improved — the "reach for it last" principle from 16.3 exists because restructuring toward a real reference is often possible and stays correct automatically through future refactors, where a <code>depends_on</code> entry has to be remembered and kept in sync by hand</li>
+</ul>
+</div>
+</details>
+
 </div>
 </details>
 <details class="day" id="d17">
@@ -1747,6 +1789,8 @@ resource "aws_instance" "ec2-B" {
   tags                   = { Name = "fmk-ec2-B" }
 }</pre>
 <p><strong>What it did:</strong> launched both instances, each bootstrapped by <code>userdata.sh</code> (installs Apache, writes <code>/</code>, <code>/foo</code>, and <code>/bar</code> pages showing that instance's own hostname and IP), each attached to <code>fmk_tls_sg</code> so port 80 can actually reach them. <strong>Next:</strong> the servers are individually reachable if you knew their IPs — but nothing distributes traffic across the two yet. That's the ALB's job first.</p>
+<div class="fact fact-fail"><span class="tag">user_data has to match the AMI family, not just the SSH user</span><p>16.7 already covers the wrong-SSH-user version of this mistake (<code>ubuntu</code> vs <code>ec2-user</code>) — the same AMI-dependence bites the <em>script itself</em>, not just the login. A real <code>user_data</code> script written with <code>apt-get update</code> / <code>apt-get install -y apache2</code> against this exact <code>al2023-...</code> AMI failed completely: Amazon Linux has no <code>apt-get</code> at all (it uses <code>dnf</code>/<code>yum</code>), so the very first line errors with <code>command not found</code> and nothing after it ever runs. Even fixed to the right package manager, the package name is also OS-specific — Amazon Linux's Apache is called <code>httpd</code>, never <code>apache2</code> (that's Debian/Ubuntu's name for the same thing). Matching <code>userdata.sh</code>'s commands to the actual AMI family is exactly as necessary as matching the SSH username to it.</p></div>
+<div class="fact fact-good"><span class="tag">Check /var/log/cloud-init-output.log before rewriting blind</span><p>A failed <code>user_data</code> script gives no error anywhere in <code>terraform apply</code> — the instance still reaches <code>running</code> either way, since AWS considers the instance successfully launched regardless of what its boot script did. The only place the actual failure (<code>apt-get: command not found</code>, in this case) shows up is <code>/var/log/cloud-init-output.log</code> on the instance itself, over SSH — worth checking directly rather than guessing at what a silent script failure was.</p></div>
 
 <h4 class="mini">10. ALB path — target group, then the ALB, then its listener</h4>
 <p><strong>Why a target group first:</strong> an ALB never points at instances directly — a target group is the indirection layer in between, a named, health-checked pool the ALB forwards to. Declaring the group and its membership separately from the ALB means instances can be added or removed without touching the ALB at all.</p>

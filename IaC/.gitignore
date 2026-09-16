@@ -44,3 +44,13 @@ terraform.rc
 # planout
 *.pub
 *.zip
+
+# SSH private keys -- these projects generate ad-hoc keypairs with no
+# consistent extension (aws_key, tf-keypair, deployer_key, ...), so match
+# on common naming habits rather than relying on one exact filename
+aws_key
+id_rsa
+id_ed25519
+*_key
+*-key
+*.pem

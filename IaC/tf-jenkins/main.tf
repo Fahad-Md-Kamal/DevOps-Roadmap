@@ -19,10 +19,28 @@ resource "aws_instance" "ec2_example" {
 
   user_data = "${file("install_apache.sh")}"
 
+  connection {
+    type        = "ssh"
+    user        = "ec2-user"
+    private_key = file("${path.module}/aws_key")
+    host        = self.public_ip
+  }
+
+  # provisioner "remote-exec" {
+  #   inline = [
+  #     "mkdir -p /home/ec2-user/frontend/dist"
+  #   ]
+  # }
+
+  # provisioner "file" {
+  #   source      = "/home/bjit/Desktop/investor-pro/frontend/dist/"
+  #   destination = "/home/ec2-user/frontend/dist"
+  # }
+
   tags = {
-    Name  = "tf-states"
+    Name  = "jenkins-agent-one"
     Owner = "fahad"
-    Event = "learning tf"
+    Event = "learning jenkins"
   }
 
   depends_on = [ aws_security_group.main ]
@@ -54,6 +72,17 @@ resource "aws_security_group" "main" {
       security_groups  = []
       self             = false
       to_port          = 22
+    },
+    {
+      cidr_blocks      = ["0.0.0.0/0"]
+      description      = ""
+      from_port        = 8000
+      ipv6_cidr_blocks = []
+      prefix_list_ids  = []
+      protocol         = "tcp"
+      security_groups  = []
+      self             = false
+      to_port          = 8000
     }
   ]
 

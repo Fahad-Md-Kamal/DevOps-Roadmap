@@ -73,6 +73,28 @@ a{color:var(--accent)}
 .progress-track{height:6px; background:var(--line); overflow:hidden}
 .progress-fill{height:100%; background:var(--accent); width:0%; transition:width .3s ease}
 
+.site-search{position:relative; margin-bottom:14px}
+.site-search input{
+  width:100%; box-sizing:border-box; font:inherit; font-size:.85rem;
+  padding:8px 10px; border:1px solid var(--line-strong); background:var(--surface); color:var(--ink);
+}
+.site-search input:focus{outline:2px solid var(--accent); outline-offset:-1px}
+.site-search-results{
+  position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:30;
+  background:var(--surface); border:1px solid var(--line-strong); box-shadow:var(--shadow);
+  max-height:64vh; overflow-y:auto;
+}
+.site-search-results .sr-item{display:block; padding:8px 10px; text-decoration:none; border-bottom:1px solid var(--line); cursor:pointer}
+.site-search-results .sr-item:last-child{border-bottom:none}
+.site-search-results .sr-item:hover, .site-search-results .sr-item.active{background:var(--accent-tint)}
+.site-search-results .sr-page{font-family:'IBM Plex Sans Condensed',sans-serif; font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-muted)}
+.site-search-results .sr-exact{font-family:'IBM Plex Sans Condensed',sans-serif; font-size:.62rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--accent-strong); border:1px solid var(--accent); padding:0 4px; margin-left:6px}
+.site-search-results .sr-title{display:block; font-weight:600; font-size:.85rem; color:var(--ink); margin:2px 0}
+.site-search-results .sr-snippet{display:block; font-size:.78rem; color:var(--ink-muted)}
+.site-search-results .sr-snippet mark, .site-search-results .sr-title mark{background:var(--accent-tint); color:var(--accent-strong); font-weight:700}
+.site-search-results .sr-empty, .site-search-results .sr-loading, .site-search-results .sr-more{padding:10px; font-size:.8rem; color:var(--ink-muted)}
+mark.hit-flash{background:var(--accent-tint); color:var(--accent-strong)}
+
 .nav-controls{display:flex; gap:8px; margin-bottom:14px}
 .btn{
   font:inherit; font-size:.74rem; font-weight:600; letter-spacing:.03em; text-transform:uppercase;

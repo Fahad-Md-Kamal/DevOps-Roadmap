@@ -35,6 +35,11 @@
       <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
     </div>
 
+    <div class="site-search">
+      <input type="text" id="site-search-input" placeholder="Search all weeks…" autocomplete="off" spellcheck="false" aria-label="Search all weeks">
+      <div class="site-search-results" id="site-search-results" hidden></div>
+    </div>
+
     <div class="nav-controls">
       <button class="btn" id="expand-all">Expand all</button>
       <button class="btn" id="collapse-all">Collapse all</button>
@@ -2306,6 +2311,7 @@ If EC2 needs to call Stripe API:
   </main>
 </div>
 
+<script src="search-index.js"></script>
 <script src="script.js"></script>
 <script>
 (function(){

@@ -7,3 +7,6 @@
 /site/
 .cache/
 .venv/
+
+# Internal planning docs with real names/employer/client details -- never publish
+DevOps-_Resource_Ramp_Plan_270826*.html

@@ -24,6 +24,24 @@ Every page is built from real work, not a rewritten tutorial: real AWS resources
 - **Jenkins** — Controller/agent setup, connecting an SSH agent, pipeline configuration, and a full deployment pipeline built (and repeatedly broken and fixed) against a real application.
 - **CI/CD & Delivery** — End-to-end pipeline design and progressive delivery.
 
+## Further reading
+
+One primary source per topic — no shopping around, just what was actually used while building this:
+
+- **Principles & delivery** — *Accelerate* for the DORA metrics, *Continuous Delivery* for pipeline design, the Google SRE workbook's chapters on SLOs.
+- **AWS** — an AWS Solutions Architect Associate course, AWS Skill Builder labs, the AWS Well-Architected whitepapers.
+- **SQL** — [PG Exercises](https://pgexercises.com/) for query volume, *Use The Index, Luke* for reading query plans and indexes.
+- **Containers & Kubernetes** — the AWS ECS Workshop, then the AWS EKS Workshop.
+- **Terraform** — HashiCorp's own tutorials, the AWS provider registry docs, *Terraform: Up & Running* for module and state patterns.
+- **Jenkins** — the Jenkins Handbook and the Pipeline syntax reference.
+
+## What this deliberately doesn't cover
+
+- **Linux administration and Git** — assumed prior knowledge, not taught here.
+- **Observability and incident response as their own topic** — covered only where they come up naturally (CloudWatch inside Storage & Observability, log investigation inside the AWS pages), not as a dedicated deep dive.
+- **EKS to full production depth** — the Containers page treats it at a fundamentals level: enough to run a service and compare it against ECS, not a production Kubernetes operations guide.
+- **Kafka, Nagios, Akamai, Datadog, Grafana** — not covered. CloudWatch is the observability tool used throughout.
+
 ## Repository layout
 
 | Path | What it is |

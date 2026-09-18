@@ -41,5 +41,26 @@ pipeline{
                 echo "Deployed everything successfully"
             }
         }
+        stage("Setup-Data"){
+            steps{
+                echo "Setup data"
+
+                sh """
+                    mkdir -p data/raw
+                    unzip -o stock-data.zip -d ./data/raw/amarstock
+                """
+                
+                echo "Ingestable data unzipped successfully"
+            }
+        }
+        stage("Ingest All Data"){
+            steps{
+                echo "Ingest all data now"
+
+                sh "docker compose exec -T app python -m src.ingest_data --source all"
+                
+                echo "Ingested all data successfully"
+            }
+        }
     }
 }

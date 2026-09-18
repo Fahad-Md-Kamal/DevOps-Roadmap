@@ -53,11 +53,12 @@
             <li><a href="#d20-5"><span class="sub-num">5</span>Pipeline Job Config &amp; Script Definition</a></li>
             <li><a href="#d20-6"><span class="sub-num">6</span>Real Pipeline Walkthrough: Git, Credentials &amp; Docker</a></li>
             <li><a href="#d20-7"><span class="sub-num">7</span>Hardening the Deploy Stage</a></li>
-            <li><a href="#d20-8"><span class="sub-num">8</span>Plugins, Credentials &amp; Folder Security</a></li>
-            <li><a href="#d20-9"><span class="sub-num">9</span>Backing Up JENKINS_HOME</a></li>
-            <li><a href="#d20-10"><span class="sub-num">10</span>The Declarative Jenkinsfile</a></li>
-            <li><a href="#d20-11"><span class="sub-num">11</span>Multibranch, Webhooks &amp; Shared Libraries</a></li>
-            <li><a href="#d20-12"><span class="sub-num">12</span>Certified Jenkins Engineer (CJE)</a></li>
+            <li><a href="#d20-8"><span class="sub-num">8</span>Point-to-Point Deploy: investor-pro</a></li>
+            <li><a href="#d20-9"><span class="sub-num">9</span>Plugins, Credentials &amp; Folder Security</a></li>
+            <li><a href="#d20-10"><span class="sub-num">10</span>Backing Up JENKINS_HOME</a></li>
+            <li><a href="#d20-11"><span class="sub-num">11</span>The Declarative Jenkinsfile</a></li>
+            <li><a href="#d20-12"><span class="sub-num">12</span>Multibranch, Webhooks &amp; Shared Libraries</a></li>
+            <li><a href="#d20-13"><span class="sub-num">13</span>Certified Jenkins Engineer (CJE)</a></li>
           </ul>
         </li>
         <li>
@@ -112,7 +113,7 @@
 <tr><td>Environment matching</td><td>A label picks the toolchain a build actually needs — a specific OS, a GPU, a licensed tool only installed on one machine — instead of forcing every build to fit whatever the controller happens to have.</td></tr>
 <tr><td>Parallelism</td><td>Multiple agents mean multiple builds genuinely running at once, not queued behind each other on a single executor.</td></tr>
 <tr><td>Network/resource proximity</td><td>An agent can live inside the same VPC, region, or on-prem network as whatever it needs to reach fast — an internal artifact repo, a private database, a specific compliance boundary — without routing the controller itself into that network.</td></tr>
-<tr><td>Team/security segregation</td><td>Folder-scoped agents (20.8) let one team's builds run on infrastructure another team can't touch, without needing a separate Jenkins instance per team.</td></tr>
+<tr><td>Team/security segregation</td><td>Folder-scoped agents (20.9) let one team's builds run on infrastructure another team can't touch, without needing a separate Jenkins instance per team.</td></tr>
 </tbody>
 </table>
 </div>
@@ -176,7 +177,7 @@ apt-get install -y jenkins</pre>
 <dt>Create the first admin user</dt>
 <dd>Skipping this and continuing as the default <code>admin</code> account is explicitly offered but shouldn't be taken for anything beyond a five-minute local test — the same reasoning as never leaving a database on its default credentials.</dd>
 <dt>Instance configuration</dt>
-<dd>Confirms the URL Jenkins believes it's reachable at — matters later for webhook payload URLs (20.10) and any notification that links back to a build, since a wrong URL here means links that go nowhere.</dd>
+<dd>Confirms the URL Jenkins believes it's reachable at — matters later for webhook payload URLs (20.11) and any notification that links back to a build, since a wrong URL here means links that go nowhere.</dd>
 </dl>
 <h4 class="mini">Operating Jenkins as a systemd service</h4>
 <p>The native package installs Jenkins as a real systemd unit, not just a process someone starts by hand — the same start/stop/status vocabulary as any other Linux service applies directly:</p>
@@ -217,7 +218,7 @@ journalctl -u jenkins -f     # follow the service's own logs live</pre>
 <dt>Usage</dt>
 <dd>"Use this node as much as possible" lets the controller schedule any matching job here; the alternative, "Only build jobs with label expressions matching this node," reserves it for jobs that explicitly ask for it and nothing else.</dd>
 <dt>Launch method: Launch agents via SSH</dt>
-<dd>Host and Credentials (an SSH keypair, added to Jenkins' credentials store — 20.8) are all this method needs. Jenkins opens the connection itself on save, or whenever the node is manually relaunched.</dd>
+<dd>Host and Credentials (an SSH keypair, added to Jenkins' credentials store — 20.9) are all this method needs. Jenkins opens the connection itself on save, or whenever the node is manually relaunched.</dd>
 </dl>
 <h4 class="mini">What actually happens when it connects</h4>
 <pre data-lang="text">[SSH] Opening SSH connection to &lt;agent-host&gt;:22.
@@ -253,11 +254,11 @@ Agent successfully connected and online</pre>
 <table>
 <thead><tr><th>Item type</th><th>What it's for</th></tr></thead>
 <tbody>
-<tr><td>Pipeline</td><td>Build, test, and deploy using a <code>Jenkinsfile</code> (20.9). Supports stages, parallel work, and running steps across multiple agents.</td></tr>
-<tr><td>Freestyle project</td><td>The classic, UI-configured job type — checks out from up to one SCM, runs build steps serially, then post-build actions like archiving artifacts or sending email. Predates Pipeline-as-code, and still its own CJE exam section (20.10).</td></tr>
+<tr><td>Pipeline</td><td>Build, test, and deploy using a <code>Jenkinsfile</code> (20.10). Supports stages, parallel work, and running steps across multiple agents.</td></tr>
+<tr><td>Freestyle project</td><td>The classic, UI-configured job type — checks out from up to one SCM, runs build steps serially, then post-build actions like archiving artifacts or sending email. Predates Pipeline-as-code, and still its own CJE exam section (20.11).</td></tr>
 <tr><td>Multi-configuration project</td><td>One job definition run across many combinations automatically — multiple OSes, multiple environments, multiple platform targets — without hand-creating a separate job per combination.</td></tr>
 <tr><td>Folder</td><td>A real namespace, not just a filter — two items can share a name if they live in different folders. The same folder that scopes credentials and permissions in 20.5.</td></tr>
-<tr><td>Multibranch Pipeline</td><td>Scans one repository and creates a Pipeline job per detected branch and pull request automatically (20.9) — no manually creating a job per branch.</td></tr>
+<tr><td>Multibranch Pipeline</td><td>Scans one repository and creates a Pipeline job per detected branch and pull request automatically (20.10) — no manually creating a job per branch.</td></tr>
 <tr><td>Organization Folder</td><td>One level up from Multibranch Pipeline — scans an entire GitHub org/Bitbucket project for repositories, and creates a Multibranch Pipeline for each one it finds.</td></tr>
 </tbody>
 </table>
@@ -275,13 +276,13 @@ Agent successfully connected and online</pre>
 <table>
 <thead><tr><th>Option</th><th>What it actually does</th></tr></thead>
 <tbody>
-<tr><td>Discard old builds</td><td>A retention policy — keep only the last N builds or the last N days. Without it, build history (20.8) grows forever.</td></tr>
+<tr><td>Discard old builds</td><td>A retention policy — keep only the last N builds or the last N days. Without it, build history (20.9) grows forever.</td></tr>
 <tr><td>Do not allow concurrent builds</td><td>Serializes runs of <em>this same job</em> — a second trigger waits instead of running in parallel. For a job that touches shared state it can't safely share with itself.</td></tr>
 <tr><td>Do not allow the pipeline to resume if the controller restarts</td><td>Jenkins normally tries to resume an in-progress pipeline after a controller restart. Disabling this makes a restart abort the run instead — the right choice when a resumed run risks replaying a non-idempotent step (5.6/week2.html territory: retries are only safe when the operation tolerates repetition).</td></tr>
 <tr><td>GitHub project</td><td>Just a display link back to the repo's GitHub page — cosmetic, not functional.</td></tr>
 <tr><td>Pipeline speed/durability override</td><td>Trades how often Jenkins persists pipeline state to disk against I/O overhead — safer and slower, or faster and more state lost if the controller crashes mid-run.</td></tr>
 <tr><td>Preserve stashes from completed builds</td><td>A <code>stash</code> (files passed between stages/agents) is normally discarded once the build finishes — this keeps it around afterward for inspection.</td></tr>
-<tr><td>This project is parameterized</td><td>The UI equivalent of a Jenkinsfile's <code>parameters {}</code> block (20.10) — configured by clicking instead of by code.</td></tr>
+<tr><td>This project is parameterized</td><td>The UI equivalent of a Jenkinsfile's <code>parameters {}</code> block (20.11) — configured by clicking instead of by code.</td></tr>
 <tr><td>Throttle builds</td><td>Rate-limits how often, or how many concurrently, this job (or a named category of jobs) can run — for protecting a shared resource several different jobs compete for.</td></tr>
 </tbody>
 </table>
@@ -294,8 +295,8 @@ Agent successfully connected and online</pre>
 <tbody>
 <tr><td>Build after other projects are built</td><td>Upstream/downstream chaining — this job runs automatically once a named other job finishes.</td></tr>
 <tr><td>Build periodically</td><td>A cron-syntax schedule — the same five-field format as week2.html 5.6's scheduled scaling policies, evaluated in the controller's own timezone.</td></tr>
-<tr><td>GitHub hook trigger for GITScm polling</td><td>The real webhook (20.11) — GitHub pushes an event to Jenkins the moment something happens, no delay.</td></tr>
-<tr><td>Poll SCM</td><td>The older mechanism 20.11 contrasts against webhooks directly — also cron-syntax, but Jenkins checks the repo on a timer instead of being told immediately.</td></tr>
+<tr><td>GitHub hook trigger for GITScm polling</td><td>The real webhook (20.12) — GitHub pushes an event to Jenkins the moment something happens, no delay.</td></tr>
+<tr><td>Poll SCM</td><td>The older mechanism 20.12 contrasts against webhooks directly — also cron-syntax, but Jenkins checks the repo on a timer instead of being told immediately.</td></tr>
 <tr><td>Trigger builds remotely</td><td>An authenticated URL with a token, callable by an external script or system to start a build without needing full Jenkins API credentials.</td></tr>
 </tbody>
 </table>
@@ -323,7 +324,7 @@ Agent successfully connected and online</pre>
         }
     }
 }</pre>
-<div class="fact fact-fail"><span class="tag">This is the opposite of what 20.9/20.10 recommend</span><p>"Pipeline script" types the Groovy directly into this one field, saved only in Jenkins' own job configuration — invisible to git history, code review, or branch-per-Jenkinsfile discovery (20.11's Multibranch Pipeline). "Pipeline script from SCM" is the other option on the same dropdown — pointing at a <code>Jenkinsfile</code> checked into the repository, which is what every example in 20.9 onward assumes. Fine for a five-minute "does Jenkins work at all" test; the wrong choice for anything meant to last.</p></div>
+<div class="fact fact-fail"><span class="tag">This is the opposite of what 20.10/20.11 recommend</span><p>"Pipeline script" types the Groovy directly into this one field, saved only in Jenkins' own job configuration — invisible to git history, code review, or branch-per-Jenkinsfile discovery (20.12's Multibranch Pipeline). "Pipeline script from SCM" is the other option on the same dropdown — pointing at a <code>Jenkinsfile</code> checked into the repository, which is what every example in 20.10 onward assumes. Fine for a five-minute "does Jenkins work at all" test; the wrong choice for anything meant to last.</p></div>
 <dl class="termlist">
 <dt>Use Groovy Sandbox</dt>
 <dd>Checked by default — restricts which Java/Groovy APIs a script can call, since arbitrary unrestricted Groovy can do real damage running on the controller. Unchecking it requires an administrator to manually approve the script before it can run.</dd>
@@ -356,7 +357,7 @@ sudo usermod -aG docker ec2-user</pre>
 <dt>2. Store it in Jenkins' credentials store, never in the pipeline script</dt>
 <dd><strong>Manage Jenkins → Credentials → System → Global credentials → Add Credentials</strong>. Kind: <strong>Username with password</strong>. Username: the GitHub username. Password: the token. ID: a memorable string (<code>github-pat</code> below) referenced from the pipeline.</dd>
 <dt>3. Reference it from the <code>git</code> step by that ID</dt>
-<dd><code>credentialsId: 'github-pat'</code> — Jenkins resolves the actual token at checkout time and masks it out of console logs; the pipeline script itself never contains the secret value (20.8's credentials-store principle applies here directly).</dd>
+<dd><code>credentialsId: 'github-pat'</code> — Jenkins resolves the actual token at checkout time and masks it out of console logs; the pipeline script itself never contains the secret value (20.9's credentials-store principle applies here directly).</dd>
 </dl>
 <p>An SSH deploy key is the alternative: generate a keypair, add the <em>public</em> half under the repo's <strong>Settings → Deploy keys</strong> (read-only), add the <em>private</em> half to Jenkins as an <strong>"SSH Username with private key"</strong> credential, and use a <code>git@github.com:...</code> URL instead of HTTPS. More setup, but scoped to exactly one repo rather than an account-wide token — worth it across several private repos.</p>
 <h4 class="mini">The <code>git</code> step: url, credentialsId, branch — and beyond</h4>
@@ -407,7 +408,7 @@ sudo usermod -aG docker ec2-user</pre>
 }</pre>
 <dl class="termlist">
 <dt><code>pipeline { ... }</code></dt>
-<dd>The declarative-syntax root block (20.10) — everything inside it is Jenkins-managed structure, not arbitrary Groovy.</dd>
+<dd>The declarative-syntax root block (20.11) — everything inside it is Jenkins-managed structure, not arbitrary Groovy.</dd>
 <dt><code>agent {label 'agent-one'}</code></dt>
 <dd>Pins this entire pipeline to the one node advertising the label <code>agent-one</code> (20.1, 20.3) — every stage below runs on that same machine, in the same workspace.</dd>
 <dt><code>stages { ... }</code></dt>
@@ -427,7 +428,7 @@ sudo usermod -aG docker ec2-user</pre>
 </dl>
 <h4 class="mini">The Docker build itself</h4>
 <p><code>docker build ... .</code> uses <code>.</code> — the workspace root — as its build context, which works because the <code>git</code> step above clones directly into the workspace root rather than a subdirectory; the real <code>Dockerfile</code> at the repo's top level is found without needing a <code>-f</code> path. Two tags in one command (<code>-t investor-pro:${env.BUILD_NUMBER} -t investor-pro:latest</code>) apply both at once, from a single build — no need to build twice or run a separate <code>docker tag</code>.</p>
-<div class="fact fact-good"><span class="tag">What actually running this looked like</span><p>Code stage: clone succeeds, credential accepted, correct branch checked out. Build stage: multi-stage <code>apt-get</code>/<code>uv sync</code> output streams through exactly as it would locally, image exported and tagged. Test and Deploy stages (still placeholder <code>echo</code>s here) run last. <code>Finished: SUCCESS</code> — the same pipeline shape 20.10's declarative Jenkinsfile builds on next, just with real steps instead of placeholders.</p></div>
+<div class="fact fact-good"><span class="tag">What actually running this looked like</span><p>Code stage: clone succeeds, credential accepted, correct branch checked out. Build stage: multi-stage <code>apt-get</code>/<code>uv sync</code> output streams through exactly as it would locally, image exported and tagged. Test and Deploy stages (still placeholder <code>echo</code>s here) run last. <code>Finished: SUCCESS</code> — the same pipeline shape 20.11's declarative Jenkinsfile builds on next, just with real steps instead of placeholders.</p></div>
 </div>
 </details>
 
@@ -475,7 +476,62 @@ start:
 </details>
 
 <details class="sub" id="d20-8">
-<summary><span class="sub-num">20.8</span><h3>Plugin Hygiene, the Credentials Store &amp; Folder-Level Security</h3><span class="chev-sm"></span></summary>
+<summary><span class="sub-num">20.8</span><h3>Point-to-Point Deploy: investor-pro, Start to Finish</h3><span class="chev-sm"></span></summary>
+<div class="sub-content">
+<p>20.6 and 20.7 are the debugging story — every individual bug, in the order it was actually found. This is the destination: the current, complete pipeline for this project, clone to a fully running, fully-seeded application, with nothing left commented out or half-working. Five stages, each doing exactly one job.</p>
+<pre data-lang="groovy">pipeline{
+    agent {label 'agent-one'}
+    stages{
+        stage("Code"){
+            steps{
+                git credentialsId: 'github-pat', url: 'https://github.com/Fahad-Md-Kamal/investor-pro.git', branch:"main"
+                sh "mv .env.example .env"
+            }
+        }
+        stage("Test"){
+            steps{
+                echo "This is testing the code"
+            }
+        }
+        stage("Deploy"){
+            steps{
+                sh "make start"
+            }
+        }
+        stage("Setup-Data"){
+            steps{
+                sh """
+                    mkdir -p data/raw
+                    unzip -o stock-data.zip -d ./data/raw/amarstock
+                """
+            }
+        }
+        stage("Ingest All Data"){
+            steps{
+                sh "docker compose exec -T app python -m src.ingest_data --source all"
+            }
+        }
+    }
+}</pre>
+<div class="table-scroll">
+<table>
+<thead><tr><th>Stage</th><th>What it does</th><th>Why it's built this way</th></tr></thead>
+<tbody>
+<tr><td>Code</td><td>Clones the repo with a scoped credential (20.6), checks out <code>main</code>, and turns the committed <code>.env.example</code> into the real <code>.env</code> the app and compose both read from.</td><td>Every later stage assumes <code>.env</code> already exists — nothing else in the pipeline creates it.</td></tr>
+<tr><td>Test</td><td>Still a placeholder. A real test suite would run here, before anything gets deployed — failing fast on broken code beats deploying it and finding out from Setup-Data or Ingest instead.</td><td>Ordered before Deploy deliberately, even while empty — the position is part of the design, not just the content.</td></tr>
+<tr><td>Deploy</td><td><code>make start</code> → <code>docker compose up -d --build</code> (20.7): builds the app image and starts it alongside Postgres, on compose's own network, with compose's environment override correctly pointing <code>DATABASE_URL</code> at the <code>postgres</code> service rather than <code>localhost</code>.</td><td>One Makefile target instead of hand-rolled <code>docker build</code>/<code>docker run</code> in the Jenkinsfile — the pipeline never re-implements deployment logic the project already maintains for local dev.</td></tr>
+<tr><td>Setup-Data</td><td>Unzips the project's own bundled sample dataset (<code>stock-data.zip</code>, committed to the repo — no external download, no credentials needed) onto the agent's workspace.</td><td><code>-o</code> forces silent overwrite (20.7's non-interactive-shell lesson) — a reused workspace's stale extracted files would otherwise stall the stage on an unanswerable prompt.</td></tr>
+<tr><td>Ingest All Data</td><td>Runs the actual ingestion <em>inside</em> the running <code>app</code> container via <code>docker compose exec</code>, not on the bare agent host.</td><td>The container already has Python, <code>uv</code>, and every dependency from <code>uv sync</code> baked in at build time — the agent host deliberately has none of that, so ingestion has to run where the environment actually exists.</td></tr>
+</tbody>
+</table>
+</div>
+<div class="fact fact-note"><span class="tag">One quiet dependency between Setup-Data and Ingest All Data</span><p><code>docker-compose.yml</code>'s <code>app</code> service mounts <code>./data:/app/data</code> — without that volume, the files <strong>Setup-Data</strong> unzips onto the host workspace would be invisible to the container <strong>Ingest All Data</strong> execs into, since every container has its own isolated filesystem regardless of which host directory the exec'ing shell happens to be in. The two stages only work together because of a line in a file neither one directly touches.</p></div>
+<div class="fact fact-good"><span class="tag">What "point-to-point" actually means here</span><p>Starting from a bare EC2 instance with only <code>install_apache.sh</code>'s tools on it (Java, git, Docker, Compose, Buildx, make — 20.6/20.7) and an empty Jenkins workspace, this pipeline alone produces a running FastAPI app, a healthy Postgres database, and a fully populated dataset — no manual SSH step, no console click beyond pressing Build. Every stage above exists because a version without it was tried first and failed in exactly the way 20.6/20.7 describe.</p></div>
+</div>
+</details>
+
+<details class="sub" id="d20-9">
+<summary><span class="sub-num">20.9</span><h3>Plugin Hygiene, the Credentials Store &amp; Folder-Level Security</h3><span class="chev-sm"></span></summary>
 <div class="sub-content">
 <p>Three separate concerns that all show up under "Manage Jenkins," easy to conflate.</p>
 <h4 class="mini">Plugin hygiene</h4>
@@ -491,8 +547,8 @@ start:
 </div>
 </details>
 
-<details class="sub" id="d20-9">
-<summary><span class="sub-num">20.9</span><h3>Backing Up JENKINS_HOME</h3><span class="chev-sm"></span></summary>
+<details class="sub" id="d20-10">
+<summary><span class="sub-num">20.10</span><h3>Backing Up JENKINS_HOME</h3><span class="chev-sm"></span></summary>
 <div class="sub-content">
 <p><code>JENKINS_HOME</code> holds everything: every job's configuration, full build history, encrypted credentials, and every installed plugin's binary. Losing it is losing the entire Jenkins instance's identity, not just the compute it happened to run on.</p>
 <div class="table-scroll">
@@ -509,8 +565,8 @@ start:
 </div>
 </details>
 
-<details class="sub" id="d20-10">
-<summary><span class="sub-num">20.10</span><h3>The Declarative Jenkinsfile</h3><span class="chev-sm"></span></summary>
+<details class="sub" id="d20-11">
+<summary><span class="sub-num">20.11</span><h3>The Declarative Jenkinsfile</h3><span class="chev-sm"></span></summary>
 <div class="sub-content">
 <p>A <code>Jenkinsfile</code> is Jenkins' equivalent of a Terraform config — a checked-in file describing a pipeline as code, instead of clicking through the UI to define a job.</p>
 <pre data-lang="groovy">pipeline {
@@ -554,8 +610,8 @@ start:
 </div>
 </details>
 
-<details class="sub" id="d20-11">
-<summary><span class="sub-num">20.11</span><h3>Multibranch Pipelines, Webhooks &amp; Shared Libraries</h3><span class="chev-sm"></span></summary>
+<details class="sub" id="d20-12">
+<summary><span class="sub-num">20.12</span><h3>Multibranch Pipelines, Webhooks &amp; Shared Libraries</h3><span class="chev-sm"></span></summary>
 <div class="sub-content">
 <p>Three pieces that turn "one Jenkinsfile" into "a real CI setup serving a whole repository."</p>
 <h4 class="mini">Multibranch pipeline</h4>
@@ -578,8 +634,8 @@ pipeline {
 </div>
 </details>
 
-<details class="sub" id="d20-12">
-<summary><span class="sub-num">20.12</span><h3>Certified Jenkins Engineer (CJE)</h3><span class="chev-sm"></span></summary>
+<details class="sub" id="d20-13">
+<summary><span class="sub-num">20.13</span><h3>Certified Jenkins Engineer (CJE)</h3><span class="chev-sm"></span></summary>
 <div class="sub-content">
 <p>The external validation for Jenkins specifically, the way week4.html 19.9 covers Terraform's — CloudBees' <a href="https://university.cloudbees.com/certification-guide-and-information">Certified Jenkins Engineer (CJE)</a> exam, last updated September 2023. Worth knowing before searching further: CloudBees retired a similarly-named <em>CCJE</em> (Certified CloudBees Jenkins Engineer) credential back in 2022 — CJE, without the extra "C," is the one still active.</p>
 <div class="table-scroll">
@@ -601,7 +657,7 @@ pipeline {
 <li><strong>Freestyle (Build Technologies)</strong> — the older, UI-configured job type predating Pipeline-as-code — still a real exam section even though this project skips straight to declarative pipelines</li>
 </ol>
 <div class="fact fact-fail"><span class="tag">Public breakdowns of the exact weighting disagree</span><p>Unlike week4.html 19.9's HashiCorp source (a single official, current objectives page), CloudBees doesn't publish one canonical up-to-date percentage breakdown the way HashiCorp does — third-party prep sites list different weightings and even different section names for the same four domains. Treat the domain list above as directionally reliable, but verify specifics against CloudBees' own current study guide before relying on any one source's exact percentages.</p></div>
-<div class="fact fact-good"><span class="tag">Where 20.1–20.11 already land</span><p>Controller/agent architecture (20.1), installation itself (20.2 — literally named in the Administration domain's topic list), connecting a distributed agent (20.3 — "distributed builds, controller/agent configuration" in the Administration domain, almost word for word), job types and Pipeline job configuration (20.4, 20.5), source code management integration and credentials (20.6 — named explicitly in the Fundamentals domain), real-world pipeline/deployment troubleshooting (20.7 — not a named exam topic, but exactly the kind of "why did the green build not actually work" judgment the Pipeline domain expects), plugin/credential/folder security (20.8), the declarative Jenkinsfile (20.10), and multibranch/shared libraries (20.11) map directly onto the Administration and Pipeline domains — the two domains carrying the most exam weight in every breakdown found. Freestyle jobs get a mention in 20.4 but no deep-dive yet — worth a dedicated look before sitting this exam, since it's still a full CJE section.</p></div>
+<div class="fact fact-good"><span class="tag">Where 20.1–20.12 already land</span><p>Controller/agent architecture (20.1), installation itself (20.2 — literally named in the Administration domain's topic list), connecting a distributed agent (20.3 — "distributed builds, controller/agent configuration" in the Administration domain, almost word for word), job types and Pipeline job configuration (20.4, 20.5), source code management integration and credentials (20.6 — named explicitly in the Fundamentals domain), real-world pipeline/deployment troubleshooting (20.7 — not a named exam topic, but exactly the kind of "why did the green build not actually work" judgment the Pipeline domain expects), a complete real deployment pipeline end to end (20.8 — the shape of pipeline the Pipeline domain's "build technologies" objective actually expects), plugin/credential/folder security (20.9), the declarative Jenkinsfile (20.11), and multibranch/shared libraries (20.12) map directly onto the Administration and Pipeline domains — the two domains carrying the most exam weight in every breakdown found. Freestyle jobs get a mention in 20.4 but no deep-dive yet — worth a dedicated look before sitting this exam, since it's still a full CJE section.</p></div>
 </div>
 </details>
 

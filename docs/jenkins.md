@@ -263,6 +263,82 @@ Choosing "Pipeline" as the item type (20.4) opens this configuration screen — 
 | Poll SCM | The older mechanism 20.12 contrasts against webhooks directly — also cron-syntax, but Jenkins checks the repo on a timer instead of being told immediately. |
 | Trigger builds remotely | An authenticated URL with a token, callable by an external script or system to start a build without needing full Jenkins API credentials. |
 
+#### Scheduling a pipeline: `triggers { cron(...) }` in the Jenkinsfile itself
+
+"Build periodically" in the table above configures a schedule through the UI — a Jenkinsfile can declare the identical schedule as code instead, in the same `triggers {}` block already used for the GitHub hook (20.12):
+
+```groovy
+pipeline {
+    agent { label 'agent-one' }
+    triggers {
+        cron('H 2 * * *')
+    }
+    stages {
+        stage('Nightly check') {
+            steps { echo 'Runs once a day, somewhere around 2am' }
+        }
+    }
+}
+```
+
+Same reasoning as the danger box just below this one: a schedule written into the Jenkinsfile is checked into git, reviewable, and travels with the branch (20.12's Multibranch Pipeline can even give a feature branch its own, different schedule); a schedule set only through the UI's "Build periodically" checkbox is invisible to anyone reading the repo.
+
+#### Cron syntax, and Jenkins' one real addition to it
+
+Five fields, the same order as a standard crontab:
+
+```
+MINUTE  HOUR  DOM  MONTH  DOW
+0       2     *    *      *        → 02:00 every day
+*/15    *     *    *      *        → every 15 minutes
+0       9-17  *    *      MON-FRI  → hourly, 9am-5pm, weekdays only
+```
+
+`H` (hash) — Jenkins' own addition, and the one actually worth using
+:   `H 2 * * *` looks like "2am," but `H` isn't a fixed value — it's a hash of the job's own name: deterministic (the same job always lands on the same minute every time), but spread across the full range for *different* jobs. Written as `0 2 * * *`, a hundred jobs on one Jenkins instance can all be scheduled for exactly 02:00:00, all firing on the same controller and agents at once. `H 2 * * *` spreads those same hundred jobs across the whole 02:00–02:59 hour instead, without anyone hand-picking a different minute for each one. `H` can also scope a narrower range — `H(0-29) * * * *` picks a consistent minute somewhere in just the first half of every hour.
+
+Timezone
+:   Evaluated in the controller's own configured system timezone by default (the "Build periodically" row above already notes this) — override it per-trigger by putting a `TZ=` line first, on its own line inside the same string: `cron('TZ=Asia/Dhaka\nH 2 * * *')`.
+
+#### The part usually actually wanted: check-then-act, not just "run on a timer"
+
+A schedule alone only starts a pipeline — most real scheduled jobs still need to *decide* whether there's anything to actually do once they wake up, rather than unconditionally repeating an action every single time. A nightly Terraform drift check is the clearest example:
+
+```groovy
+pipeline {
+    agent { label 'agent-infra' }
+    triggers { cron('H 2 * * *') }
+    stages {
+        stage('Check for drift') {
+            steps {
+                script {
+                    sh 'terraform init'
+                    def exitCode = sh(script: 'terraform plan -detailed-exitcode', returnStatus: true)
+                    if (exitCode == 2) {
+                        echo 'Drift detected -- infrastructure no longer matches the .tf files'
+                        // notify, or gate a follow-up apply, here
+                    } else if (exitCode == 0) {
+                        echo 'No drift -- infrastructure matches state exactly'
+                    } else {
+                        error('terraform plan itself failed')
+                    }
+                }
+            }
+        }
+    }
+}
+```
+
+`terraform plan -detailed-exitcode`'s exit codes are exactly this check-then-act signal: `0` means no changes needed, `2` means changes were detected (drift, or a `.tf` file that hasn't been applied yet), `1` means the plan itself errored. The schedule (`triggers { cron(...) }`) is what makes this run every night unattended; the exit-code branch is what makes it *only* act — notify, open a ticket, gate a follow-up `apply` — when there's actually something to act on, instead of sending a "checked, all fine" notification every single night regardless.
+
+!!! success "The same shape as every other conditional gate in this chapter"
+
+    Reacting to `terraform plan`'s exit code here is the identical idea as `when { changeset ... }` on the docker-push pipeline (20.14) or a canary's metrics-check gate ([cicd-delivery.md](cicd-delivery.md)) — a scheduled pipeline still checks a real condition before doing anything consequential; the schedule just decides *when* to check, not *whether* the check passed.
+
+!!! note "`pollSCM` is the same cron syntax, for a narrower, git-specific check"
+
+    `triggers { pollSCM('H/5 * * * *') }` (20.12 contrasts this against webhooks) uses this identical cron string format, but its built-in condition is always "did the repository get new commits since last time" — Jenkins checks the repo on the given schedule and only actually starts a build if something changed. A plain `cron(...)` trigger has no built-in condition at all — it fires every time, on schedule, and it's on the pipeline itself (like the Terraform exit-code check above) to decide whether there's anything worth doing once it does.
+
 #### The script definition itself
 
 Further down the same screen, "Pipeline script" is one of two ways to tell Jenkins what to actually run:

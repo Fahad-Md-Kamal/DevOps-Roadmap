@@ -948,3 +948,146 @@ Force the use of the sandbox globally in the system
 !!! success "Verifying this page's settings are actually taking effect"
 
     No separate "test" button exists — the way to confirm Authorization is actually enforced is to log in (or check anonymously, in a private browser window) as a lower-privileged account and confirm the action that should be blocked actually is, the same "don't just trust the config, check the real behavior" principle 20.7 applies to a deployed application. A CSRF crumb rejection shows up as a `403` with `No valid crumb was included in the request` in the response body if a scripted client forgets to fetch and send one — a good sign the protection is live, not a bug to work around by disabling it.
+
+### 20.16 A Multi-Agent, Multi-Pipeline Deployment: Infra, Build, and Deploy as Three Separate Jobs
+
+Every pipeline shown so far in this chapter runs start to finish on one agent. A real platform more often splits the work across three genuinely separate Jenkins *jobs* — each on its own labeled agent, sometimes literally a different machine — triggered off each other rather than living as stages in one Jenkinsfile. This is [cicd-delivery.md](cicd-delivery.md)'s "which comes after which" question again, but drawn at the level of physical agents and separate credential scopes instead of just pipeline stages.
+
+#### Why three separate jobs on three separate agents, not one
+
+- **Least privilege, taken further than 20.9's credential scoping** — a build agent never needs AWS deploy permissions; a deploy agent never needs a GitHub push token or Docker Hub push credentials, only pull access and whatever AWS role actually performs the deployment. A compromised build agent (a malicious dependency executing code during `docker build`, say) simply has no path to production at all, because it holds no AWS credentials to reach it with.
+- **Independent cadence** — infrastructure changes rarely; the app deploys on every merge. A dedicated infra job, with its own trigger and its own approval gate, doesn't get dragged along on every app-only commit — [cicd-delivery.md](cicd-delivery.md)'s "One pipeline or two" section covers the same tradeoff one level up, as guarded stages in one pipeline rather than fully separate jobs.
+- **Toolchain isolation** — the build agent needs Docker and Buildx (20.6/20.7's install list); the deploy agent needs the AWS CLI and IAM permissions for ECS/CodeDeploy/ELB; the infra agent needs Terraform. None of the three needs what the other two have installed, so none of the three's attack surface includes tools it never uses.
+
+#### The three pipelines
+
+**1. Infra pipeline — `agent-infra`**
+
+```groovy
+pipeline {
+    agent { label 'agent-infra' }
+    stages {
+        stage('Terraform') {
+            steps {
+                sh 'terraform init'
+                sh 'terraform plan -out=tfplan'
+                input message: 'Apply this plan?'
+                sh 'terraform apply -auto-approve tfplan'
+            }
+        }
+    }
+}
+```
+
+Triggered manually, or by a webhook scoped to `.tf` file changes ([cicd-delivery.md](cicd-delivery.md)'s `changeset` guard) — not by every commit to the application repo.
+
+**2. Build pipeline — `agent-build`**
+
+```groovy
+pipeline {
+    agent { label 'agent-build' }
+    stages {
+        stage('Code') {
+            steps { git credentialsId: 'github-pat', url: 'https://github.com/Fahad-Md-Kamal/investor-pro.git', branch: 'main' }
+        }
+        stage('Build & Push') {
+            steps {
+                sh "docker build -t fahadmdkamal801/investor-pro:${env.GIT_COMMIT.take(7)} ."
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
+                    sh "docker push fahadmdkamal801/investor-pro:${env.GIT_COMMIT.take(7)}"
+                }
+            }
+        }
+        stage('Trigger deploy') {
+            steps {
+                build job: 'deploy-pipeline',
+                      parameters: [
+                          string(name: 'IMAGE_TAG', value: env.GIT_COMMIT.take(7)),
+                          string(name: 'STRATEGY', value: 'canary')
+                      ],
+                      wait: false
+            }
+        }
+    }
+}
+```
+
+Triggered by a GitHub webhook (20.12) on every push to `main`. Its last stage is the actual handoff to a different machine — `build job:` starts an entirely separate Jenkins job, on a different agent, and passes it exactly which image tag to deploy. `wait: false` means this pipeline reports success the moment it has kicked off the deploy job, rather than sitting there watching someone else's job run.
+
+**3. Deploy pipeline — `agent-deploy`**
+
+```groovy
+pipeline {
+    agent { label 'agent-deploy' }
+    parameters {
+        string(name: 'IMAGE_TAG', defaultValue: '')
+        choice(name: 'STRATEGY', choices: ['blue-green', 'canary', 'shadow'])
+    }
+    stages {
+        stage('Pull image') {
+            steps { sh "docker pull fahadmdkamal801/investor-pro:${params.IMAGE_TAG}" }
+        }
+        stage('Blue/green') {
+            when { expression { params.STRATEGY == 'blue-green' } }
+            steps { echo "Runs cicd-delivery.md's CodeDeploy stage, IMAGE_TAG substituted in" }
+        }
+        stage('Canary') {
+            when { expression { params.STRATEGY == 'canary' } }
+            steps { echo "Runs cicd-delivery.md's weighted-ALB ramp loop" }
+        }
+        stage('Shadow') {
+            when { expression { params.STRATEGY == 'shadow' } }
+            steps { echo "Deploys v2 behind its own target group at 0% live weight" }
+        }
+    }
+}
+```
+
+This pipeline never touches source code or a Dockerfile at all — it only ever pulls an already-built, already-tagged image and applies whichever rollout strategy the `STRATEGY` parameter selects, using the exact mechanics [cicd-delivery.md](cicd-delivery.md)'s "Blue/green and canary, driven from the pipeline" section already covers.
+
+#### Shadow: the one strategy with no ALB-weight equivalent
+
+Blue/green and canary both work by adjusting how much production traffic reaches v2 — a target-group swap or a weight change. Shadow (principles.md 2.1.5) is structurally different: v1 keeps serving 100% of real traffic and real responses the whole time, while a *copy* of each request is additionally sent to v2, whose response gets thrown away. Jenkins' role shrinks accordingly here — it deploys v2 behind its own target group at zero live weight, exactly like the first step of a canary, but the actual request duplication is handled by something outside the ALB entirely (a service mesh route, a Lambda, or the application layer itself), since a plain ALB has no "send a copy of this request elsewhere and discard the response" mode. The deploy pipeline's job stops at "v2 is running and reachable" — wiring up the mirroring itself is a separate, one-time infrastructure task, not something repeated on every deploy.
+
+#### Who needs which credential — and, just as importantly, who doesn't
+
+| Agent | Needs | Never needs |
+|---|---|---|
+| `agent-infra` | AWS credentials scoped to Terraform's own IAM role, access to the Terraform state backend | A GitHub push token, Docker Hub credentials |
+| `agent-build` | `github-pat` (clone), `dockerhub-creds` (push) | Any AWS deploy permission at all |
+| `agent-deploy` | Docker Hub pull credentials (if the registry is private), AWS credentials scoped to ECS/CodeDeploy/ELB actions | GitHub credentials, Docker Hub push credentials |
+
+#### The full picture: three machines, one release
+
+```mermaid
+flowchart LR
+    subgraph InfraAgent["agent-infra: Terraform"]
+        TFPlan[terraform plan] --> TFApprove[Manual approval] --> TFApply[terraform apply]
+    end
+
+    subgraph BuildAgent["agent-build: Docker"]
+        GH[GitHub webhook: push to main] --> Clone[git clone]
+        Clone --> DockerBuild[docker build, tag by commit]
+        DockerBuild --> Push[docker push to Docker Hub]
+        Push -->|"build job: deploy-pipeline"| Trigger[Trigger deploy-pipeline]
+    end
+
+    subgraph DeployAgent["agent-deploy: AWS CLI"]
+        Trigger --> Pull[docker pull IMAGE_TAG]
+        Pull --> Strategy{STRATEGY param}
+        Strategy -->|blue-green| BG[CodeDeploy: atomic swap]
+        Strategy -->|canary| Canary[Weighted ALB ramp: 5% then 25% then 100%]
+        Strategy -->|shadow| Shadow[Deploy v2 at 0% live weight]
+    end
+
+    TFApply -.->|infra must already exist, not per-release| Pull
+```
+
+!!! danger "This is also what limits the damage a compromised build agent can do"
+
+    Because `agent-build` holds `github-pat` and `dockerhub-creds` but zero AWS credentials, the worst outcome of it being compromised is a malicious image getting pushed to Docker Hub — it has no way to reach production directly. That malicious image still has to pass through `agent-deploy`'s own rollout strategy — a canary's metrics-comparison gate, or a blue/green deployment's CloudWatch-alarm-triggered rollback — before it could actually harm real traffic. Splitting the agents doesn't just organize the work; it puts a real gate between "an attacker can push an image" and "an attacker's code runs in production."
+
+!!! success "This is what a genuinely complex, real pipeline looks like"
+
+    Not one Jenkinsfile with twenty stages, but several small, single-purpose pipelines, each on a differently-scoped agent, connected by explicit `build job:` triggers instead of implicit sequential stages — the same "which comes after which" question [cicd-delivery.md](cicd-delivery.md)'s end-to-end diagram answers at the level of logical steps, now answered at the level of which machine does which part, and what each one is and isn't trusted with.

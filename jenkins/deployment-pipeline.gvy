@@ -46,8 +46,9 @@ pipeline{
                 echo "Setup data"
 
                 sh """
-                    mkdir -p data/raw
-                    unzip -o stock-data.zip -d ./data/raw/amarstock
+                    unzip -o stock-data.zip -d .
+                    mkdir -p data/raw/amarstock
+                    cp data/amarstock/*.csv data/raw/amarstock/
                 """
                 
                 echo "Ingestable data unzipped successfully"

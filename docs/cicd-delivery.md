@@ -91,6 +91,54 @@ flowchart TD
 
     Approving a `terraform plan` (step 3) and approving a promotion to production (step 6) are different decisions, made by different judgment calls, often by different people — infrastructure review asks "is this change to the AWS account safe," while the production-promotion gate asks "has this specific build actually been verified to work." Collapsing them into one approval means whoever clicks it is vouching for both at once, even though a change that's infrastructurally safe can still ship a broken application, and a perfectly good build can still ride on an infrastructure change nobody reviewed closely enough.
 
+### One pipeline or two: combining Terraform, build, and deploy
+
+The diagram above splits Build and Infrastructure into two independent pipelines that only meet at Staging. That's one legitimate way to structure this — not the only one. Nothing stops a single Jenkinsfile from running Terraform, pulling and building the app, and deploying it, all as sequential stages in one pipeline:
+
+```groovy
+pipeline {
+    agent { label 'agent-one' }
+    stages {
+        stage('Code') {
+            steps { git credentialsId: 'github-pat', url: '...', branch: 'main' }
+        }
+        stage('Terraform') {
+            when { changeset "**/*.tf" }
+            steps {
+                sh 'terraform init'
+                sh 'terraform plan -out=tfplan'
+                sh 'terraform apply -auto-approve tfplan'
+            }
+        }
+        stage('Build & Push') {
+            steps {
+                sh "docker build -t app:${env.BUILD_NUMBER} ."
+                sh "docker push app:${env.BUILD_NUMBER}"
+            }
+        }
+        stage('Deploy') {
+            steps { sh "aws ecs update-service --service app --force-new-deployment" }
+        }
+    }
+}
+```
+
+The `when { changeset "**/*.tf" }` guard on Terraform matters more here than it did on 20.14's docker-push pipeline — without it, every single app-only commit would re-run `terraform plan`/`apply`, adding real time to every deploy and touching state that had nothing to do with the change being deployed.
+
+!!! success "Why you'd actually choose one pipeline"
+
+    A combined pipeline is genuinely simpler for a small team where the same people own both infrastructure and application code — one place to look, one thing to maintain, and no cross-pipeline coordination problem to solve ("did the infra pipeline finish before the app pipeline tried to deploy onto it?" never comes up, because there's only one pipeline).
+
+!!! danger "What actually breaks in a combined pipeline at real scale"
+
+    - **State lock contention** — Terraform locks its state file during `plan`/`apply`. Even with the `changeset` guard above, an app-only deploy can sit blocked waiting on a lock held by an unrelated infra-only change, since the lock is per-workspace, not per-stage.
+    - **Blast radius** — a broken `.tf` file, an unexpectedly destructive `plan`, or a stuck `apply` now blocks an app deploy that has nothing to do with infrastructure at all.
+    - **Review granularity** — a pull request touching both app code and infrastructure gets one combined approval, making it harder to give the infrastructure change the "is this safe for the AWS account" scrutiny it deserves separately from "does this build actually work" — the exact distinction the two-approval-gates box above is making, just harder to preserve once both concerns share one pipeline.
+
+!!! note "Start combined; split once it actually hurts"
+
+    The split model (the diagram above) is the one to reach for once one of the failure modes above actually happens, not preemptively — the same "don't split until it hurts" judgment as any other premature abstraction. A small project or a single-team setup is usually better off with one pipeline and the `changeset` guard than with two pipelines and the coordination overhead of keeping them in sync.
+
 ## 22 Progressive Delivery, Runbook, Readiness Review
 
 Morning: finishing the pipeline. Afternoon: the readiness review itself.

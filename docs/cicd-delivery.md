@@ -1,5 +1,6 @@
 ---
 title: CI/CD & Delivery
+icon: lucide/rocket
 ---
 
 # CI/CD Pipeline & Progressive Delivery

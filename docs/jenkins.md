@@ -1,5 +1,6 @@
 ---
 title: Jenkins
+icon: fontawesome/brands/jenkins
 ---
 
 # Jenkins Provisioned, Pipeline as Code

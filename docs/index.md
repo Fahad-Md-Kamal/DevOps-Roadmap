@@ -1,5 +1,6 @@
 ---
 title: Home
+icon: lucide/house
 ---
 
 # DevOps Ramp Plan

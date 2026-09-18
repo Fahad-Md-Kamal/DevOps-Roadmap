@@ -1,5 +1,6 @@
 ---
 title: Networking (VPC)
+icon: lucide/network
 ---
 
 # Networking: VPC, Built by Hand

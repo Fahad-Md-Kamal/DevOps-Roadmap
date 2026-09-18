@@ -1,5 +1,6 @@
 ---
 title: Compute & Scaling
+icon: lucide/server
 ---
 
 # Compute & Scaling: EC2, AMIs & Auto Scaling

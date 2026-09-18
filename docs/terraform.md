@@ -1,5 +1,6 @@
 ---
 title: Terraform
+icon: lucide/layers
 ---
 
 # Terraform: Infrastructure as Code

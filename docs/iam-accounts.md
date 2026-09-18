@@ -1,5 +1,6 @@
 ---
 title: AWS Accounts & IAM
+icon: fontawesome/brands/aws
 ---
 
 # AWS Accounts & IAM

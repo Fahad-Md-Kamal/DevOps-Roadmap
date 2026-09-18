@@ -1,5 +1,6 @@
 ---
 title: Containers
+icon: fontawesome/brands/docker
 ---
 
 # Containers: ECS Fargate & EKS

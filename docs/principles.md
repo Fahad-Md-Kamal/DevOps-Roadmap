@@ -1,5 +1,6 @@
 ---
 title: Delivery Principles
+icon: lucide/compass
 ---
 
 # Delivery Principles & Process

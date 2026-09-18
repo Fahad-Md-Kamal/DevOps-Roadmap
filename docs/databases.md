@@ -1,5 +1,6 @@
 ---
 title: Databases (RDS)
+icon: lucide/database
 ---
 
 # Databases: RDS, SQL & Data Management

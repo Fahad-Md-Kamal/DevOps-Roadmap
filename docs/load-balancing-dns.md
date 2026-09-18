@@ -1,5 +1,6 @@
 ---
 title: Load Balancing & DNS
+icon: lucide/route
 ---
 
 # Load Balancing & DNS

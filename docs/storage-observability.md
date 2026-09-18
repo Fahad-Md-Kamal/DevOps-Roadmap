@@ -1,5 +1,6 @@
 ---
 title: Storage & Observability
+icon: lucide/archive
 ---
 
 # Storage, Secrets & Observability

@@ -1,5 +1,6 @@
 pipeline{
-    agent {label 'agent-one'}
+    // agent {label 'agent-one'}
+    agent any
     stages{
         stage("Code"){
             steps{
@@ -13,15 +14,36 @@ pipeline{
             }
         }
         stage("Build"){
+            when {
+                anyOf {
+                    changeset "Dockerfile"
+                    changeset "src/**"
+                    changeset "pyproject.toml"
+                    changeset "uv.lock"
+                }
+            }
             steps{
                 echo "This is building the code"
                 sh "docker build -t investor-pro:${env.BUILD_NUMBER} ."
             }
         }
         stage("Push to Dockerhub"){
+            when {
+                anyOf {
+                    changeset "Dockerfile"
+                    changeset "src/**"
+                    changeset "pyproject.toml"
+                    changeset "uv.lock"
+                }
+            }
             steps{
                 echo "This push the image to Docker Hub"
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                withCredentials(
+                    [usernamePassword(
+                        credentialsId: 'dockerhub-creds', 
+                        usernameVariable: 'DOCKER_USER', 
+                        passwordVariable: 'DOCKER_PASS')
+                    ]) {
                     sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
                     sh "docker tag investor-pro:${env.BUILD_NUMBER} fahadmdkamal801/investor-pro:${env.BUILD_NUMBER}"
                     sh "docker push fahadmdkamal801/investor-pro:${env.BUILD_NUMBER}"

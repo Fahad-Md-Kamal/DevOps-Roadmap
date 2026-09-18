@@ -611,6 +611,47 @@ withCredentials([usernamePassword(credentialsId: 'ecr-creds', usernameVariable: 
 
     `credentialsId: 'ecr-creds'` is just a lookup key — the actual secret value never appears in the pipeline source, never gets committed to the repo, and Jenkins actively masks it out of build console logs. Anyone who can edit the Jenkinsfile can use the credential, but they can't read its value from the code itself.
 
+#### Choosing a credential type
+
+**Manage Jenkins → Credentials → (a store) → Add Credentials** offers six shapes, not just one generic "secret" — picking the one that actually matches what's being stored, instead of defaulting to whichever type was used last, is what makes the credential usable the way a step actually expects it.
+
+[![Jenkins Add Credentials dialog: Select a type of credential — Username with password ("Commonly used for authentication to services like Git, APIs, or registries"), GitHub App, SSH Username with private key, Secret file, Secret text, Certificate ("Upload a PKCS#12 or PEM encoded certificate and private key")](images/jenkins/credential-types.png)](images/jenkins/credential-types.png){ target="_blank" rel="noopener" }
+
+*The credential-type picker — six distinct shapes, each exposed differently to a pipeline step.*
+
+| Credential type | Use it for | Real-world tradeoff |
+|---|---|---|
+| Username with password | Any username+token/password pair — git over HTTPS (20.6's `github-pat`), Docker Hub (20.14's `dockerhub-creds`), most registries and REST APIs | The most universally supported type and the simplest to set up; a genuinely long-lived static secret unless the "password" field actually holds a scoped, revocable token rather than a real account password |
+| GitHub App | GitHub access shared across many jobs or an entire org, rather than one person's token | Jenkins holds an App ID and a private key, then mints a short-lived, auto-rotating installation token per use — nothing long-lived sits in the credential store at all, and access doesn't vanish when whoever registered it leaves. Costs more to set up once (registering the App, installing it, generating a key) than a PAT generated in a minute |
+| SSH Username with private key | Git over SSH, scoped to exactly one repo via a GitHub deploy key (20.6's alternative to a PAT) | No password ever transmitted, and a deploy key can be read-only and repo-scoped; doesn't work on a network that blocks outbound SSH (port 22), and rotation/revocation is manual unless something else automates it |
+| Secret file | A secret that's naturally a whole file, not a string — a `kubeconfig`, a cloud service-account JSON key, a license file, a `.pem` | Matches the actual shape of the secret instead of awkwardly pasting file contents into a text field; a consuming step has to read it via a temp file path (`withCredentials([file(...)])`), one more layer of indirection than a plain env var |
+| Secret text | A single opaque value with no username — an API key, a webhook token, a Slack token | The simplest possible shape for a one-value secret; forces anything that actually needs more than one field (a username *and* a token) into a single string, which then has to be parsed back apart manually |
+| Certificate | Mutual TLS or code-signing — a service that requires a client certificate rather than a bearer token or password | The correct fit exactly when a target genuinely requires certificate-based auth; unnecessary complexity as a stand-in for any of the simpler types above, and this project's own pipelines never need one |
+
+!!! danger "The credential type doesn't enforce what actually goes in the 'password' field"
+
+    "Username with password" works equally well whether the password field holds a real account password or a narrowly-scoped, individually-revocable token — Jenkins has no way to tell the difference, and both look identical once masked in a console log. 20.6's `github-pat` and 20.14's `dockerhub-creds` are both this type, and both are deliberately fine-grained tokens (a repo-scoped GitHub PAT, a Docker Hub access token), not either account's actual login password — precisely so that leaking or rotating one doesn't mean rotating the account's real password, and so the blast radius of a compromised Jenkins credential store is one repo or one registry, not a whole account.
+
+#### Credential providers: the store isn't always Jenkins' own
+
+Every credential covered above (20.6's `github-pat`, 20.14's `dockerhub-creds`) lives in Jenkins' own built-in encrypted store — but that store is just the *default* **credential provider**, not the only one. Jenkins exposes credential lookup as a pluggable extension point, so a plugin can make Jenkins fetch a credential from an external system instead, on demand, at build time — HashiCorp Vault, AWS Secrets Manager, Azure Key Vault, CyberArk Conjur, Google Secret Manager, and Kubernetes Secrets all have a credentials-provider plugin. A `credentialsId:` in a Jenkinsfile looks identical either way — the pipeline code doesn't change, only where Jenkins actually resolves that ID from does.
+
+| Reason to use an external provider instead | Why it matters in a real organization |
+|---|---|
+| Single source of truth | Most orgs already keep secrets in a company-wide vault used by many systems, not just Jenkins. An external provider means Jenkins reads the same secret everyone else does, instead of a second copy pasted into Jenkins that can quietly drift out of sync. |
+| Centralized rotation | Rotate the secret once in Vault/Secrets Manager and every consumer, Jenkins included, picks it up automatically. With Jenkins' own store, someone has to remember to log in and update it by hand every time. |
+| Dynamic, short-lived secrets | Vault in particular can issue a database credential valid for just a few minutes, auto-expiring on its own. Jenkins' own store holds a static value indefinitely until someone manually changes it — a leaked value there stays valid until then. |
+| Audit trail and access policy | Enterprise secret managers log every read — who, what, when — and enforce fine-grained access policies. Jenkins' own store doesn't give that level of visibility. |
+| Compliance | Some frameworks require secrets to live only in one approved, audited vault, not "encrypted at rest inside a CI tool" — however good that encryption actually is. |
+
+!!! danger "Reduced blast radius is the big one, given 20.10's own backup story"
+
+    20.10 already covers backing up `JENKINS_HOME` in full — and `JENKINS_HOME` is exactly where Jenkins' own credential store persists every secret, encrypted, on disk. Anyone who obtains `JENKINS_HOME` plus its master key can decrypt every credential ever added, all at once — the backup itself becomes something that needs the same protection as the secrets it contains. With an external provider, Jenkins only ever holds a short-lived read credential (a Vault token, an IAM role), fetches the real secret at request time, and never writes it to disk at all — compromising the controller, or leaking a `JENKINS_HOME` backup, no longer hands over every secret it's ever used.
+
+!!! success "The right call for this project is still Jenkins' own store"
+
+    A single-person learning setup has no external vault to stand up or maintain, and no second system already depending on the same secrets — Jenkins' built-in store (20.6's `github-pat`, 20.14's `dockerhub-creds`) is the simpler, correct choice here. The tradeoffs above become the deciding factor at real organizational scale — many teams, many services sharing secrets, and a compliance requirement or an incident response plan that actually depends on centralized rotation and audit — not because the built-in store is broken for a project this size.
+
 #### Folder-level security
 
 Folders aren't just organization — they're a permission and credential-scoping boundary. A credential added inside a folder is only visible to jobs inside that same folder, and role-based/matrix security can grant a team full control over their own folder's jobs without touching anyone else's. This is what makes multi-team Jenkins viable on one shared controller instead of needing a separate instance per team.
@@ -735,3 +776,175 @@ The external validation for Jenkins specifically, the way terraform.html 19.9 co
 !!! success "Where 20.1–20.12 already land"
 
     Controller/agent architecture (20.1), installation itself (20.2 — literally named in the Administration domain's topic list), connecting a distributed agent (20.3 — "distributed builds, controller/agent configuration" in the Administration domain, almost word for word), job types and Pipeline job configuration (20.4, 20.5), source code management integration and credentials (20.6 — named explicitly in the Fundamentals domain), real-world pipeline/deployment troubleshooting (20.7 — not a named exam topic, but exactly the kind of "why did the green build not actually work" judgment the Pipeline domain expects), a complete real deployment pipeline end to end (20.8 — the shape of pipeline the Pipeline domain's "build technologies" objective actually expects), plugin/credential/folder security (20.9), the declarative Jenkinsfile (20.11), and multibranch/shared libraries (20.12) map directly onto the Administration and Pipeline domains — the two domains carrying the most exam weight in every breakdown found. Freestyle jobs get a mention in 20.4 but no deep-dive yet — worth a dedicated look before sitting this exam, since it's still a full CJE section.
+
+### 20.14 A Different Shape: Push to Docker Hub Instead of Building Where You Deploy
+
+20.6–20.8 build the Docker image and immediately run it, in place, on the same agent that just cloned the code — the image never leaves that one machine. A second, genuinely different pipeline (`jenkins/pipeline/docker-image-push-pipeline.gvy`) builds the image once and pushes it to Docker Hub instead, so *any* machine with Docker and a pull credential can run the exact same, already-tested image — not a machine that also needs git access, GitHub credentials, and the project's own build toolchain.
+
+#### The pipeline
+
+``` groovy
+pipeline{
+    agent {label 'agent-one'}
+    stages{
+        stage("Code"){
+            steps{
+                git credentialsId: 'github-pat', url: 'https://github.com/Fahad-Md-Kamal/investor-pro.git', branch:"main"
+                sh "mv .env.example .env"
+            }
+        }
+        stage("Build"){
+            when {
+                anyOf {
+                    changeset "Dockerfile"
+                    changeset "src/**"
+                    changeset "pyproject.toml"
+                    changeset "uv.lock"
+                }
+            }
+            steps{
+                sh "docker build -t investor-pro:${env.BUILD_NUMBER} ."
+            }
+        }
+        stage("Push to Dockerhub"){
+            when {
+                anyOf {
+                    changeset "Dockerfile"
+                    changeset "src/**"
+                    changeset "pyproject.toml"
+                    changeset "uv.lock"
+                }
+            }
+            steps{
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
+                    sh "docker tag investor-pro:${env.BUILD_NUMBER} fahadmdkamal801/investor-pro:${env.BUILD_NUMBER}"
+                    sh "docker push fahadmdkamal801/investor-pro:${env.BUILD_NUMBER}"
+                }
+            }
+        }
+        stage("Deploy"){
+            steps{
+                sh "make start"
+            }
+        }
+    }
+}
+```
+
+Setup-Data and Ingest All Data (20.8) carry over unchanged after this — the registry push only changes how the image *gets to* the Deploy stage, not what happens once the app is running.
+
+| Stage | What's different from 20.8 | Why |
+|---|---|---|
+| Build | Tags with only `${env.BUILD_NUMBER}` — no floating `:latest`. | `:latest` matters for a local `docker run`/`docker compose` picking the most recent build off the same machine; once an image is pushed under an explicit tag, nothing downstream needs to guess "latest" locally. |
+| Push to Dockerhub | New stage — logs into Docker Hub and pushes the just-built image by name. | This is the actual point of the alternate pipeline: after this stage, the image exists independently of the agent that built it. |
+| Deploy | Unchanged — `make start` → `docker compose up -d --build`. | In this project's current form, Deploy still *rebuilds* locally rather than pulling the pushed image — the push exists so the image is *available* to pull elsewhere, not because this particular Deploy stage consumes it yet. A registry-consuming deploy would replace `--build` with a plain `docker compose pull && docker compose up -d`, referencing the pushed tag instead of building from source again. |
+
+!!! note "The registry push doesn't (yet) change what Deploy actually runs"
+
+    Right now Build creates a local image, Push sends a copy to Docker Hub, and Deploy still rebuilds from source rather than pulling what was just pushed — so the pushed image isn't actually consumed by this pipeline yet. That's fine as a first step, but the real payoff of this approach — a separate host, or a separate pipeline, pulling the exact tested artifact instead of rebuilding it — only shows up once something downstream actually runs `docker pull fahadmdkamal801/investor-pro:<tag>` instead of building again.
+
+#### The pipeline, step by step
+
+`stage("Code")`
+:   Clones the repo with the same scoped `github-pat` credential as 20.6, checks out `main`, and turns the committed `.env.example` into the real `.env` — identical to 20.8's own Code stage.
+
+`stage("Build")`
+:   Gated by `when { anyOf { changeset ... } }` (see below) — only runs if the commits this build picked up actually touched `Dockerfile`, `src/**`, `pyproject.toml`, or `uv.lock`. When it does run: `docker build -t investor-pro:${env.BUILD_NUMBER} .` builds the image and tags it with just the Jenkins build number — no `:latest` this time (see the stage-differences table above for why).
+
+`stage("Push to Dockerhub")`
+:   Gated by the same `when` condition as Build, so the two stages always agree — Push never runs against an image Build didn't just create. `withCredentials([...])` binds the stored Docker Hub username and password to two masked environment variables, scoped to just this block. Three shell steps run in order inside it: log in (`docker login`, fed the password over stdin so it never shows up in `ps` output or shell history), re-tag the just-built image under the Docker Hub namespace (`fahadmdkamal801/investor-pro:...` — Docker Hub requires the image name prefixed with the account it's being pushed to), then push it.
+
+`stage("Deploy")`
+:   `make start` → `docker compose up -d --build`, the same as 20.7/20.8 — rebuilds and (re)starts the app locally. Doesn't yet consume the image that was just pushed (see the note above).
+
+#### Why this is a different shape, not just an extra stage
+
+20.6–20.8's approach ties build and deploy together: whatever machine has the source checked out is also the machine that ends up running the container. That's simple, but it means every deploy target needs git access, GitHub credentials, and the full build toolchain (Docker, Compose, Buildx, `make` — 20.6/20.7's whole list). Pushing to a registry breaks that coupling: build once, on one machine that's allowed to see the source, and let every other machine that needs to run the app pull an already-built, already-tagged image and nothing else. It's the same "build once, deploy the identical artifact everywhere" principle behind an AMI (compute.html) or an immutable Terraform-provisioned resource — a registry just does it for containers instead of instances.
+
+#### `withCredentials` here, vs. the `git` step's own `credentialsId`
+
+Both stages authenticate to something, but through two different mechanisms, worth telling apart on purpose:
+
+| Step | Mechanism | Why |
+|---|---|---|
+| `git credentialsId: 'github-pat', ...` | Native — the `git` step accepts a `credentialsId` parameter directly, and Jenkins resolves and applies it internally. The token is never exposed as a shell variable. | `git` is a first-class Jenkins step that already knows how to authenticate. |
+| `docker login` inside `withCredentials([usernamePassword(...)])` | Generic — `docker login` is a plain shell command, not a Jenkins step, so there's no `credentialsId:` parameter to give it. `withCredentials` binds the stored credential to masked environment variables (`DOCKER_USER`, `DOCKER_PASS`) for just that block, and the `sh` step uses them explicitly. | Only needed when the thing being authenticated is a raw CLI call with no native Jenkins-step integration. |
+
+!!! note "A native alternative exists for Docker specifically"
+
+    The Docker Pipeline plugin provides `docker.withRegistry('https://registry.hub.docker.com', 'dockerhub-creds') { docker.image(...).push() }` — the same "the step handles the credential internally" shape as the `git` step, instead of manually piping a password into `docker login`. Not required — the manual version above works fine — just the same kind of upgrade the `git` step already represents over hand-rolling authentication.
+
+#### Avoiding a rebuild-and-push on every run, even with no code changes
+
+Without a guard, Build and Push run unconditionally every single time the pipeline executes — including a manual re-run where nothing in the repo actually changed since the last one. That's wasted build time, a new ~1.3GB layer set pushed for no reason, and disk pressure on whichever agent runs it (20.7's cleanup problem, made worse).
+
+`when { anyOf { changeset ... } }` — the fix actually applied above
+:   A `when` block on a stage can gate it on Jenkins' own SCM changelog for that build — the set of files the commits it just picked up actually touched. `changeset` takes one pattern per call, so checking several paths means one `changeset` line per path inside `anyOf { ... }` — `changeset "Dockerfile"`, `changeset "src/**"`, `changeset "pyproject.toml"`, `changeset "uv.lock"`, any one of which being true runs the stage. A run triggered by a docs-only commit matches none of them and skips Build and Push entirely, no extra state needed to track it. A plain re-run with no new commits at all has an empty changelog, so the same condition skips that too. Both stages repeat the identical `when` block on purpose — Push must never run against an image Build didn't just (re)create, and since both conditions are evaluated against the same build's changelog, they always agree.
+
+Comparing the current commit against the last one successfully pushed — a stricter fit, not yet applied
+:   `changeset` answers "did anything change since the last build," which isn't quite "since the last *successful push*." Persisting the pushed commit's SHA somewhere durable (a small file outside the workspace, since the workspace itself can be wiped between builds) and comparing it against `env.GIT_COMMIT` at the start of a run also catches the case a previous run's push actually failed — a `changeset`-only check would stay green on the very next run even though nothing had actually reached Docker Hub yet. Worth adding if a failed push in production actually happens; not needed to get the basic "skip when nothing relevant changed" behavior working.
+
+### 20.15 Locking Down the Controller: the Global Security Page
+
+**Manage Jenkins → Security** (`configureSecurity` in the URL — an older name, "Configure Global Security," still shows up there and in a lot of documentation) is the one screen controlling who can reach Jenkins at all, and what they can do once they're in. Every pipeline, credential, and agent covered so far in this chapter assumes a controller that's actually locked down — an open one turns every trick in 20.6–20.14 into something an anonymous visitor could also do.
+
+[![Jenkins Manage Jenkins Security page: Authentication (Security Realm: Jenkins' own user database, Authorization: Logged-in users can do anything), Markup Formatter, Agents (TCP port for inbound agents: Disable), CSRF Protection (Default Crumb Issuer), Git plugin notifyCommit access tokens, Prism syntax highlighting, Git Hooks, Hidden security warnings, API Token, Content Security Policy, Git Host Key Verification Configuration, Sandbox Configuration](images/jenkins/jenkins-Security-management.png)](images/jenkins/jenkins-Security-management.png){ target="_blank" rel="noopener" }
+
+*The full Security page on a fresh controller — mostly still at Jenkins' own defaults. Click the screenshot to open it full-size in a new tab (it's a tall, full-page capture, so this page shrinks it to fit — every field is covered individually below regardless).*
+
+#### Authentication: who can even log in
+
+Security Realm
+:   Where Jenkins checks a username/password against. "Jenkins' own user database" (shown above) stores accounts inside Jenkins itself — fine for a single small team or a learning setup like this one. A real organization more often points this at LDAP, an existing SSO provider (SAML/OIDC via plugin), or GitHub OAuth — one fewer separate password to manage, and accounts disappear from Jenkins automatically the moment someone leaves the identity provider, instead of lingering as a Jenkins-local account nobody remembers to delete.
+
+Allow users to sign up
+:   Only relevant with "Jenkins' own user database" — lets anyone who can reach the login page create their own account, unauthenticated. Off by default, and worth leaving off for anything beyond a personal instance: combined with a permissive Authorization setting below, self-registration can mean "anyone on the internet who finds this URL can grant themselves an account."
+
+#### Authorization: what a logged-in user can do
+
+Authorization
+:   "Logged-in users can do anything" (the default shown above) means exactly what it says — every authenticated account is a full administrator, with no distinction between "runs builds" and "can rewrite security settings, read every credential's metadata, or delete other people's jobs." Fine for one person's own instance; the wrong choice the moment a second person gets an account. "Matrix-based security" or the Role-based Authorization Strategy plugin replace it with per-user or per-role permission grids — the same folder-level scoping 20.9 already covers, but enforced globally, before folders even come into it.
+
+Allow anonymous read access
+:   Lets anyone reach Jenkins' UI and REST API without logging in at all, read-only. Harmless for an internal dashboard nobody minds being visible; a real exposure if the controller is reachable from the public internet — job configuration, build console logs (which can leak environment details even with credential masking), and the list of installed plugins and their versions are all useful reconnaissance for an attacker, handed over with zero authentication.
+
+!!! danger "The real-world failure mode: sign-up plus full-admin-by-default, left on past a demo"
+
+    "Allow users to sign up" and "Logged-in users can do anything" are both convenient for a five-minute local demo — exactly this project's own setup — and both look harmless since they're one click to reverse later. The actual incidents this combination causes in the wild happen when a controller stood up quickly for a demo or a hackathon stays reachable afterward with the defaults untouched: anyone who finds the URL registers their own account and is instantly a full administrator, credentials store included. The fix isn't a special "hardening mode" to remember later — it's simply not leaving demo defaults on a controller anyone outside the original small circle can reach.
+
+#### CSRF Protection
+
+Crumb Issuer
+:   Jenkins' defense against Cross-Site Request Forgery — a "crumb" (a per-session token) has to be included on every state-changing request, so a malicious page a logged-in user happens to have open elsewhere can't silently trigger a build or change a setting just by getting their browser to send a request. "Default Crumb Issuer" is the safe default; some older third-party tooling recommends disabling this to simplify scripted API calls, which is exactly the tradeoff to avoid — a scripted client can fetch and send a crumb like anything else, and disabling this reopens the exact attack the setting exists to prevent.
+
+#### Agents: TCP port for inbound agents
+
+Fixed / Random / Disable
+:   Only relevant if any agent connects *inbound* to the controller (20.1's Inbound/JNLP agent type — the fix for an agent behind NAT the controller can't reach outbound). This project's own agent (20.3, 20.6) connects via the controller-initiated SSH method instead, which needs no open inbound agent port at all — so "Disable" here (the setting shown above) is correct for this exact setup, and removes one more open port from the controller's attack surface. Switching to an inbound/JNLP agent later would mean coming back to this exact setting first, or the new agent has nothing to connect to.
+
+#### Git Hooks
+
+Allow on Controller / Allow on Agents
+:   Both off by default. A git hook is a script git's own tooling runs automatically on certain repository events — allowing one to run **on the controller** means arbitrary script execution on the one process 20.1's very first danger box says never to run arbitrary code on. It's the same principle as "never build directly on the controller," just reachable through a different door than a pipeline step; leaving both unchecked unless a specific, trusted workflow genuinely needs one is the safer default.
+
+#### Sandbox Configuration
+
+Force the use of the sandbox globally in the system
+:   20.5 already covers the per-script "Use Groovy Sandbox" checkbox, checked by default on any one Pipeline job. This setting removes the choice entirely, instance-wide — no job's script can ever run outside the sandbox, regardless of what an individual job's own configuration says. Worth turning on the moment more than one person can author pipeline scripts on the same controller, since it closes off "someone unchecks the sandbox box on their own job" as a way around the restriction.
+
+#### The rest of the page, briefly
+
+| Section | What it's for |
+|---|---|
+| Markup Formatter | Controls how job/build descriptions render — "Plain text" (safe default, escapes HTML) vs. "Safe HTML," which allows a limited, sanitized HTML subset for richer formatting at a small added complexity cost. |
+| Git plugin notifyCommit access tokens | Scoped tokens specifically for the Git plugin's `notifyCommit` webhook URL (20.12), separate from a full API token — lets a webhook trigger builds without handing out a broader credential. |
+| Prism syntax highlighting | Restricts which on-agent directories the source-code-viewer's syntax highlighter is allowed to read from outside a job's own workspace — closes off a path-traversal-style read of arbitrary files on the agent. |
+| Hidden security warnings | Lets an administrator dismiss specific known-issue warnings (e.g. about an outdated plugin) after consciously deciding the risk is accepted, rather than a warning banner persisting forever. |
+| API Token | Governs *legacy* API tokens specifically — modern Jenkins issues a distinct, individually revocable token per named purpose instead. Both legacy options here are marked "Not recommended" for exactly that reason: one shared token per user is harder to rotate or scope than several purpose-specific ones. |
+| Content Security Policy | A browser-enforced header restricting what the Jenkins UI itself is allowed to load or execute — defends against a compromised or malicious plugin's UI content doing something the rest of the page shouldn't allow. Disabled by default because some older plugins' UIs aren't CSP-compatible yet. |
+| Git Host Key Verification Configuration | Controls how Jenkins verifies a remote git server's SSH host key before trusting it — "Known hosts file" (shown above) matches the same `~/.ssh/known_hosts` trust model any manual `ssh`/`git` client uses, rather than blindly accepting whatever key a server presents. |
+
+!!! success "Verifying this page's settings are actually taking effect"
+
+    No separate "test" button exists — the way to confirm Authorization is actually enforced is to log in (or check anonymously, in a private browser window) as a lower-privileged account and confirm the action that should be blocked actually is, the same "don't just trust the config, check the real behavior" principle 20.7 applies to a deployed application. A CSRF crumb rejection shows up as a `403` with `No valid crumb was included in the request` in the response body if a scripted client forgets to fetch and send one — a good sign the protection is live, not a bug to work around by disabling it.

@@ -17,12 +17,28 @@ After conversion, always:
 """
 import sys
 import re
-from bs4 import BeautifulSoup, NavigableString, Tag
+from bs4 import BeautifulSoup, Comment, NavigableString, Tag
 
 FACT_MAP = {
     "fact-good": "success",
     "fact-fail": "danger",
     "fact-note": "note",
+}
+
+# Old site's CSS custom properties (light-mode values, from the now-deleted
+# styles.css) referenced inside hand-drawn inline <svg> diagrams. The new
+# site doesn't define these variables, so they must be hardcoded or the
+# diagram renders with broken/invisible colors.
+OLD_CSS_VARS = {
+    "--accent": "#4f46e5",
+    "--accent-strong": "#3730a3",
+    "--accent-tint": "#eef0fe",
+    "--ink": "#211a2b",
+    "--ink-muted": "#5c5468",
+    "--line": "#e0d9d0",
+    "--surface": "#ffffff",
+    "--surface-2": "#f6f3ef",
+    "--warn": "#dc4c2f",
 }
 
 # Which old source file+day each day's content moves into. Keep in sync with
@@ -198,6 +214,54 @@ def render_list(el, ordered):
     return "\n".join(out)
 
 
+def render_svg(svg):
+    """Preserve a hand-drawn inline <svg> diagram as raw HTML. Three fixups
+    are required, each confirmed empirically with a minimal reproduction,
+    not assumed:
+
+    1. var(--x) CSS custom-property references are replaced with hardcoded
+       hex values -- the new site never defines those old variable names, so
+       left as-is the diagram renders with invisible/broken colors.
+
+    2. Any <style> block's class rules are inlined onto each matching element
+       as a `style` attribute, and the <style> tag itself is removed.
+       Python-Markdown's raw-HTML-block handling silently drops every child
+       element of an embedded <svg> when it contains a <style> tag.
+
+    3. Every blank line inside the serialized SVG is removed. A single blank
+       line anywhere between <svg> and </svg> is enough for Python-Markdown
+       to treat it as the end of the raw-HTML block -- everything after the
+       blank line falls back to normal markdown parsing and gets mangled,
+       even with the <style> tag already gone.
+
+    4. HTML comments (<!-- ... -->) inside the SVG are removed entirely --
+       same failure shape as the blank-line case: a comment anywhere inside
+       the block silently truncates everything after it.
+    """
+    svg = BeautifulSoup(str(svg), "html.parser").svg  # detached copy, safe to mutate
+    for c in svg.find_all(string=lambda s: isinstance(s, Comment)):
+        c.extract()
+    style_tag = svg.find("style")
+    if style_tag is not None:
+        rules = re.findall(r"\.([\w-]+)\s*\{([^}]*)\}", style_tag.get_text())
+        for classname, decls in rules:
+            for el in svg.select(f".{classname}"):
+                existing = el.get("style", "")
+                el["style"] = (existing + ";" if existing else "") + decls.strip()
+                classes = [c for c in (el.get("class") or []) if c != classname]
+                if classes:
+                    el["class"] = classes
+                else:
+                    del el["class"]
+        style_tag.decompose()
+
+    html = str(svg)
+    for name, hexval in OLD_CSS_VARS.items():
+        html = html.replace(f"var({name})", hexval)
+    html = "\n".join(line for line in html.split("\n") if line.strip())
+    return "\n" + html + "\n"
+
+
 def render_figure(fig):
     cap = fig.find("figcaption")
     mermaid = fig.find("div", class_="mermaid")
@@ -292,6 +356,8 @@ def block_to_md(el, heading_level=3):
             chunks.append(render_list(child, ordered=False))
         elif child.name == "figure":
             chunks.append(render_figure(child))
+        elif child.name == "svg":
+            chunks.append(render_svg(child))
         elif child.name == "details" and "strategy" in (child.get("class") or []):
             summary = child.find("summary")
             chev = summary.find("span", class_="chev-sm") if summary else None

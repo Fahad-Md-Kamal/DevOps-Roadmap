@@ -13,40 +13,38 @@ A VPC (Virtual Private Cloud) is your own isolated network within an AWS region 
 
 When you create a VPC, you define a CIDR block — the total pool of private IP addresses available to everything inside it.
 
-.vi-title{font-family:'IBM Plex Sans Condensed',sans-serif;font-size:13px;font-weight:700;fill:var(--ink)}
-.vi-label{font-family:'IBM Plex Sans Condensed',sans-serif;font-size:13px;font-weight:700;fill:var(--accent-strong)}
-.vi-chip{font-family:'IBM Plex Mono',monospace;font-size:11px;fill:var(--surface);letter-spacing:.01em}
-.vi-note{font-family:'IBM Plex Sans',sans-serif;font-size:11px;fill:var(--ink-muted)}
-.vi-legend{font-family:'IBM Plex Sans',sans-serif;font-size:11px;fill:var(--ink-muted)}
 
+<svg aria-label="A VPC containing a public subnet with a route to the Internet Gateway and a private subnet with no direct internet route" role="img" style="display:block;margin:16px 0" viewbox="0 0 480 340" width="100%">
+<defs>
+<marker id="vi-arrow" markerheight="6" markerwidth="6" orient="auto-start-reverse" refx="8" refy="5" viewbox="0 0 10 10">
+<path d="M0,0 L10,5 L0,10 z" fill="#5c5468"></path>
+</marker>
+</defs>
+<text style="font-family:'IBM Plex Sans Condensed',sans-serif;font-size:13px;font-weight:700;fill:#211a2b" text-anchor="middle" x="240" y="20">VPC — public and private subnets</text>
+<rect fill="none" height="24" rx="12" stroke="#5c5468" stroke-width="1.2" width="120" x="180" y="34"></rect>
+<text style="font-family:'IBM Plex Sans',sans-serif;font-size:11px;fill:#5c5468" text-anchor="middle" x="240" y="50">Internet</text>
+<line marker-end="url(#vi-arrow)" stroke="#5c5468" stroke-width="1.5" x1="240" x2="240" y1="58" y2="80"></line>
+<rect fill="#eef0fe" height="32" rx="6" stroke="#4f46e5" stroke-width="1.2" width="200" x="140" y="82"></rect>
+<text style="font-family:'IBM Plex Sans Condensed',sans-serif;font-size:13px;font-weight:700;fill:#3730a3" text-anchor="middle" x="240" y="103">Internet Gateway</text>
+<line marker-end="url(#vi-arrow)" stroke="#5c5468" stroke-width="1.5" x1="200" x2="135" y1="114" y2="150"></line>
+<rect fill="none" height="128" rx="8" stroke="#e0d9d0" stroke-width="1.5" width="440" x="20" y="126"></rect>
+<text style="font-family:'IBM Plex Sans Condensed',sans-serif;font-size:13px;font-weight:700;fill:#3730a3" x="34" y="142">VPC 10.0.0.0/16 — fahad-devops-vpc</text>
+<rect fill="#dc4c2f" height="90" opacity=".12" rx="6" stroke="#dc4c2f" stroke-width="1.2" width="190" x="40" y="150"></rect>
+<text style="font-family:'IBM Plex Sans',sans-serif;font-size:11px;fill:#5c5468" x="50" y="164">Public — 10.0.1.0/24</text>
+<rect fill="#dc4c2f" height="28" opacity=".85" rx="4" width="170" x="50" y="175"></rect>
+<text style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#ffffff;letter-spacing:.01em" text-anchor="middle" x="135" y="193">ALB · NAT Gateway</text>
+<rect fill="#4f46e5" height="90" opacity=".12" rx="6" stroke="#4f46e5" stroke-width="1.2" width="190" x="250" y="150"></rect>
+<text style="font-family:'IBM Plex Sans',sans-serif;font-size:11px;fill:#5c5468" x="260" y="164">Private — 10.0.10.0/24</text>
+<rect fill="#4f46e5" height="28" opacity=".85" rx="4" width="170" x="260" y="175"></rect>
+<text style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#ffffff;letter-spacing:.01em" text-anchor="middle" x="345" y="193">EC2 · RDS</text>
+<rect fill="#dc4c2f" height="14" opacity=".85" rx="2" width="14" x="40" y="266"></rect>
+<text style="font-family:'IBM Plex Sans',sans-serif;font-size:11px;fill:#5c5468" x="62" y="277">Public subnet — has a route to the Internet Gateway</text>
+<rect fill="#4f46e5" height="14" opacity=".85" rx="2" width="14" x="40" y="288"></rect>
+<text style="font-family:'IBM Plex Sans',sans-serif;font-size:11px;fill:#5c5468" x="62" y="299">Private subnet — no direct internet route</text>
+<text style="font-family:'IBM Plex Sans',sans-serif;font-size:11px;fill:#5c5468" text-anchor="middle" x="240" y="314">The real build (4.8) uses 3 tiers × 2 AZs = 6 subnets.</text>
+<text style="font-family:'IBM Plex Sans',sans-serif;font-size:11px;fill:#5c5468" text-anchor="middle" x="240" y="328">See 4.9 for the full picture.</text>
+</svg>
 
-
-
-
-
-VPC — public and private subnets
-
-Internet
-
-
-Internet Gateway
-
-
-VPC 10.0.0.0/16 — fahad-devops-vpc
-
-Public — 10.0.1.0/24
-
-ALB · NAT Gateway
-
-Private — 10.0.10.0/24
-
-EC2 · RDS
-
-Public subnet — has a route to the Internet Gateway
-
-Private subnet — no direct internet route
-The real build (4.8) uses 3 tiers × 2 AZs = 6 subnets.
-See 4.9 for the full picture.
 
 ### 4.2 CIDR Planning on Paper
 
@@ -68,57 +66,44 @@ Each of the 4 numbers (called octets) is 8 bits. 4 × 8 = **32 bits total**. The
 
 The number after `/` tells you: **how many bits from the left are fixed (the network part).** The remaining bits are yours to use for individual addresses (the host part).
 
-.cidr-title{font-family:'IBM Plex Sans Condensed',sans-serif;font-size:13px;font-weight:700;fill:var(--ink)}
-                .cidr-label{font-family:'IBM Plex Sans Condensed',sans-serif;font-size:13px;font-weight:700;fill:var(--accent-strong)}
-                .cidr-bits{font-family:'IBM Plex Mono',monospace;font-size:11.5px;fill:var(--surface);letter-spacing:.02em}
-                .cidr-note{font-family:'IBM Plex Sans',sans-serif;font-size:11px;fill:var(--ink-muted)}
-                .cidr-legend{font-family:'IBM Plex Sans',sans-serif;font-size:11.5px;fill:var(--ink-muted)}
-                .cidr-formula-title{font-family:'IBM Plex Sans Condensed',sans-serif;font-size:13px;font-weight:700;fill:var(--accent-strong)}
-                .cidr-formula{font-family:'IBM Plex Sans',sans-serif;font-size:11.5px;fill:var(--ink)}
-                .cidr-formula-sm{font-family:'IBM Plex Mono',monospace;font-size:11px;fill:var(--ink-muted)}
-                .cidr-insight-title{font-family:'IBM Plex Sans Condensed',sans-serif;font-size:13px;font-weight:700;fill:var(--ink-muted)}
-                .cidr-insight{font-family:'IBM Plex Sans',sans-serif;font-size:11.5px;fill:var(--ink-muted)}
-              
-The / number = how many bits are LOCKED from the left
- /16 
-/16
 
-00001010.00000000
-.
+<svg aria-label="CIDR bit breakdown showing locked vs free bits for /16, /24, and /28" role="img" style="display:block;margin:0 0 16px;max-width:680px" viewbox="0 0 680 410" width="100%">
+<text style="font-family:'IBM Plex Sans Condensed',sans-serif;font-size:13px;font-weight:700;fill:#211a2b" text-anchor="middle" x="340" y="22">The / number = how many bits are LOCKED from the left</text>
+<text style="font-family:'IBM Plex Sans Condensed',sans-serif;font-size:13px;font-weight:700;fill:#3730a3" text-anchor="end" x="60" y="64">/16</text>
+<rect fill="#dc4c2f" height="30" opacity=".85" rx="4" width="200" x="80" y="46"></rect>
+<text style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;fill:#ffffff;letter-spacing:.02em" text-anchor="middle" x="180" y="65">00001010.00000000</text>
+<text style="font-family:'IBM Plex Sans',sans-serif;font-size:11px;fill:#5c5468" text-anchor="middle" x="283" y="65">.</text>
+<rect fill="#4f46e5" height="30" opacity=".8" rx="4" width="200" x="290" y="46"></rect>
+<text style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;fill:#ffffff;letter-spacing:.02em" text-anchor="middle" x="390" y="65">xxxxxxxx.xxxxxxxx</text>
+<text style="font-family:'IBM Plex Sans',sans-serif;font-size:11px;fill:#5c5468" text-anchor="start" x="510" y="58">16 bits locked (10.0)</text>
+<text style="font-family:'IBM Plex Sans',sans-serif;font-size:11px;fill:#5c5468" text-anchor="start" x="510" y="74">16 bits free → 2¹⁶ = 65,536</text>
+<text style="font-family:'IBM Plex Sans Condensed',sans-serif;font-size:13px;font-weight:700;fill:#3730a3" text-anchor="end" x="60" y="124">/24</text>
+<rect fill="#dc4c2f" height="30" opacity=".85" rx="4" width="305" x="80" y="106"></rect>
+<text style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;fill:#ffffff;letter-spacing:.02em" text-anchor="middle" x="232" y="125">00001010.00000000.00000000</text>
+<text style="font-family:'IBM Plex Sans',sans-serif;font-size:11px;fill:#5c5468" text-anchor="middle" x="388" y="125">.</text>
+<rect fill="#4f46e5" height="30" opacity=".8" rx="4" width="95" x="395" y="106"></rect>
+<text style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;fill:#ffffff;letter-spacing:.02em" text-anchor="middle" x="442" y="125">xxxxxxxx</text>
+<text style="font-family:'IBM Plex Sans',sans-serif;font-size:11px;fill:#5c5468" text-anchor="start" x="510" y="118">24 bits locked (10.0.0)</text>
+<text style="font-family:'IBM Plex Sans',sans-serif;font-size:11px;fill:#5c5468" text-anchor="start" x="510" y="134">8 bits free → 2⁸ = 256</text>
+<text style="font-family:'IBM Plex Sans Condensed',sans-serif;font-size:13px;font-weight:700;fill:#3730a3" text-anchor="end" x="60" y="184">/28</text>
+<rect fill="#dc4c2f" height="30" opacity=".85" rx="4" width="365" x="80" y="166"></rect>
+<text style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;fill:#ffffff;letter-spacing:.02em" text-anchor="middle" x="262" y="185">00001010.00000000.00000000.0000</text>
+<rect fill="#4f46e5" height="30" opacity=".8" rx="4" width="42" x="448" y="166"></rect>
+<text style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;fill:#ffffff;letter-spacing:.02em" text-anchor="middle" x="469" y="185">xxxx</text>
+<text style="font-family:'IBM Plex Sans',sans-serif;font-size:11px;fill:#5c5468" text-anchor="start" x="510" y="178">28 bits locked</text>
+<text style="font-family:'IBM Plex Sans',sans-serif;font-size:11px;fill:#5c5468" text-anchor="start" x="510" y="194">4 bits free → 2⁴ = 16</text>
+<rect fill="#dc4c2f" height="14" opacity=".85" rx="2" width="14" x="80" y="224"></rect>
+<text style="font-family:'IBM Plex Sans',sans-serif;font-size:11.5px;fill:#5c5468" x="102" y="236">= Network part (locked — same for all addresses in this range)</text>
+<rect fill="#4f46e5" height="14" opacity=".8" rx="2" width="14" x="80" y="248"></rect>
+<text style="font-family:'IBM Plex Sans',sans-serif;font-size:11.5px;fill:#5c5468" x="102" y="260">= Host part (free — each combination = one unique address)</text>
+<rect fill="#eef0fe" height="48" opacity=".9" rx="6" stroke="#4f46e5" stroke-width="1" width="520" x="80" y="286"></rect>
+<text style="font-family:'IBM Plex Sans Condensed',sans-serif;font-size:13px;font-weight:700;fill:#3730a3" text-anchor="middle" x="340" y="306">The formula</text>
+<text style="font-family:'IBM Plex Sans',sans-serif;font-size:11.5px;fill:#211a2b" text-anchor="middle" x="340" y="324">Total addresses = 2 ^ (32 − the / number)</text>
+<rect fill="#f6f3ef" height="48" rx="6" stroke="#e0d9d0" stroke-width="1" width="520" x="80" y="350"></rect>
+<text style="font-family:'IBM Plex Sans Condensed',sans-serif;font-size:13px;font-weight:700;fill:#5c5468" text-anchor="middle" x="340" y="370">Quick mental shortcut</text>
+<text style="font-family:'IBM Plex Sans',sans-serif;font-size:11.5px;fill:#5c5468" text-anchor="middle" x="340" y="388">Bigger / number = fewer addresses (more bits locked)  ·  Smaller / number = more addresses</text>
+</svg>
 
-xxxxxxxx.xxxxxxxx
-16 bits locked (10.0)
-16 bits free → 2¹⁶ = 65,536
- /24 
-/24
-
-00001010.00000000.00000000
-.
-
-xxxxxxxx
-24 bits locked (10.0.0)
-8 bits free → 2⁸ = 256
- /28 
-/28
-
-00001010.00000000.00000000.0000
-
-xxxx
-28 bits locked
-4 bits free → 2⁴ = 16
- Legend 
-
-= Network part (locked — same for all addresses in this range)
-
-= Host part (free — each combination = one unique address)
- Formula box 
-
-The formula
-Total addresses = 2 ^ (32 − the / number)
- Insight box 
-
-Quick mental shortcut
-Bigger / number = fewer addresses (more bits locked)  ·  Smaller / number = more addresses
 
 #### How the calculation works
 
@@ -885,66 +870,65 @@ The practical exercise for Day 4. Do it in the console first to understand each 
 
 Now that you've built every piece, here's the full justification for each one — what it does, why it exists, and what fails if you remove it.
 
-.vd-title{font-family:'IBM Plex Sans Condensed',sans-serif;font-size:13px;font-weight:700;fill:var(--ink)}
-                .vd-label{font-family:'IBM Plex Sans Condensed',sans-serif;font-size:13px;font-weight:700;fill:var(--accent-strong)}
-                .vd-chip{font-family:'IBM Plex Mono',monospace;font-size:11.5px;fill:var(--surface);letter-spacing:.01em}
-                .vd-note{font-family:'IBM Plex Sans',sans-serif;font-size:11px;fill:var(--ink-muted)}
-                .vd-legend{font-family:'IBM Plex Sans',sans-serif;font-size:11.5px;fill:var(--ink-muted)}
-              
-How the pieces fit together
 
-Internet
+<svg aria-label="Diagram of the VPC showing two availability zones, each with public, private-app, and private-DB subnets, the Internet Gateway, the single NAT Gateway in AZ-a, and where the ALB, EC2, and RDS components sit" role="img" style="display:block;margin:0 0 16px;max-width:720px" viewbox="0 0 720 540" width="100%">
+<defs>
+<marker id="vpc-arrow" markerheight="6" markerwidth="6" orient="auto-start-reverse" refx="8" refy="5" viewbox="0 0 10 10">
+<path d="M0,0 L10,5 L0,10 z" fill="#5c5468"></path>
+</marker>
+</defs>
+<text style="font-family:'IBM Plex Sans Condensed',sans-serif;font-size:13px;font-weight:700;fill:#211a2b" text-anchor="middle" x="360" y="20">How the pieces fit together</text>
+<rect fill="none" height="24" rx="12" stroke="#5c5468" stroke-width="1.2" width="120" x="300" y="34"></rect>
+<text style="font-family:'IBM Plex Sans',sans-serif;font-size:11px;fill:#5c5468" text-anchor="middle" x="360" y="50">Internet</text>
+<line marker-end="url(#vpc-arrow)" stroke="#5c5468" stroke-width="1.5" x1="360" x2="360" y1="58" y2="80"></line>
+<rect fill="#eef0fe" height="32" rx="6" stroke="#4f46e5" stroke-width="1.2" width="200" x="260" y="82"></rect>
+<text style="font-family:'IBM Plex Sans Condensed',sans-serif;font-size:13px;font-weight:700;fill:#3730a3" text-anchor="middle" x="360" y="103">Internet Gateway</text>
+<line marker-end="url(#vpc-arrow)" stroke="#5c5468" stroke-width="1.5" x1="310" x2="195" y1="114" y2="176"></line>
+<line marker-end="url(#vpc-arrow)" stroke="#5c5468" stroke-width="1.5" x1="410" x2="525" y1="114" y2="176"></line>
+<rect fill="none" height="280" rx="8" stroke="#e0d9d0" stroke-width="1.5" width="680" x="20" y="126"></rect>
+<text style="font-family:'IBM Plex Sans Condensed',sans-serif;font-size:13px;font-weight:700;fill:#3730a3" x="34" y="142">VPC 10.0.0.0/16 — fahad-devops-vpc</text>
+<text style="font-family:'IBM Plex Sans Condensed',sans-serif;font-size:13px;font-weight:700;fill:#3730a3" text-anchor="middle" x="195" y="164">AZ-a — ap-south-1a</text>
+<text style="font-family:'IBM Plex Sans Condensed',sans-serif;font-size:13px;font-weight:700;fill:#3730a3" text-anchor="middle" x="525" y="164">AZ-b — ap-south-1b</text>
+<rect fill="#dc4c2f" height="64" opacity=".12" rx="6" stroke="#dc4c2f" stroke-width="1.2" width="290" x="50" y="176"></rect>
+<text style="font-family:'IBM Plex Sans',sans-serif;font-size:11px;fill:#5c5468" x="60" y="190">Public 10.0.1.0/24</text>
+<rect fill="#dc4c2f" height="28" opacity=".85" rx="4" width="125" x="60" y="198"></rect>
+<text style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;fill:#ffffff;letter-spacing:.01em" text-anchor="middle" x="122" y="216">ALB (alb-sg)</text>
+<rect fill="#4f46e5" height="28" opacity=".85" rx="4" width="135" x="195" y="198"></rect>
+<text style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;fill:#ffffff;letter-spacing:.01em" text-anchor="middle" x="262" y="216">NAT Gateway</text>
+<rect fill="#dc4c2f" height="64" opacity=".12" rx="6" stroke="#dc4c2f" stroke-width="1.2" width="290" x="380" y="176"></rect>
+<text style="font-family:'IBM Plex Sans',sans-serif;font-size:11px;fill:#5c5468" x="390" y="190">Public 10.0.2.0/24</text>
+<rect fill="#dc4c2f" height="28" opacity=".85" rx="4" width="125" x="390" y="198"></rect>
+<text style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;fill:#ffffff;letter-spacing:.01em" text-anchor="middle" x="452" y="216">ALB (alb-sg)</text>
+<line marker-end="url(#vpc-arrow)" stroke="#5c5468" stroke-width="1.5" x1="195" x2="195" y1="240" y2="252"></line>
+<line marker-end="url(#vpc-arrow)" stroke="#5c5468" stroke-width="1.5" x1="525" x2="525" y1="240" y2="252"></line>
+<rect fill="#4f46e5" height="64" opacity=".12" rx="6" stroke="#4f46e5" stroke-width="1.2" width="290" x="50" y="252"></rect>
+<text style="font-family:'IBM Plex Sans',sans-serif;font-size:11px;fill:#5c5468" x="60" y="266">Private app 10.0.10.0/24</text>
+<rect fill="#4f46e5" height="28" opacity=".85" rx="4" width="170" x="130" y="274"></rect>
+<text style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;fill:#ffffff;letter-spacing:.01em" text-anchor="middle" x="215" y="292">EC2 (app-sg)</text>
+<rect fill="#4f46e5" height="64" opacity=".12" rx="6" stroke="#4f46e5" stroke-width="1.2" width="290" x="380" y="252"></rect>
+<text style="font-family:'IBM Plex Sans',sans-serif;font-size:11px;fill:#5c5468" x="390" y="266">Private app 10.0.11.0/24</text>
+<rect fill="#4f46e5" height="28" opacity=".85" rx="4" width="170" x="460" y="274"></rect>
+<text style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;fill:#ffffff;letter-spacing:.01em" text-anchor="middle" x="545" y="292">EC2 (app-sg)</text>
+<line marker-end="url(#vpc-arrow)" stroke="#5c5468" stroke-width="1.5" x1="195" x2="195" y1="316" y2="328"></line>
+<line marker-end="url(#vpc-arrow)" stroke="#5c5468" stroke-width="1.5" x1="525" x2="525" y1="316" y2="328"></line>
+<rect fill="#3730a3" height="64" opacity=".15" rx="6" stroke="#3730a3" stroke-width="1.2" width="290" x="50" y="328"></rect>
+<text style="font-family:'IBM Plex Sans',sans-serif;font-size:11px;fill:#5c5468" x="60" y="342">Private DB 10.0.20.0/24</text>
+<rect fill="#3730a3" height="28" opacity=".85" rx="4" width="170" x="130" y="350"></rect>
+<text style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;fill:#ffffff;letter-spacing:.01em" text-anchor="middle" x="215" y="368">RDS (db-sg)</text>
+<rect fill="#3730a3" height="64" opacity=".15" rx="6" stroke="#3730a3" stroke-width="1.2" width="290" x="380" y="328"></rect>
+<text style="font-family:'IBM Plex Sans',sans-serif;font-size:11px;fill:#5c5468" x="390" y="342">Private DB 10.0.21.0/24</text>
+<rect fill="#3730a3" height="28" opacity=".85" rx="4" width="170" x="460" y="350"></rect>
+<text style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;fill:#ffffff;letter-spacing:.01em" text-anchor="middle" x="545" y="368">RDS (db-sg)</text>
+<rect fill="#dc4c2f" height="14" opacity=".85" rx="2" width="14" x="40" y="426"></rect>
+<text style="font-family:'IBM Plex Sans',sans-serif;font-size:11.5px;fill:#5c5468" x="62" y="437">Public subnet — internet-facing (ALB, NAT)</text>
+<rect fill="#4f46e5" height="14" opacity=".85" rx="2" width="14" x="40" y="450"></rect>
+<text style="font-family:'IBM Plex Sans',sans-serif;font-size:11.5px;fill:#5c5468" x="62" y="461">Private app subnet — reachable only from the ALB</text>
+<rect fill="#3730a3" height="14" opacity=".85" rx="2" width="14" x="40" y="474"></rect>
+<text style="font-family:'IBM Plex Sans',sans-serif;font-size:11.5px;fill:#5c5468" x="62" y="485">Private DB subnet — reachable only from the app tier</text>
+<text style="font-family:'IBM Plex Sans',sans-serif;font-size:11px;fill:#5c5468" text-anchor="middle" x="360" y="506">Only one NAT Gateway (in AZ-a) — a deliberate cost trade-off for this learning build.</text>
+<text style="font-family:'IBM Plex Sans',sans-serif;font-size:11px;fill:#5c5468" text-anchor="middle" x="360" y="522">Production would place one NAT per AZ for redundancy.</text>
+</svg>
 
-
-Internet Gateway
-
-
-
-VPC 10.0.0.0/16 — fahad-devops-vpc
-AZ-a — ap-south-1a
-AZ-b — ap-south-1b
- Public subnets 
-
-Public 10.0.1.0/24
-
-ALB (alb-sg)
-
-NAT Gateway
-
-Public 10.0.2.0/24
-
-ALB (alb-sg)
-
-
- Private app subnets 
-
-Private app 10.0.10.0/24
-
-EC2 (app-sg)
-
-Private app 10.0.11.0/24
-
-EC2 (app-sg)
-
-
- Private DB subnets 
-
-Private DB 10.0.20.0/24
-
-RDS (db-sg)
-
-Private DB 10.0.21.0/24
-
-RDS (db-sg)
- Legend 
-
-Public subnet — internet-facing (ALB, NAT)
-
-Private app subnet — reachable only from the ALB
-
-Private DB subnet — reachable only from the app tier
-Only one NAT Gateway (in AZ-a) — a deliberate cost trade-off for this learning build.
-Production would place one NAT per AZ for redundancy.
 
 #### VPC (fahad-devops-vpc — 10.0.0.0/16)
 

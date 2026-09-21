@@ -1,0 +1,11 @@
+/* Let mermaid diagrams use the full content width instead of rendering
+   at whatever compact size mermaid.js computes by default. */
+.mermaid {
+  overflow-x: auto;
+}
+
+.mermaid svg {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto !important;
+}

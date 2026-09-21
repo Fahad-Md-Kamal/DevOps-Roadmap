@@ -22,7 +22,7 @@ nav = [
   { "CI/CD & Delivery" = "cicd-delivery.md" },
 ]
 
-# extra_css = ["stylesheets/extra.css"]
+extra_css = ["stylesheets/extra.css"]
 # extra_javascript = ["javascripts/extra.js"]
 
 [project.theme]

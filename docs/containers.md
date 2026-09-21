@@ -113,43 +113,34 @@ Application Load Balancer — **why a brand-new one, and why it needed two Avail
 
 ##### What we actually built
 
+Split into two smaller diagrams on purpose — the ECS control-plane side, and the networking side it all sits inside — rather than one dense diagram trying to show both at once.
+
+**The ECS side — cluster, task definition, service, tasks**
+
 ``` mermaid
-flowchart TD
-    Users(["Browser"]) -->|"http://ecs-alb-XXXXXXXXXX.ap-south-1.elb.amazonaws.com"| ALB
-
-    subgraph VPC["Default VPC — 172.31.0.0/16"]
-        ALB["ALB: ecs-alb<br/>Listener HTTP : 80"]
-        ALB --> TG["Target Group: ecs-alb<br/>type IP, health check /"]
-
-        subgraph AZa["ap-south-1a"]
-            SubA["Public subnet"]
-        end
-        subgraph AZb["ap-south-1b"]
-            SubB["Public subnet"]
-        end
-        subgraph AZc["ap-south-1c"]
-            SubC["Public subnet"]
-            Task1["Task<br/>learning-app : 2"]
-            Task2["Task<br/>learning-app : 2"]
-        end
-
-        ALB -.->|"subnet mapping"| SubA
-        ALB -.->|"subnet mapping"| SubB
-        ALB -.->|"subnet mapping, added after the AZ mismatch"| SubC
-        TG --> Task1
-        TG --> Task2
-        SG["Security Group: ecs-bfr3dxht<br/>Inbound TCP 80 from anywhere"] -.->|attached to| Task1
-        SG -.->|attached to| Task2
-    end
-
-    Cluster["ECS Cluster: learning-cluster"] --> Service["ECS Service: learning-service<br/>desired count 2, Fargate"]
-    TaskDef["Task Definition: learning-app<br/>0.25 vCPU / 0.5 GB, image: nginx"] --> Service
-    Service -->|"creates & watches"| Task1
-    Service -->|"creates & watches"| Task2
-    Service -->|"registers/deregisters automatically"| TG
+flowchart LR
+    Cluster["ECS Cluster<br/>learning-cluster"] --> Service["ECS Service<br/>learning-service<br/>desired count: 2"]
+    TaskDef["Task Definition<br/>learning-app<br/>0.25 vCPU / 0.5 GB<br/>image: nginx"] --> Service
+    Service -->|creates & watches| Task1["Task 1"]
+    Service -->|creates & watches| Task2["Task 2"]
 ```
 
-*The finished shape, after step 5's AZ fix: one cluster, one task definition feeding one service, two tasks the service alone keeps alive, one security group attached to both, and an ALB whose subnet mapping now actually covers the AZ the tasks landed in.*
+*A cluster and a task definition are independent of each other — neither needs the other to exist. A service is what actually ties them together, then keeps exactly two tasks alive from that point on.*
+
+**The networking side — VPC, ALB, target group, security group**
+
+``` mermaid
+flowchart LR
+    Users(["Browser"]) -->|"http://ecs-alb-XXXXXXXXXX.ap-south-1.elb.amazonaws.com"| ALB["ALB: ecs-alb<br/>Listener HTTP : 80"]
+    ALB --> TG["Target Group: ecs-alb<br/>type IP"]
+    TG --> Task1["Task 1<br/>ap-south-1c"]
+    TG --> Task2["Task 2<br/>ap-south-1c"]
+    SG["Security Group: ecs-bfr3dxht<br/>inbound TCP 80 from anywhere"] -.->|attached to| Task1
+    SG -.->|attached to| Task2
+    ALB -.->|"subnet mapping: 1a + 1b + 1c<br/>(1c added after the AZ-mismatch fix)"| VPC["Default VPC<br/>172.31.0.0/16"]
+```
+
+*Everything here lives in the account's default VPC — no new VPC was built for this lab. The one real bug this diagram hints at: the ALB's subnet mapping originally covered only two of the three AZs, while the service happened to place both tasks in the third — step 5's "Unused" target status, fixed by adding that AZ's subnet to the ALB.*
 
 ##### 1. Create a cluster
 

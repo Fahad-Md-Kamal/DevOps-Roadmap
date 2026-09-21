@@ -150,7 +150,11 @@ Order matters for the load balancer pieces, since they live in EC2, not ECS, and
 
 - **Delete the ALB and its target group first** (EC2 console → Load Balancers, then Target Groups) — entirely separate resources from anything ECS's own cluster deletion handles next.
 - **Clusters → learning-cluster → Delete cluster.** The console's delete flow cascades through everything ECS-owned in one confirmation — no need to separately set desired count to 0 or delete the service first. It runs service deletion, container instance deregistration (a no-op under Fargate, since there are no EC2 instances to deregister), and cluster deletion as three tracked steps in one dialog.
-- Task definition revisions cost nothing to leave behind, but deregistering them is fine too.
+- Task definition revisions cost nothing to leave behind — this step is pure tidiness, not a cost saver. Deleting one is a two-step process, since a revision can't be deleted while it's **Active**:
+
+    1. **Task definitions → learning-app**, select the revision(s) via checkbox, **Actions → Deregister**. This flips it to **Inactive** and hides it from the default (Active-only) filtered view — which is usually why it looks like there's nothing to act on.
+    2. Switch the status filter to show **Inactive** revisions, select it again, **Actions → Delete** — the actual permanent delete, only available once a revision is Inactive.
+    3. To remove every revision under the family at once instead of one at a time, **Delete task definition family** is available at the family level (`learning-app` itself) — deregisters and deletes everything under it in a single action.
 
 [![Delete cluster learning-cluster confirmation dialog: Service deletion — Successfully deleted 1 service; Container instance deregistration — No container instances to deregister; Cluster deletion — Successfully deleted learning-cluster](images/containers/ecs-cluster-closed.png)](images/containers/ecs-cluster-closed.png){ target="_blank" rel="noopener" }
 

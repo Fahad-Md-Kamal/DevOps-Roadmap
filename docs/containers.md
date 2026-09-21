@@ -146,12 +146,15 @@ Section 14's troubleshooting list is worth reproducing deliberately, one failure
 
 ##### 8. Clean up
 
-Order matters — some of these depend on the others still existing:
+Order matters for the load balancer pieces, since they live in EC2, not ECS, and nothing below touches them automatically:
 
-- Delete the ALB and its target group first.
-- Set the service's desired count to 0, then delete the service.
-- Delete the cluster.
+- **Delete the ALB and its target group first** (EC2 console → Load Balancers, then Target Groups) — entirely separate resources from anything ECS's own cluster deletion handles next.
+- **Clusters → learning-cluster → Delete cluster.** The console's delete flow cascades through everything ECS-owned in one confirmation — no need to separately set desired count to 0 or delete the service first. It runs service deletion, container instance deregistration (a no-op under Fargate, since there are no EC2 instances to deregister), and cluster deletion as three tracked steps in one dialog.
 - Task definition revisions cost nothing to leave behind, but deregistering them is fine too.
+
+[![Delete cluster learning-cluster confirmation dialog: Service deletion — Successfully deleted 1 service; Container instance deregistration — No container instances to deregister; Cluster deletion — Successfully deleted learning-cluster](images/containers/ecs-cluster-closed.png)](images/containers/ecs-cluster-closed.png){ target="_blank" rel="noopener" }
+
+*One "Delete cluster" click, three cascaded steps confirmed — service deletion, container instance deregistration (nothing to do on Fargate), and the cluster itself, gone in a single dialog.*
 
 !!! success "What this earns before ever touching Terraform"
 

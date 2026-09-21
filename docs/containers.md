@@ -120,12 +120,7 @@ Every concept above is worth seeing click by click before it's ever expressed as
 
 ##### 5. Put it behind an Application Load Balancer
 
-Two task public IPs that change on every restart isn't how anyone actually reaches an ECS app.
-
-- Create an ALB (EC2 console → Load Balancers → Create, internet-facing, same VPC/public subnets — load-balancing-dns.md's own walkthrough covers this in full).
-- Create a target group of **type IP** (not "Instance" — Fargate tasks aren't EC2 instances), port 80, health check path `/`.
-- Back in **Services → learning-service → Update**, attach this ALB and target group under "Load balancing," mapping container `app` : port `80`.
-- Update the service, wait for both tasks to show healthy in the target group, then hit the ALB's own DNS name instead of a task's IP.
+Two task public IPs that change on every restart isn't how anyone actually reaches an ECS app — one stable DNS name that always points at whichever tasks are currently healthy is what an ALB actually buys here. The full console walkthrough for this lives in [load-balancing-dns.md](load-balancing-dns.md)'s "ALB + target group for an ECS Fargate service, from the console" — right before that page's own CLI-based ALB lab, since this is fundamentally the same load-balancing topic, just with a target group of **type IP** instead of instances, and automatic registration instead of a manual `register-targets` call. Use `learning-tg` / `learning-alb` as the names, the security group from step 3 above, and `learning-service` / container `app` : port `80` as the service to attach it to — then come back here for step 6 once both tasks show healthy in the target group.
 
 ##### 6. Deploy a new revision — watch a rolling update happen
 
@@ -140,6 +135,14 @@ Section 14's troubleshooting list is worth reproducing deliberately, one failure
 - Point a new revision at an image that doesn't exist (`nginx:this-tag-is-fake`) → update the service → tasks stuck in a pull-and-restart loop.
 - Move the service to a **private** subnet with no NAT gateway → tasks can't reach the registry at all → same restart-loop symptom, a completely different cause.
 - Remove the security group's inbound rule on port 80 → the task itself runs fine, but the health check fails anyway → target group shows "unhealthy," the ALB starts returning 503.
+
+[![ECS service deployment screen mid-failure: CannotPullContainerError, pull image manifest retried 7 times, failed to resolve ref public.ecr.aws/nginx/nginx:this-tag-isfake — New task launch progress 0 running/1 pending/1 remaining, Old task drain progress 0 stopped/2 remaining, Circuit breaker Monitoring, Health check Targets 2 Healthy/0 Unhealthy](images/containers/aws-ecs-task-error.png)](images/containers/aws-ecs-task-error.png){ target="_blank" rel="noopener" }
+
+*The first bullet above, actually happening: `learning-app:3` can't pull its (deliberately broken) image and keeps retrying, while "Old task drain progress" stays at 0 stopped — the two `learning-app:2` tasks are untouched and still showing 2 Healthy in the target group. Zero downtime, precisely because ECS never drains an old task until a new one has actually replaced it.*
+
+!!! success "The circuit breaker is what ends this, one way or another"
+
+    Left alone, this deployment doesn't hang forever — the deployment circuit breaker (visible above, "Monitoring") eventually detects the repeated failure and fails the deployment automatically, rolling the service back to the last working revision without anyone clicking anything. The **Roll back** button in the same panel does the identical thing immediately, on demand, instead of waiting — the manual equivalent of what the circuit breaker does on its own.
 
 ##### 8. Clean up
 

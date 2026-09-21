@@ -75,6 +75,36 @@ ALB :443
 
 One ALB replaces what would otherwise be multiple Nginx reverse proxy configurations. You define the routing in the AWS console or CLI, not in config files.
 
+#### ALB + target group for an ECS Fargate service, from the console
+
+The fastest way to see an ALB actually work is through the console, before ever touching the CLI — the same "build it by hand first" order the rest of this project follows. This version targets an ECS Fargate service (containers.md 11); the CLI-based lab right below covers the EC2-instance-target version in full, with the exact same underlying concepts, just a different registration mechanism. Three parts, done through the console, in this order, since each one needs the previous to already exist.
+
+**Part A — create the target group first**
+
+- **EC2 console → Target Groups → Create target group**
+- Target type: **IP addresses** — not "Instances." A Fargate task has no instance ID to register by, only an IP — the one setting that differs from the EC2-instance target group in the lab below.
+- Name it, protocol HTTP, port matching whatever the container listens on, health check path `/`.
+- Skip "Register targets" on this screen — leave it empty. An ECS service registers and deregisters targets automatically once it's attached in Part C; nothing needs to be added here by hand.
+
+**Part B — create the ALB**
+
+- **EC2 console → Load Balancers → Create load balancer → Application Load Balancer**
+- Scheme **Internet-facing**, same VPC, at least two **public** subnets (an ALB requires subnets in at least two Availability Zones).
+- Security group: one that allows inbound traffic on whatever port the listener below uses.
+- Listener: HTTP on the port the app expects → forward to the target group from Part A.
+- Create it. It takes a minute or two to reach the **Active** state — that's normal, not a failure.
+
+**Part C — attach it to the ECS service**
+
+- Once the ALB shows **Active**, go to **ECS console → (the service) → Update service**.
+- Under **Load balancing**, attach the ALB's listener and the target group from Part A, mapping the container name to the port it listens on.
+- Update the service, then wait for its tasks to show **healthy** in the target group (EC2 console → Target Groups → the target group → Targets tab) — the `initial` / `healthy` / `unhealthy` / `draining` states covered in full below, in the CLI lab's own target-health table.
+- Open the ALB's own DNS name (EC2 console → Load Balancers → the ALB → copy the DNS name) in a browser — that's the stable URL to use from now on, not any one task's own IP.
+
+!!! note "Only the target type actually changes"
+
+    Everything else about the ALB — the listener, the health check states, the ALB-vs-NLB distinction, weighted target groups for canary — is identical to the EC2-instance version covered next. The one real difference is registration: an EC2 target group is registered manually (or by an ASG on launch), while a Fargate service registers and deregisters its own IP targets automatically as tasks start and stop.
+
 #### Lab: build the ALB step by step
 
 **Step 1: Create the ALB** — must be in public subnets (both AZs) with the ALB security group. AWS requires at least 2 AZs for redundancy.

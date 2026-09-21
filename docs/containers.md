@@ -73,6 +73,84 @@ The orchestrator itself is not where ECS and EKS actually differ in price — th
 
 Every concept above is worth seeing click by click before it's ever expressed as Terraform — the same "build it by hand first" order the AWS weeks already follow. Nothing in this walkthrough costs more than a few cents, even left running for an hour, since Fargate bills per second and there's no idle EC2 instance sitting underneath to forget about.
 
+##### Why each piece exists, before any clicking
+
+Each component below solves exactly one problem the one before it doesn't — worth seeing as a dependency chain before it turns into eight separate steps.
+
+``` mermaid
+flowchart TD
+    VPC["VPC + Subnets<br/>Reused the account's default -- already public in every AZ"] --> SG["Security Group<br/>New one, inbound TCP 80 -- the default SG allows nothing from outside"]
+    VPC --> TG["Target Group, type IP<br/>A Fargate task has no instance ID to register by, only an IP"]
+
+    TaskDef["Task Definition<br/>The blueprint: image, CPU/memory, ports, roles"] --> ExecRole["Task Execution Role<br/>Lets Fargate pull the image + ship logs to CloudWatch"]
+    Cluster["ECS Cluster<br/>Just a namespace -- free, nothing running yet"]
+
+    SG --> ALB["Application Load Balancer<br/>New -- a task's own IP changes every restart, this is the stable entry point"]
+    TG --> ALB
+    VPC -->|"needs subnets in 2+ AZs"| ALB
+
+    Cluster --> Service["ECS Service<br/>Keeps N tasks running, replaces dead ones automatically"]
+    ExecRole --> Service
+    SG --> Service
+    Service --> Task["Task<br/>One running container, on its own ENI/IP"]
+    Service -->|"registers/deregisters automatically"| TG
+    ALB --> Listener["Listener HTTP : 80<br/>Forwards matching requests into the target group"]
+```
+
+*A security group rule is meaningless without a VPC for it to live in; a listener is meaningless without a target group to forward into. Each layer only becomes useful once the one before it already exists.*
+
+VPC + Subnets — **why the account's default, not a new one**
+:   The default VPC already has a public subnet in every Availability Zone, each with a route to an Internet Gateway — exactly what an ALB and an internet-reachable task both need. Building a VPC by hand is [networking.md](networking.md)'s own dedicated exercise; reusing what's already there keeps this lab focused on ECS and ALB mechanics instead of re-deriving CIDR planning and route tables from scratch.
+
+Security Group — **why a new one, not the account's `default`**
+:   AWS's own default security group only allows traffic between resources that already share it — nothing inbound from the internet. Nothing here could ever be reached from a browser without a security group carrying an explicit inbound rule (TCP 80, from anywhere), so a new one was created specifically for this.
+
+Target Group — **why type IP, not Instances**
+:   "Instances" registers by EC2 instance ID — something a Fargate task simply doesn't have. `awsvpc` networking mode gives every task its own network interface and IP address instead, so "IP addresses" is the only target type that can represent a Fargate task at all; it isn't a preference, it's the only option that works.
+
+Application Load Balancer — **why a brand-new one, and why it needed two Availability Zones**
+:   Before this, the only way to reach a task was its own public IP — one that changes on every restart or replacement. An ALB exists specifically to give one stable DNS name that always forwards to whichever tasks are currently healthy, no matter how many times the tasks underneath it have changed. An ALB requires subnets in **at least two** Availability Zones by design, for its own cross-AZ resilience — which is exactly what produced step 5's "Unused" target status earlier: the service placed tasks in a third AZ the ALB hadn't been given a subnet for yet, and adding that AZ's subnet to the ALB was the actual fix.
+
+##### What we actually built
+
+``` mermaid
+flowchart TD
+    Users(["Browser"]) -->|"http://ecs-alb-XXXXXXXXXX.ap-south-1.elb.amazonaws.com"| ALB
+
+    subgraph VPC["Default VPC — 172.31.0.0/16"]
+        ALB["ALB: ecs-alb<br/>Listener HTTP : 80"]
+        ALB --> TG["Target Group: ecs-alb<br/>type IP, health check /"]
+
+        subgraph AZa["ap-south-1a"]
+            SubA["Public subnet"]
+        end
+        subgraph AZb["ap-south-1b"]
+            SubB["Public subnet"]
+        end
+        subgraph AZc["ap-south-1c"]
+            SubC["Public subnet"]
+            Task1["Task<br/>learning-app : 2"]
+            Task2["Task<br/>learning-app : 2"]
+        end
+
+        ALB -.->|"subnet mapping"| SubA
+        ALB -.->|"subnet mapping"| SubB
+        ALB -.->|"subnet mapping, added after the AZ mismatch"| SubC
+        TG --> Task1
+        TG --> Task2
+        SG["Security Group: ecs-bfr3dxht<br/>Inbound TCP 80 from anywhere"] -.->|attached to| Task1
+        SG -.->|attached to| Task2
+    end
+
+    Cluster["ECS Cluster: learning-cluster"] --> Service["ECS Service: learning-service<br/>desired count 2, Fargate"]
+    TaskDef["Task Definition: learning-app<br/>0.25 vCPU / 0.5 GB, image: nginx"] --> Service
+    Service -->|"creates & watches"| Task1
+    Service -->|"creates & watches"| Task2
+    Service -->|"registers/deregisters automatically"| TG
+```
+
+*The finished shape, after step 5's AZ fix: one cluster, one task definition feeding one service, two tasks the service alone keeps alive, one security group attached to both, and an ALB whose subnet mapping now actually covers the AZ the tasks landed in.*
+
 ##### 1. Create a cluster
 
 **ECS console → Clusters → Create cluster**

@@ -24,7 +24,9 @@ Topics below are grouped by the original week they came from, so it's clear whic
 
 ## Week 3 — Containers
 
-- **[Containers](containers.md)** — Production container images, ECS Fargate, deployment strategies, EKS fundamentals.
+- **[Containers](containers.md)** — Production container images: small, cacheable Dockerfiles, multi-stage builds, non-root users, ECR and image scanning.
+- **[ECS & EKS](ecs.md)** — ECS Fargate, hands-on from the console through Terraform, EKS fundamentals, and the ECS-vs-EKS decision.
+- **[Deployment Strategies](deployment-strategies.md)** — Blue/green with CodeDeploy, canary releases, and backward-compatible schema changes, done for real against ECS.
 
 ## Week 4 — Terraform
 

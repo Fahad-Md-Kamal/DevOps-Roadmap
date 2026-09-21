@@ -19,7 +19,9 @@ Every page is built from real work, not a rewritten tutorial: real AWS resources
 - **Load Balancing & DNS** — ALB and NLB, health checks, TLS via ACM, Route 53.
 - **Databases (RDS)** — Multi-AZ, read replicas, backups and point-in-time recovery, safe SQL operations.
 - **Storage & Observability** — S3, Secrets Manager, CloudWatch, X-Ray, AWS Budgets.
-- **Containers** — Production container images, ECS Fargate, deployment strategies, EKS fundamentals.
+- **Containers** — Production container images: small, cacheable Dockerfiles, multi-stage builds, non-root users, ECR and image scanning.
+- **ECS & EKS** — ECS Fargate, hands-on from the console through Terraform, EKS fundamentals, and the ECS-vs-EKS decision.
+- **Deployment Strategies** — Blue/green with CodeDeploy, canary releases, and backward-compatible schema changes, done for real against ECS.
 - **Terraform** — From `init`/`plan`/`apply` through modules, remote state, and a whole platform (VPC, ALB, ASG, RDS, ECS, EKS, Lambda) written in HCL.
 - **Jenkins** — Controller/agent setup, connecting an SSH agent, pipeline configuration, and a full deployment pipeline built (and repeatedly broken and fixed) against a real application.
 - **CI/CD & Delivery** — End-to-end pipeline design and progressive delivery.

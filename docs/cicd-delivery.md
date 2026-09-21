@@ -156,7 +156,7 @@ Morning: finishing the pipeline. Afternoon: the readiness review itself.
 
 #### Blue/green: ECS + CodeDeploy, one atomic swap
 
-For an ECS Fargate service (containers.md 11/12) with a `CODE_DEPLOY` deployment controller instead of the default rolling one, Jenkins doesn't touch target groups directly at all — it hands the swap to CodeDeploy and waits:
+For an ECS Fargate service ([ecs.md](ecs.md) 11, [deployment-strategies.md](deployment-strategies.md) 12) with a `CODE_DEPLOY` deployment controller instead of the default rolling one, Jenkins doesn't touch target groups directly at all — it hands the swap to CodeDeploy and waits:
 
 ```groovy
 stage('Blue/green deploy') {

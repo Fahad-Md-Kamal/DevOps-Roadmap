@@ -77,7 +77,7 @@ One ALB replaces what would otherwise be multiple Nginx reverse proxy configurat
 
 #### ALB + target group for an ECS Fargate service, from the console
 
-The fastest way to see an ALB actually work is through the console, before ever touching the CLI — the same "build it by hand first" order the rest of this project follows. This version targets an ECS Fargate service (containers.md 11); the CLI-based lab right below covers the EC2-instance-target version in full, with the exact same underlying concepts, just a different registration mechanism. Three parts, done through the console, in this order, since each one needs the previous to already exist.
+The fastest way to see an ALB actually work is through the console, before ever touching the CLI — the same "build it by hand first" order the rest of this project follows. This version targets an ECS Fargate service ([ecs.md](ecs.md) 11); the CLI-based lab right below covers the EC2-instance-target version in full, with the exact same underlying concepts, just a different registration mechanism. Three parts, done through the console, in this order, since each one needs the previous to already exist.
 
 **Part A — create the target group first**
 

@@ -69,6 +69,91 @@ The orchestrator itself is not where ECS and EKS actually differ in price — th
 - Service auto scaling
 - Rolling deployments and the deployment circuit breaker
 
+#### Hands-on: your first ECS service, from the console
+
+Every concept above is worth seeing click by click before it's ever expressed as Terraform — the same "build it by hand first" order the AWS weeks already follow. Nothing in this walkthrough costs more than a few cents, even left running for an hour, since Fargate bills per second and there's no idle EC2 instance sitting underneath to forget about.
+
+##### 1. Create a cluster
+
+**ECS console → Clusters → Create cluster**
+
+- Name it `learning-cluster`.
+- Under **Infrastructure**, the console now offers three options — **Fargate only**,  
+**Fargate and Managed Instances** (AWS still provisions and patches the underlying EC2 instances for you, with more control over instance type than pure Fargate), and **Fargate and Self-managed instances** (this is the traditional EC2 launch type from the bullet list above — you own patching, sizing and scaling yourself, via your own Auto Scaling Group). Pick **Fargate only**.
+- Create it. This takes seconds — a cluster really is just a logical namespace, nothing running yet, nothing billed yet.
+
+!!! danger ""Unable to assume the service linked role. Please verify that the ECS service linked role exists.""
+
+    A real, first-time-only failure: AWS is supposed to auto-create the `AWSServiceRoleForECS` service-linked role behind the scenes the moment any ECS resource is created in an account, and that auto-creation can lag right when `Create cluster` runs, failing this one attempt. Check **IAM console → Roles** for `AWSServiceRoleForECS` first — it's very often already there despite the error, created as a side effect of the same failed attempt. If so, just wait 60–120 seconds (IAM's own eventual-consistency delay across regions) and retry **Create cluster** — nothing else needs to change. Only if the role genuinely doesn't exist yet, create it explicitly from CloudShell or a local terminal: `aws iam create-service-linked-role --aws-service-name ecs.amazonaws.com`. The IAM console's own guided **Create role → AWS service → Elastic Container Service** flow is a trap here — on the current console that flow creates a regular, custom-named role from an old managed-policy template (`AmazonEC2ContainerServiceRole`), not the actual service-linked role this error is asking for, and won't fix anything.
+
+##### 2. Create a task definition
+
+**Task definitions → Create new task definition**
+
+- Family name `learning-app`, launch type **Fargate**, task size the smallest available — **0.25 vCPU / 0.5 GB**.
+- Let the console auto-create the task execution role (`ecsTaskExecutionRole`) — this is the execution role from the bullet list above, the one that lets Fargate pull the image and write logs, separate from whatever permissions the *application itself* needs (the task role).
+- Container details: name `app`, image `public.ecr.aws/nginx/nginx:latest` (a public image — no registry login needed for this first pass), port mapping `80/TCP`, logging left on its default (wires up CloudWatch Logs automatically).
+
+##### 3. Run one standalone task — see it work before anything else
+
+**Clusters → learning-cluster → Tasks tab → Run new task**
+
+- Launch type Fargate, task definition `learning-app`.
+- Networking: a **public subnet**, and **Public IP** turned on.
+- Security group: **create a new one** here rather than reusing the account's **default** security group — the default one only allows traffic between resources that already share it, nothing inbound from the internet. Choose "Create a new security group," add an inbound rule (Type: Custom TCP, Port: `80`, Source: Anywhere / `0.0.0.0/0`), and reuse this same security group for the service and load balancer in the steps below.
+- Run it, and watch the task move `PROVISIONING → PENDING → RUNNING`.
+- Once running, find its public IP under the task's Networking tab and open `http://<that-ip>` in a browser — the nginx welcome page confirms the whole round trip: click Run, a task launches, you can reach it.
+- Stop the task once you've seen it (Tasks tab → select → Stop) — a standalone task, unlike a service, is never replaced if it dies or is stopped.
+
+##### 4. Turn it into a service — this is what actually keeps it running
+
+**Services tab → Create**
+
+- Same task definition — leave the **revision** field blank or on "latest" rather than typing a number in. Only revision `1` exists at this point; revision `2` doesn't show up until step 6 deliberately creates it, so entering `2` here now fails with a "task definition not found"-style error.
+- Service name `learning-service`, desired tasks `2` (so step 6's rolling deploy has something to actually roll).
+- Same public subnet/security group (the one created in step 3)/public-IP settings as step 3. Skip the load balancer for now.
+- Once both tasks are running, manually stop one from the Tasks tab and watch the service launch a replacement automatically within moments — the clearest possible demonstration of what a service actually adds over a standalone task.
+
+!!! success "Pausing here without losing anything, or paying for anything, while paused"
+
+    Fargate only bills per second while a task is actually `RUNNING` — the cluster, the task definition, and the service's own configuration cost nothing at all while idle. To stop paying without tearing anything down: **learning-service → Update service** → set **Desired tasks** to `0` → Update. Both running tasks stop, cost drops to zero, and everything else (service name, task definition link, networking, security group) stays exactly as configured. Coming back later just means the same screen, **Desired tasks** back to `2`, and picking up at whichever step was next.
+
+##### 5. Put it behind an Application Load Balancer
+
+Two task public IPs that change on every restart isn't how anyone actually reaches an ECS app.
+
+- Create an ALB (EC2 console → Load Balancers → Create, internet-facing, same VPC/public subnets — load-balancing-dns.md's own walkthrough covers this in full).
+- Create a target group of **type IP** (not "Instance" — Fargate tasks aren't EC2 instances), port 80, health check path `/`.
+- Back in **Services → learning-service → Update**, attach this ALB and target group under "Load balancing," mapping container `app` : port `80`.
+- Update the service, wait for both tasks to show healthy in the target group, then hit the ALB's own DNS name instead of a task's IP.
+
+##### 6. Deploy a new revision — watch a rolling update happen
+
+- **Task definitions → learning-app → Create new revision** — change something small (swap the image tag, or add an environment variable).
+- **Services → learning-service → Update service** — select the new revision.
+- Watch the Deployments tab: new tasks start on the new revision, wait to pass the health check, and *only then* are the old tasks stopped — the same launch-healthy-then-drain sequence covered in jenkins.md's multi-agent deployment section, seen here directly instead of described.
+
+##### 7. Break it on purpose
+
+Section 14's troubleshooting list is worth reproducing deliberately, one failure at a time, so each error message is already familiar before it shows up for real:
+
+- Point a new revision at an image that doesn't exist (`nginx:this-tag-is-fake`) → update the service → tasks stuck in a pull-and-restart loop.
+- Move the service to a **private** subnet with no NAT gateway → tasks can't reach the registry at all → same restart-loop symptom, a completely different cause.
+- Remove the security group's inbound rule on port 80 → the task itself runs fine, but the health check fails anyway → target group shows "unhealthy," the ALB starts returning 503.
+
+##### 8. Clean up
+
+Order matters — some of these depend on the others still existing:
+
+- Delete the ALB and its target group first.
+- Set the service's desired count to 0, then delete the service.
+- Delete the cluster.
+- Task definition revisions cost nothing to leave behind, but deregistering them is fine too.
+
+!!! success "What this earns before ever touching Terraform"
+
+    terraform.md's own reusable ECS service module (18.10-adjacent territory) stops being an abstract block of HCL once every field in it — cluster, task definition, service, target group — has already been clicked through by hand and watched actually do something. The CLI and Terraform versions of this exact walkthrough are the natural next steps once the console version feels familiar.
+
 
 ## 12 ECS With Real Deployment Strategies
 

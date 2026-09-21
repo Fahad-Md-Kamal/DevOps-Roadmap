@@ -233,6 +233,19 @@ Order matters for the load balancer pieces, since they live in EC2, not ECS, and
 
     terraform.md's own reusable ECS service module (18.10-adjacent territory) stops being an abstract block of HCL once every field in it — cluster, task definition, service, target group — has already been clicked through by hand and watched actually do something. The CLI and Terraform versions of this exact walkthrough are the natural next steps once the console version feels familiar.
 
+#### This same lab, as Terraform
+
+[`IaC/ecs-cluster-service/`](https://github.com/Fahad-Md-Kamal/DevOps-Roadmap/tree/main/IaC/ecs-cluster-service) and [`IaC/ecs-alb/`](https://github.com/Fahad-Md-Kamal/DevOps-Roadmap/tree/main/IaC/ecs-alb) are the exact walkthrough above, written as two separate Terraform states rather than clicked through by hand — split the same way the two diagrams above are split, so neither folder needs the other's IAM permissions (the same reasoning as jenkins.md 20.16's multi-agent pipeline split, just applied to Terraform state boundaries instead of Jenkins agents).
+
+- **`ecs-cluster-service`** — cluster, security group, task execution role, CloudWatch log group, task definition, and service.
+- **`ecs-alb`** — target group (type IP), ALB, and listener.
+
+Apply order, and it matters: `ecs-cluster-service` first with its `target_group_arn` variable left at the default `null` (the service comes up with no load balancer, exactly step 4 before step 5 exists) → feed its `security_group_id` output into `ecs-alb` and apply that → feed `ecs-alb`'s `target_group_arn` output back into `ecs-cluster-service` and apply once more, which activates a `dynamic "load_balancer"` block and attaches the ALB — the Terraform equivalent of step 5 Part C's "Update service" click. The full reasoning lives in each folder's own `main.tf` comments, not repeated here.
+
+!!! success "New revisions and teardown are both one-line answers"
+
+    A new task definition revision is just changing `container_image` (or `cpu`/`memory`/`container_port`) in `ecs-cluster-service` and running `terraform apply` again — no console click needed for step 6 at all. Deleting everything is `terraform destroy` in `ecs-cluster-service` first, then in `ecs-alb` — the reverse of step 8's console order, since here two separate Terraform states are doing the ordering instead of one cascaded "Delete cluster" button that already knows about both.
+
 
 ## 12 ECS With Real Deployment Strategies
 

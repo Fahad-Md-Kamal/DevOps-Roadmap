@@ -333,7 +333,7 @@ pipeline {
 
 !!! success "The same shape as every other conditional gate in this chapter"
 
-    Reacting to `terraform plan`'s exit code here is the identical idea as `when { changeset ... }` on the docker-push pipeline (20.14) or a canary's metrics-check gate ([cicd-delivery.md](cicd-delivery.md)) — a scheduled pipeline still checks a real condition before doing anything consequential; the schedule just decides *when* to check, not *whether* the check passed.
+    Reacting to `terraform plan`'s exit code here is the identical idea as `when { changeset ... }` on the docker-push pipeline (20.14) or a canary's metrics-check gate ([cicd-delivery](cicd-delivery.md)) — a scheduled pipeline still checks a real condition before doing anything consequential; the schedule just decides *when* to check, not *whether* the check passed.
 
 !!! note "`pollSCM` is the same cron syntax, for a narrower, git-specific check"
 
@@ -1027,12 +1027,12 @@ Force the use of the sandbox globally in the system
 
 ### 20.16 A Multi-Agent, Multi-Pipeline Deployment: Infra, Build, and Deploy as Three Separate Jobs
 
-Every pipeline shown so far in this chapter runs start to finish on one agent. A real platform more often splits the work across three genuinely separate Jenkins *jobs* — each on its own labeled agent, sometimes literally a different machine — triggered off each other rather than living as stages in one Jenkinsfile. This is [cicd-delivery.md](cicd-delivery.md)'s "which comes after which" question again, but drawn at the level of physical agents and separate credential scopes instead of just pipeline stages.
+Every pipeline shown so far in this chapter runs start to finish on one agent. A real platform more often splits the work across three genuinely separate Jenkins *jobs* — each on its own labeled agent, sometimes literally a different machine — triggered off each other rather than living as stages in one Jenkinsfile. This is [cicd-delivery](cicd-delivery.md)'s "which comes after which" question again, but drawn at the level of physical agents and separate credential scopes instead of just pipeline stages.
 
 #### Why three separate jobs on three separate agents, not one
 
 - **Least privilege, taken further than 20.9's credential scoping** — a build agent never needs AWS deploy permissions; a deploy agent never needs a GitHub push token or Docker Hub push credentials, only pull access and whatever AWS role actually performs the deployment. A compromised build agent (a malicious dependency executing code during `docker build`, say) simply has no path to production at all, because it holds no AWS credentials to reach it with.
-- **Independent cadence** — infrastructure changes rarely; the app deploys on every merge. A dedicated infra job, with its own trigger and its own approval gate, doesn't get dragged along on every app-only commit — [cicd-delivery.md](cicd-delivery.md)'s "One pipeline or two" section covers the same tradeoff one level up, as guarded stages in one pipeline rather than fully separate jobs.
+- **Independent cadence** — infrastructure changes rarely; the app deploys on every merge. A dedicated infra job, with its own trigger and its own approval gate, doesn't get dragged along on every app-only commit — [cicd-delivery](cicd-delivery.md)'s "One pipeline or two" section covers the same tradeoff one level up, as guarded stages in one pipeline rather than fully separate jobs.
 - **Toolchain isolation** — the build agent needs Docker and Buildx (20.6/20.7's install list); the deploy agent needs the AWS CLI and IAM permissions for ECS/CodeDeploy/ELB; the infra agent needs Terraform. None of the three needs what the other two have installed, so none of the three's attack surface includes tools it never uses.
 
 #### The three pipelines
@@ -1055,7 +1055,7 @@ pipeline {
 }
 ```
 
-Triggered manually, or by a webhook scoped to `.tf` file changes ([cicd-delivery.md](cicd-delivery.md)'s `changeset` guard) — not by every commit to the application repo.
+Triggered manually, or by a webhook scoped to `.tf` file changes ([cicd-delivery](cicd-delivery.md)'s `changeset` guard) — not by every commit to the application repo.
 
 **2. Build pipeline — `agent-build`**
 
@@ -1120,7 +1120,7 @@ pipeline {
 }
 ```
 
-This pipeline never touches source code or a Dockerfile at all — it only ever pulls an already-built, already-tagged image and applies whichever rollout strategy the `STRATEGY` parameter selects, using the exact mechanics [cicd-delivery.md](cicd-delivery.md)'s "Blue/green and canary, driven from the pipeline" section already covers.
+This pipeline never touches source code or a Dockerfile at all — it only ever pulls an already-built, already-tagged image and applies whichever rollout strategy the `STRATEGY` parameter selects, using the exact mechanics [cicd-delivery](cicd-delivery.md)'s "Blue/green and canary, driven from the pipeline" section already covers.
 
 #### Shadow: the one strategy with no ALB-weight equivalent
 
@@ -1166,4 +1166,4 @@ flowchart LR
 
 !!! success "This is what a genuinely complex, real pipeline looks like"
 
-    Not one Jenkinsfile with twenty stages, but several small, single-purpose pipelines, each on a differently-scoped agent, connected by explicit `build job:` triggers instead of implicit sequential stages — the same "which comes after which" question [cicd-delivery.md](cicd-delivery.md)'s end-to-end diagram answers at the level of logical steps, now answered at the level of which machine does which part, and what each one is and isn't trusted with.
+    Not one Jenkinsfile with twenty stages, but several small, single-purpose pipelines, each on a differently-scoped agent, connected by explicit `build job:` triggers instead of implicit sequential stages — the same "which comes after which" question [cicd-delivery](cicd-delivery.md)'s end-to-end diagram answers at the level of logical steps, now answered at the level of which machine does which part, and what each one is and isn't trusted with.

@@ -86,7 +86,7 @@ flowchart TD
 *A security group rule is meaningless without a VPC for it to live in; a listener is meaningless without a target group to forward into. Each layer only becomes useful once the one before it already exists.*
 
 VPC + Subnets — **why the account's default, not a new one**
-:   The default VPC already has a public subnet in every Availability Zone, each with a route to an Internet Gateway — exactly what an ALB and an internet-reachable task both need. Building a VPC by hand is [networking.md](networking.md)'s own dedicated exercise; reusing what's already there keeps this lab focused on ECS and ALB mechanics instead of re-deriving CIDR planning and route tables from scratch.
+:   The default VPC already has a public subnet in every Availability Zone, each with a route to an Internet Gateway — exactly what an ALB and an internet-reachable task both need. Building a VPC by hand is [networking](networking.md)'s own dedicated exercise; reusing what's already there keeps this lab focused on ECS and ALB mechanics instead of re-deriving CIDR planning and route tables from scratch.
 
 Security Group — **why a new one, not the account's `default`**
 :   AWS's own default security group only allows traffic between resources that already share it — nothing inbound from the internet. Nothing here could ever be reached from a browser without a security group carrying an explicit inbound rule (TCP 80, from anywhere), so a new one was created specifically for this.
@@ -175,7 +175,7 @@ flowchart LR
 
 ##### 5. Put it behind an Application Load Balancer
 
-Two task public IPs that change on every restart isn't how anyone actually reaches an ECS app — one stable DNS name that always points at whichever tasks are currently healthy is what an ALB actually buys here. The full console walkthrough for this lives in [load-balancing-dns.md](load-balancing-dns.md)'s "ALB + target group for an ECS Fargate service, from the console" — right before that page's own CLI-based ALB lab, since this is fundamentally the same load-balancing topic, just with a target group of **type IP** instead of instances, and automatic registration instead of a manual `register-targets` call. Use `learning-tg` / `learning-alb` as the names, the security group from step 3 above, and `learning-service` / container `app` : port `80` as the service to attach it to — then come back here for step 6 once both tasks show healthy in the target group.
+Two task public IPs that change on every restart isn't how anyone actually reaches an ECS app — one stable DNS name that always points at whichever tasks are currently healthy is what an ALB actually buys here. The full console walkthrough for this lives in [load-balancing-dns](load-balancing-dns.md)'s "ALB + target group for an ECS Fargate service, from the console" — right before that page's own CLI-based ALB lab, since this is fundamentally the same load-balancing topic, just with a target group of **type IP** instead of instances, and automatic registration instead of a manual `register-targets` call. Use `learning-tg` / `learning-alb` as the names, the security group from step 3 above, and `learning-service` / container `app` : port `80` as the service to attach it to — then come back here for step 6 once both tasks show healthy in the target group.
 
 ##### 6. Deploy a new revision — watch a rolling update happen
 

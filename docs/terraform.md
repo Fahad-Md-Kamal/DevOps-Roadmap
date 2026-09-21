@@ -1664,7 +1664,7 @@ resource "aws_ecs_task_definition" "order_service" {
 
 ### 18.6 A Reusable ECS Service Module
 
-[ecs.md](ecs.md)'s order service, task definition and all, as a module — so that a second microservice is one more module call, not a copy-pasted block of ECS resources.
+[ecs](ecs.md)'s order service, task definition and all, as a module — so that a second microservice is one more module call, not a copy-pasted block of ECS resources.
 
 ``` hcl
 # modules/ecs-service/variables.tf
@@ -1722,7 +1722,7 @@ module "order_service" {
 
 ### 18.7 The EKS Cluster, Node Group and IRSA
 
-[ecs.md](ecs.md)'s second runtime for the same order service, declared. More moving parts than ECS: the control plane, a node group of worker EC2 instances, and IRSA (IAM Roles for Service Accounts) so pods get scoped AWS permissions without static credentials baked into a container image.
+[ecs](ecs.md)'s second runtime for the same order service, declared. More moving parts than ECS: the control plane, a node group of worker EC2 instances, and IRSA (IAM Roles for Service Accounts) so pods get scoped AWS permissions without static credentials baked into a container image.
 
 ``` hcl
 resource "aws_eks_cluster" "main" {

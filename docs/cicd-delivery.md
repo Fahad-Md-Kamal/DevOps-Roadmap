@@ -72,16 +72,16 @@ flowchart TD
 
 #### Who does what, and in what order
 
-1. **Developer** pushes a feature branch and opens a pull request on GitHub — the same scoped-credential clone pattern as [jenkins.md](jenkins.md)'s `github-pat`, just triggered by a webhook (jenkins.md's Multibranch Pipeline/webhook section) instead of a manual build.
+1. **Developer** pushes a feature branch and opens a pull request on GitHub — the same scoped-credential clone pattern as [jenkins](jenkins.md)'s `github-pat`, just triggered by a webhook (jenkins.md's Multibranch Pipeline/webhook section) instead of a manual build.
 2. **Jenkins CI** picks up the PR: lint and unit tests run first, fast feedback before anything expensive happens. A human code review gates the merge — nothing below this point starts until a reviewer approves and the branch merges to `main`.
 3. Once merged, two independent Jenkins pipelines fan out from the same commit, in parallel rather than one blocking the other:
-   - **Build**: [containers.md](containers.md)'s production image gets built and tagged by commit SHA, then pushed to a registry — [jenkins.md](jenkins.md)'s 20.6/20.8/20.14 sections cover exactly this step, including the credential handling and the registry-push variant.
-   - **Infrastructure**: [terraform.md](terraform.md)'s `plan` runs and gets posted on the PR for review; a human approves it, then `apply` actually provisions or updates the AWS resources everything else needs — the [networking.md](networking.md) VPC, [load-balancing-dns.md](load-balancing-dns.md)'s ALB and Route 53, the compute layer from [compute.md](compute.md), and the [databases.md](databases.md) RDS instance.
+   - **Build**: [containers](containers.md)'s production image gets built and tagged by commit SHA, then pushed to a registry — [jenkins](jenkins.md)'s 20.6/20.8/20.14 sections cover exactly this step, including the credential handling and the registry-push variant.
+   - **Infrastructure**: [terraform](terraform.md)'s `plan` runs and gets posted on the PR for review; a human approves it, then `apply` actually provisions or updates the AWS resources everything else needs — the [networking](networking.md) VPC, [load-balancing-dns](load-balancing-dns.md)'s ALB and Route 53, the compute layer from [compute](compute.md), and the [databases](databases.md) RDS instance.
 4. **Staging** only starts once both of those finish: the new image is deployed onto infrastructure that's already up to date, then automated smoke tests run immediately — catching an obviously broken deploy before a human ever looks at it.
 5. **Tester** does the part a smoke test can't: exploratory and scenario-based QA against the actual staging environment, signing off only once satisfied it behaves correctly, not just that it started.
-6. A second, separate approval gate — deliberately distinct from the infrastructure approval in step 3 — promotes the same already-tested image to **production**, using a blue/green or canary rollout (jenkins.md's 20.14/[storage-observability.md](storage-observability.md) territory) rather than an all-at-once cutover.
+6. A second, separate approval gate — deliberately distinct from the infrastructure approval in step 3 — promotes the same already-tested image to **production**, using a blue/green or canary rollout (jenkins.md's 20.14/[storage-observability](storage-observability.md) territory) rather than an all-at-once cutover.
 7. Production traffic flows through the ALB and DNS layer into the running app, which reads from and writes to RDS and S3 the same way staging just did — same infrastructure shape, promoted environment.
-8. **Observability** ([storage-observability.md](storage-observability.md)'s CloudWatch/X-Ray) watches the live app continuously, not just at deploy time. An alert reaches an on-call engineer, who either kicks off Jenkins' one-click rollback (back to the previous known-good image, no new build required) or files what they found back to the developer — closing the loop the diagram starts with.
+8. **Observability** ([storage-observability](storage-observability.md)'s CloudWatch/X-Ray) watches the live app continuously, not just at deploy time. An alert reaches an on-call engineer, who either kicks off Jenkins' one-click rollback (back to the previous known-good image, no new build required) or files what they found back to the developer — closing the loop the diagram starts with.
 
 !!! note "Why Build and Infrastructure run in parallel, not one after the other"
 
@@ -152,11 +152,11 @@ Morning: finishing the pipeline. Afternoon: the readiness review itself.
 
 ### Blue/green and canary, driven from the pipeline
 
-[principles.md](principles.md)'s 2.1.3/2.1.4 already cover why you'd pick blue/green over canary — the tradeoff between instant full-blast-radius rollback and slow, metrics-gated ramping. What changes here is *who* actually flips the switch: not a person in the AWS console, but a Jenkins pipeline stage, gated the same way any other stage in this project's pipelines already is (jenkins.md's approval-gate pattern, 20.5).
+[principles](principles.md)'s 2.1.3/2.1.4 already cover why you'd pick blue/green over canary — the tradeoff between instant full-blast-radius rollback and slow, metrics-gated ramping. What changes here is *who* actually flips the switch: not a person in the AWS console, but a Jenkins pipeline stage, gated the same way any other stage in this project's pipelines already is (jenkins.md's approval-gate pattern, 20.5).
 
 #### Blue/green: ECS + CodeDeploy, one atomic swap
 
-For an ECS Fargate service ([ecs.md](ecs.md) 11, [deployment-strategies.md](deployment-strategies.md) 12) with a `CODE_DEPLOY` deployment controller instead of the default rolling one, Jenkins doesn't touch target groups directly at all — it hands the swap to CodeDeploy and waits:
+For an ECS Fargate service ([ecs](ecs.md) 11, [deployment-strategies](deployment-strategies.md) 12) with a `CODE_DEPLOY` deployment controller instead of the default rolling one, Jenkins doesn't touch target groups directly at all — it hands the swap to CodeDeploy and waits:
 
 ```groovy
 stage('Blue/green deploy') {

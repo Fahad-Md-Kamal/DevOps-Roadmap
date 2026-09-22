@@ -669,6 +669,14 @@ terraform {
 }
 ```
 
+!!! danger "A child module can't see the caller's `locals` or `variables` at all"
+
+    A real error, hit building `IaC/tf-eks/`'s VPC module: `locals { env = "staging" }` lived in the root module, and `moduels/vpc/main.tf` referenced `local.env` directly in a resource's tags — failing immediately with `Reference to undeclared local value`. A module is a fully isolated scope; it has no visibility into whatever called it, no matter how "nearby" the value looks in the file tree. The fix is always the same shape: declare `variable "env" {}` in the module's own `variables.tf` (no `default`, since the caller must always supply it — 16.4's own "required vs optional" rule), then pass it in explicitly from the call site: `module "vpc" { source = "./moduels/vpc"; env = local.env }`. The value crosses the boundary only because it's named as an argument, never because the module happened to be a subdirectory of the one that defined it.
+
+!!! danger "`module.vpc.id` doesn't exist until the module says it does"
+
+    The next error in the same session: `vpc_id = module.vpc.id` inside a sibling module call, failing with `Unsupported attribute` — the `vpc` module had no `outputs.tf` at all. Nothing about a resource living inside a module makes its attributes automatically visible outside it; an `output` block is the only thing that exposes anything, and the output's *name* is what the caller references (`output "id" { value = aws_vpc.main.id }` makes `module.vpc.id` valid — the name doesn't have to match the underlying attribute, though keeping it identical, as here, is the least surprising choice). The same mistake showed up a second time moments later, in a subnet module's own `output.tf` that referenced a resource label (`aws_subnet.private_zone1`) that had since been renamed to `aws_subnet.sn` in `main.tf` — the output file simply hadn't been updated to match. Renaming a resource inside a module doesn't just risk breaking `main.tf`; every `output` referencing that resource needs the same rename.
+
 #### Shaping data at the boundary between two modules
 
 A module's output doesn't have to hand back exactly what it holds internally — narrowing it to just what the next module needs is itself part of interface design. `day02-modules/main.tf` does exactly this when wiring `network`'s output into `compute`'s input:
@@ -1229,6 +1237,10 @@ terraform {
 
     Newer Terraform versions can lock directly on the S3 object using conditional writes — no separate DynamoDB table required. Either approach solves the same problem: without locking, two `apply` runs starting seconds apart both read the same "before" state and can each write back a "after" that discards the other's changes.
 
+!!! danger "`-reconfigure` and `-migrate-state` answer different questions — picking the wrong one loses track of real infrastructure"
+
+    Adding a `backend "s3" { ... }` block to an `IaC/tf-eks/` config that already had real, applied resources (a live VPC, NAT Gateway, subnets) produced exactly the error the table above predicts: `Backend configuration changed`, with `init` refusing to proceed until told which of two flags to use. The two are not interchangeable: **`-reconfigure`** tells Terraform to just start using the new backend as-is, treating it as empty — correct only when there's no existing state worth keeping, e.g. local testing that never got applied for real. **`-migrate-state`** actually copies the current state into the new backend first, so everything Terraform already knows about keeps being tracked. Running `-reconfigure` against a backend switch with real applied resources would have made Terraform believe nothing existed yet in S3, while the VPC/NAT/subnets kept right on existing (and billing) in AWS, untracked — the next `apply` could easily have tried to create a second copy of everything instead of recognizing what was already there. `-migrate-state` was the correct flag here, confirmed by a `terraform plan` immediately after showing `No changes. Your infrastructure matches the configuration.` against the new backend.
+
 #### Migrating dynamodb_table to use_lockfile
 
 A real `apply` on Terraform 1.16 produced a live deprecation warning:
@@ -1771,7 +1783,44 @@ resource "aws_iam_role" "order_service_pod" {
 
 !!! note "Why IRSA over a node-wide IAM role"
 
-    Without IRSA, every pod on a node inherits the node group's own IAM role — the order-service pod and any other pod scheduled on that same worker would share identical AWS permissions. IRSA scopes credentials to the individual Kubernetes service account instead, matching the least-privilege principle the customer's readiness review (cicd-delivery.html Day 22) explicitly checks for.
+    Without IRSA, every pod on a node inherits the node group's own IAM role — the order-service pod and any other pod scheduled on that same worker would share identical AWS permissions. IRSA scopes credentials to the individual Kubernetes service account instead, matching the least-privilege principle the customer's readiness review ([cicd-delivery](cicd-delivery.md) Day 22) explicitly checks for.
+
+#### The networking underneath it, built for real: `IaC/tf-eks/`
+
+The snippet above assumes `var.private_subnet_ids` already exists — a real EKS cluster needs a VPC, public and private subnets across at least two AZs, an Internet Gateway, a NAT Gateway, and route tables tying it all together, before `aws_eks_cluster` has anywhere to actually launch into. [`IaC/tf-eks/`](https://github.com/Fahad-Md-Kamal/DevOps-Roadmap/tree/main/IaC/tf-eks) is that networking foundation, applied for real — five small modules (`vpc`, `igw`, `subnet`, `nat`, `routes`) composed from the root, not the EKS cluster/node-group/IRSA resources themselves yet.
+
+``` mermaid
+flowchart TD
+    VPC["VPC<br/>10.0.0.0/16"] --> IGW["Internet Gateway"]
+    VPC --> PrivSN1["Private subnet<br/>zone 1"]
+    VPC --> PrivSN2["Private subnet<br/>zone 2"]
+    VPC --> PubSN1["Public subnet<br/>zone 1"]
+    VPC --> PubSN2["Public subnet<br/>zone 2"]
+
+    PubSN1 --> NAT["NAT Gateway<br/>+ Elastic IP"]
+    IGW --> PubRT["Public route table<br/>0.0.0.0/0 -> IGW"]
+    NAT --> PrivRT["Private route table<br/>0.0.0.0/0 -> NAT"]
+
+    PubSN1 --> PubRT
+    PubSN2 --> PubRT
+    PrivSN1 --> PrivRT
+    PrivSN2 --> PrivRT
+```
+
+*One NAT Gateway, deliberately, not one per AZ — cheaper, but every private subnet's internet egress depends on that single NAT Gateway staying up.*
+
+The same `subnet` module builds all four subnets, and the same `routes` module builds both route tables — a `type = "public"`/`"private"` variable on each drives everything that actually differs:
+
+- **Subnet module**: `map_public_ip_on_launch` defaults `false`; only the public-zone calls override it to `true`. The `kubernetes.io/role/*elb` tag EKS's own Load Balancer Controller looks for also depends on `type` — `kubernetes.io/role/elb` for public, `kubernetes.io/role/internal-elb` for private — built with a module-local computed prefix (`var.type == "public" ? "" : "internal-"`) interpolated straight into the tag *key*, not just its value.
+- **Routes module**: one `aws_route_table` resource, reused for both tiers. Its single route sets `nat_gateway_id` and `gateway_id` conditionally on `var.type`, with the one that doesn't apply resolving to `null` — AWS rejects a route with *both* set, but a `null` attribute is simply treated as not provided.
+
+!!! danger "CIDR overlap is invisible to `terraform validate` — it's an AWS-side check, not an HCL one"
+
+    A subnet was written with `cidr_block = "10.0.0.0/16"` — identical to the VPC's own CIDR block, consuming the VPC's entire address space for one subnet alone. `terraform validate` passed cleanly, because nothing about that is a syntax or type error; HCL has no idea what a CIDR block even means, let alone whether one range contains another. This is exactly the kind of mistake that only surfaces from AWS's own API, at `plan` or `apply` time (or, if caught late enough, as a straight-up conflict error mid-`apply`) — the same lesson as 16.4's `validation` block advice, just for a constraint that can't be expressed as a simple regex: `/19` blocks used elsewhere in the same VPC align on 32-address boundaries in the third octet (`.0`, `.32`, `.64`, `.96`, ...), and eyeballing that by hand is exactly how the overlap happened in the first place.
+
+!!! success "The migration lesson from 17.2, in the exact place it actually happened"
+
+    This is the same `IaC/tf-eks/` project the `-reconfigure`-vs-`-migrate-state` danger box above is drawn from — real applied resources, a backend added after the fact, and the live confirmation (`terraform plan` reporting no drift against the new S3 backend) that the migration preserved everything Terraform already knew about.
 
 ### 18.8 Worked Examples
 

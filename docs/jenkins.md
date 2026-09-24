@@ -105,7 +105,7 @@ Create the first admin user
 :   Skipping this and continuing as the default `admin` account is explicitly offered but shouldn't be taken for anything beyond a five-minute local test — the same reasoning as never leaving a database on its default credentials.
 
 Instance configuration
-:   Confirms the URL Jenkins believes it's reachable at — matters later for webhook payload URLs (20.11) and any notification that links back to a build, since a wrong URL here means links that go nowhere.
+:   Confirms the URL Jenkins believes it's reachable at — matters later for webhook payload URLs (20.12) and any notification that links back to a build, since a wrong URL here means links that go nowhere.
 
 #### Operating Jenkins as a systemd service
 
@@ -797,6 +797,42 @@ pipeline {
 ### 20.12 Multibranch Pipelines, Webhooks & Shared Libraries
 
 Three pieces that turn "one Jenkinsfile" into "a real CI setup serving a whole repository."
+
+#### From `git push` to a running pipeline, step by step
+
+Tying 20.5, 20.11, and the two pieces below into the actual sequence of events — the answer to "how does Jenkins get the updated pipeline without someone copy-pasting it in": it doesn't get synced at all. Jenkins re-fetches the `Jenkinsfile` from git fresh, on every single run.
+
+1. **A developer edits the `Jenkinsfile`** (or any application code) and pushes to a branch on GitHub — the same as any other commit, no separate "deploy the pipeline" step.
+2. **GitHub's webhook fires immediately** — configured once, under the repo's *Settings → Webhooks*, pointing at `https://<jenkins-url>/github-webhook/` (this is exactly what 20.2's URL-configuration step matters for later). GitHub POSTs a payload describing the push the moment it happens.
+3. **Jenkins' GitHub plugin receives that payload** and matches it against every job listening for it — "GitHub hook trigger for GITScm polling" (checked in a job's own config), or a Multibranch Pipeline's repository scan, below.
+4. **A Multibranch Pipeline re-scans the repository** at this point too — if the push was to a brand-new branch with its own `Jenkinsfile`, this is where a dedicated job for that branch gets created; if a branch was deleted, its job gets torn down.
+5. **Jenkins schedules and starts a build** for the affected branch's job.
+6. **The build's first action is checking out the repository again** — at exactly the commit that triggered it, via the SCM configuration behind "Pipeline script from SCM" (20.5's danger box), or an explicit `checkout scm` step. This pulls back *both* the application code and the just-pushed `Jenkinsfile` — nothing about the pipeline definition carried over from the previous run.
+7. **Jenkins parses that freshly-checked-out `Jenkinsfile`** and compiles it into a running pipeline. This is the exact moment any change to the pipeline logic itself takes effect — the file Jenkins just read off disk is the one from the commit pushed seconds earlier, never a stale copy sitting in Jenkins' own configuration.
+8. **The pipeline's `stages` run** against that same checkout — Build, Test, Deploy, whatever 20.11's Jenkinsfile declares — followed by its `post {}` block.
+9. **Jenkins reports the result back to GitHub** (a green check or red X against the commit/PR, when the plugin's configured for it), and the Multibranch Pipeline's own UI reflects the new build under that branch.
+
+``` mermaid
+sequenceDiagram
+    participant Dev as Developer
+    participant GH as GitHub repo
+    participant JK as Jenkins controller
+    participant BLD as Build (agent)
+
+    Dev->>GH: git push (Jenkinsfile or app code)
+    GH-->>JK: webhook POST to /github-webhook/
+    JK->>JK: match push to job, rescan branches
+    JK->>BLD: schedule and start build
+    BLD->>GH: checkout at triggering commit
+    GH-->>BLD: app code + Jenkinsfile
+    BLD->>BLD: parse Jenkinsfile, run stages
+    BLD-->>JK: report result
+    JK-->>GH: update commit status
+```
+
+!!! success "Why this eliminates the copy-paste entirely"
+
+    Nothing in this flow stores the Jenkinsfile's *contents* anywhere in Jenkins' own configuration — step 6 fetches it fresh from git on every run. A push to `main` doesn't need a manual second step to "update Jenkins with the new pipeline"; the checkout in step 6 already *is* that update. This is the same reason 20.5's danger box calls "Pipeline script" (typed directly into the job) the wrong choice: it's the one path in Jenkins that *doesn't* re-fetch anything, so it's the one place a stale, manually-pasted copy can actually happen.
 
 #### Multibranch pipeline
 

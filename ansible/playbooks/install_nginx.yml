@@ -1,0 +1,21 @@
+---
+- name: Install and start nginx
+  hosts: web
+  become: true
+
+  tasks:
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Install nginx
+      ansible.builtin.apt:
+        name: nginx
+        state: present
+
+    - name: Ensure nginx is running and enabled
+      ansible.builtin.service:
+        name: nginx
+        state: started
+        enabled: true

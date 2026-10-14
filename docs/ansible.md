@@ -1,5 +1,6 @@
 ---
 title: Ansible
+icon: simple/ansible
 ---
 
 # Ansible

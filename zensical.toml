@@ -22,6 +22,7 @@ nav = [
   { "Terraform" = "terraform.md" },
   { "Jenkins" = "jenkins.md" },
   { "CI/CD & Delivery" = "cicd-delivery.md" },
+  { "Ansible" = "ansible.md" },
 ]
 
 extra_css = ["stylesheets/extra.css"]

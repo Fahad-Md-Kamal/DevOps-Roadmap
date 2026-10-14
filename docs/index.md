@@ -36,3 +36,7 @@ Topics below are grouped by the original week they came from, so it's clear whic
 
 - **[Jenkins](jenkins.md)** — Controller/agent setup, connecting an SSH agent, pipeline configuration, and a full real deployment pipeline built (and repeatedly broken and fixed) against a real application.
 - **[CI/CD & Delivery](cicd-delivery.md)** — End-to-end pipeline design and progressive delivery.
+
+## Week 6 — Configuration Management
+
+- **[Ansible](ansible.md)** — What to learn and in what order, a practice roadmap built on this project's own AWS infrastructure, study sources, and the full Red Hat Ansible certification roadmap (RHCE through RHCA).

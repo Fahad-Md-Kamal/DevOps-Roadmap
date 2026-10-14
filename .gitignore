@@ -10,3 +10,7 @@
 
 # Internal planning docs with real names/employer/client details -- never publish
 DevOps-_Resource_Ramp_Plan_270826*.html
+
+# Ansible practice lab -- SSH private key, never the keypair's secret half
+ansible/docker/ansible_practice_key
+!ansible/docker/ansible_practice_key.pub
